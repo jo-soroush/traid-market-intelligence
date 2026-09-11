@@ -80,6 +80,29 @@ For exact domain rules, read `FINANCIAL_AND_DATA_GUARDRAILS.md`.
 
 ## 4. Card Start
 
+Before implementation, run Phase 0 readiness/preflight for the resolved Card:
+
+``` text
+required runtime/tool versions
+Docker or external services
+credentials/configuration requirements
+network/API access
+test tools
+source verification
+datasets/fixtures
+```
+
+Missing mandatory prerequisites produce:
+
+``` text
+READINESS_GATE: BLOCKED
+STOP BEFORE IMPLEMENTATION
+```
+
+Phase 1 implementation requires explicit Card-start approval. Passing
+validation produces `READY_FOR_HUMAN_REVIEW`; it does not authorize commit,
+push, merge, or delivery.
+
 Before any implementation:
 
 ``` text
@@ -343,20 +366,18 @@ Git records repository state. It does not redefine Roadmap/Card intent.
 
 ## 13. Card Closure
 
-A Card is `COMPLETE` only when:
+After Phase 1, a Card is `READY_FOR_HUMAN_REVIEW` when implementation,
+validation, the exact Exit Gate, Evidence, and `CARD_QUALITY_GATE: PASS` are
+complete while delivery approval remains `NOT_GRANTED`.
+
+Human delivery approval is required for Phase 2. Only after approved Git
+delivery is verified may a Card become `COMPLETE`:
 
 ``` text
-exact Card contract satisfied
-exact Exit Gate proven
-required tests/evaluations PASS
-applicable critical invariants PASS
-Evidence current
-Learning Record complete
-Engineering proof and learning/decision evidence integrity complete
-CARD_QUALITY_GATE: PASS
-repository/Git reviewed
-required approved delivery complete
-PROJECT_CONTROL reconciled
+delivery approval granted
+approved commit/push/merge completed as applicable
+delivery verified
+PROJECT_CONTROL and Evidence reconciled
 ```
 
 Then:
@@ -381,6 +402,7 @@ VERIFY BEFORE CLAIM.
 EVIDENCE BEFORE COMPLETION.
 CHECKPOINT BEFORE RISK.
 HUMAN APPROVAL BEFORE CONSEQUENTIAL ACTION.
+READY_FOR_HUMAN_REVIEW → STOP FOR HUMAN DELIVERY REVIEW.
 CARD COMPLETE → STOP.
 NEXT CARD → NEW HUMAN APPROVAL.
 ```

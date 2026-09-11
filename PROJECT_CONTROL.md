@@ -40,13 +40,13 @@ Never invent a convenient state.
 ```text
 Project: TraID
 Target: V1
-Project Phase: PRE_IMPLEMENTATION / CANONICAL_HARNESS_READY
-Active Card: NONE
-Active Card State: NOT_STARTED
+Project Phase: PRE_IMPLEMENTATION / C01_READY_FOR_HUMAN_REVIEW
+Active Card: V1-C01 — Repository Baseline & Engineering Harness
+Active Card State: READY_FOR_HUMAN_REVIEW
 Last COMPLETE Card: NONE
 Next Roadmap Card: V1-C01 — Repository Baseline & Engineering Harness
 Next Card Authorized: NO
-Implementation Authorization: NONE
+Implementation Authorization: V1-C01 implementation only; delivery NOT_GRANTED
 Live Trade Execution: PROHIBITED
 Human Final Authority: YES
 ```
@@ -87,8 +87,8 @@ FINANCIAL_AND_DATA_GUARDRAILS.md: CANONICAL / CROSS-CHECK PASS
 .agents/skills/traid-card-execution/SKILL.md: CANONICAL / CROSS-CHECK PASS
 ```
 
-Canonical Harness installation is not implementation evidence; implementation
-and Git reality still require the V1-C01 baseline inspection.
+C01 implementation and validation are complete; C01 is ready for human
+delivery review. Later-Card implementation remains unauthorized.
 
 ---
 
@@ -103,21 +103,24 @@ Canonical Harness Installation: VERIFIED
 Canonical Harness Files: 10 / 10 PRESENT
 Harness Structure: VERIFIED
 Research / Reconnaissance Organization: VERIFIED
-Implementation: NOT STARTED
-Source Code: NOT PRESENT
-Tests: NOT PRESENT
-Git Repository: NOT INITIALIZED
-Git Branch: NOT AVAILABLE
-Git HEAD: NOT AVAILABLE
-Git Safe Checkpoint: NOT AVAILABLE — Git not initialized
-V1-C01: NOT_STARTED
-V1-C01 Authorization: NOT_GRANTED
+Implementation: READY_FOR_HUMAN_REVIEW — C01 implementation and validation complete
+Source Code: PRESENT — C01 baseline only
+Tests: PRESENT — C01 baseline tests
+Git Repository: INITIALIZED
+Git Branch: card/v1-c01-repository-baseline
+Git HEAD: f4a8e2e — chore: initialize TraID project baseline
+Git Upstream: origin/main
+Git Remote: origin — https://github.com/jo-soroush/traid-market-intelligence.git
+Git Safe Checkpoint: VERIFIED — f4a8e2e; authorized C01 changes are uncommitted
+V1-C01: READY_FOR_HUMAN_REVIEW
+V1-C01 Authorization: START_GRANTED; DELIVERY_NOT_GRANTED
 ```
 
 Filesystem verification is not implementation evidence. Runtime, test, and
 Git delivery claims require their own executed evidence.
 
-V1-C01 must establish actual repository evidence.
+C01 repository, runtime, and validation evidence is recorded; delivery remains
+pending human approval.
 
 ---
 
@@ -129,6 +132,7 @@ Use:
 NOT_STARTED
 IN_PROGRESS
 BLOCKED
+READY_FOR_HUMAN_REVIEW
 COMPLETE
 DEFERRED
 ```
@@ -170,32 +174,34 @@ CARD_QUALITY_GATE:
 Blockers:
 Known Limitations:
 Human Start Approval:
+Human Delivery Approval:
 ```
 
 Current:
 
 ```text
-Card ID: NONE
-Title: NONE
-State: NOT_STARTED
-Branch: NOT VERIFIED
-Start Commit: NOT VERIFIED
-Safe Checkpoint: NOT VERIFIED
-Engineering Goal: NONE
-Learning Goal: NONE
-Authorized Scope: NONE
-Out of Scope: ALL IMPLEMENTATION until V1-C01 is explicitly authorized
-Dependencies: N/A
-Source/Provenance Obligations: N/A
+Card ID: V1-C01
+Title: Repository Baseline & Engineering Harness
+State: READY_FOR_HUMAN_REVIEW
+Branch: card/v1-c01-repository-baseline
+Start Commit: f4a8e2e
+Safe Checkpoint: f4a8e2e baseline plus validated uncommitted C01 changes
+Engineering Goal: C01 implementation complete; human delivery review pending
+Learning Goal: C01 learning recorded in TRAID_CARD_EVIDENCE_MAP.md
+Authorized Scope: C01 implementation only; delivery actions require separate approval
+Out of Scope: C02 and all later Cards; commit, push, merge, deployment
+Dependencies: None
+Source/Provenance Obligations: None; no source-derived implementation
 Financial/Data Guardrails: global V1 guardrails remain applicable
-Security Requirements: no secrets; no trading credentials; no wallet private keys; no live execution
-Focused Validation: N/A
-Exit Gate: N/A
-ROADMAP_ALIGNMENT_GATE: NOT_RUN
-CARD_QUALITY_GATE: NOT_RUN
-Blockers: final Harness redesign/install + repository inspection + Card-start approval
-Known Limitations: actual repository state not inspected in this session
-Human Start Approval: NOT_GRANTED
+Security Requirements: V1 prohibitions remain applicable
+Focused Validation: C01 complete; see Evidence Map
+Exit Gate: PASS — V1-C01 proven
+ROADMAP_ALIGNMENT_GATE: PASS
+CARD_QUALITY_GATE: PASS
+Blockers: human delivery approval pending
+Known Limitations: commit/push/merge not authorized or performed
+Human Start Approval: GRANTED — V1-C01
+Human Delivery Approval: NOT_GRANTED
 ```
 
 ---
@@ -203,7 +209,8 @@ Human Start Approval: NOT_GRANTED
 ## 7. Authorization Ledger
 
 ```text
-Card Start: NOT_GRANTED
+Card Start: GRANTED — V1-C01 only
+Delivery Approval: NOT_GRANTED
 Next Card: NOT_GRANTED
 Architecture Change: NOT_GRANTED
 Material Scope Change: NOT_GRANTED
@@ -230,8 +237,8 @@ Routine reversible implementation is allowed only inside an explicitly approved 
 ```text
 Approved V1 Cards: 27
 Completed Cards: NONE
-Active Card: NONE
-Next Roadmap Card: V1-C01
+Active Card: V1-C01
+Next Roadmap Card: V1-C02 — available only after approved C01 delivery and separate C02 start approval
 Later Cards: NOT AUTHORIZED
 ```
 
@@ -242,15 +249,17 @@ Being next in sequence is not authorization.
 ## 9. Card Transition Rule
 
 ```text
-explicit Card-start approval
+PRE-CARD READINESS_GATE PASS
+→ explicit Card-start approval
 → ROADMAP_ALIGNMENT_GATE PASS
 → IN_PROGRESS
 → bounded implementation + validation + evidence
 → exact Exit Gate proof
 → CARD_QUALITY_GATE PASS
-→ human closure/delivery approval
-→ approved Git delivery if applicable
-→ post-merge verification if merged
+→ READY_FOR_HUMAN_REVIEW
+→ STOP for human delivery review
+→ explicit delivery approval
+→ approved Git delivery and verification
 → COMPLETE
 → Active Card NONE
 → STOP
@@ -264,10 +273,8 @@ Never pre-authorize the next Card.
 ## 10. Current Blockers
 
 ```text
-B-001: final 10-file Harness redesign is incomplete.
-B-002: canonical Harness installation is complete; implementation and Git baseline remain unverified until V1-C01.
-B-003: actual repository/Git/runtime baseline is not verified in this session.
-B-004: V1-C01 Card-start approval is NOT_GRANTED.
+B-001: human delivery approval for C01 is pending.
+B-002: no C01 delivery checkpoint exists because commit/push/merge are not authorized.
 ```
 
 These are control blockers, not claims that the repository is broken.
@@ -810,7 +817,7 @@ Exact source decisions belong in Card evidence/source mapping.
 
 | Card | Title | State | Start Approved | Quality Gate | Evidence |
 |---|---|---|---|---|---|
-| V1-C01 | Repository Baseline & Engineering Harness | NOT_STARTED | NO | NOT_RUN | PENDING |
+| V1-C01 | Repository Baseline & Engineering Harness | READY_FOR_HUMAN_REVIEW | YES | PASS | READY_FOR_HUMAN_REVIEW |
 | V1-C02 | Canonical Domain Models | NOT_STARTED | NO | NOT_RUN | PENDING |
 | V1-C03 | Exchange Adapter Contract | NOT_STARTED | NO | NOT_RUN | PENDING |
 | V1-C04 | Hyperliquid Provider Verification & Adapter | NOT_STARTED | NO | NOT_RUN | PENDING |
@@ -931,23 +938,25 @@ when proof is absent.
 ```text
 Safe Resume:
 Final Harness is canonicalized and verified at the current TraID root.
-Git is not initialized. No implementation has started. Next step is
-Git/repository baseline preparation followed by explicit human approval before
-V1-C01.
+Git baseline is initialized at `f4a8e2e`; C01 branch
+`card/v1-c01-repository-baseline` contains the validated uncommitted C01
+changes. C01 implementation is ready for human delivery review.
+Delivery approval is not granted; do not commit, push, merge, or start C02.
 
-Implementation Card: NONE
-Repository Write Authorization: NONE
-Next Roadmap Card: V1-C01
-V1-C01 Authorization: NOT_GRANTED
+Implementation Card: V1-C01
+Repository Write Authorization: C01 implementation only; delivery NOT_GRANTED
+Next Roadmap Card: V1-C02
+V1-C01 Authorization: START_GRANTED; DELIVERY_NOT_GRANTED
 ```
 
-Do not start V1-C01 until:
+Current C01 resume point:
 
 ```text
-all ten final Harness files are designed and cross-checked
-→ files are prepared for actual repository installation
-→ repository/Git reality is inspected
-→ user explicitly approves V1-C01 start
+C01 branch and start checkpoint are recorded; C01 Exit Gate and quality gate
+are proven. C01 is READY_FOR_HUMAN_REVIEW.
+→ obtain explicit human delivery approval
+→ perform approved delivery only after that approval
+→ keep C02 NOT_STARTED and NOT_GRANTED
 ```
 
 ---
