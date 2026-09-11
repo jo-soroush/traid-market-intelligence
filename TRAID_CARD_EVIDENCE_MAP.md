@@ -586,13 +586,13 @@ a profitable result != system-quality proof
 
 ## V1-C01 — Repository Baseline & Engineering Harness
 
-**Status:** READY_FOR_HUMAN_REVIEW
+**Status:** COMPLETE
 
 **Start Authorization:** GRANTED — explicit human Card-start approval
 
 **Next Card Authorization:** NOT_GRANTED
 
-**Delivery Approval:** NOT_GRANTED
+**Delivery Approval:** GRANTED — delivery completed and verified
 
 ### Contract / Risk Map
 - Semantic `CONTENT_ALIGNMENT_GATE` independent of Card-ID matching: Implemented and tested
@@ -613,7 +613,7 @@ a profitable result != system-quality proof
 - Verified behavior: FastAPI boot, `/health`, deterministic config, pytest discovery, alignment blocking, readiness blocking, lifecycle consistency blocking, current-state consistency pass
 - Architecture before → after: planning-only repository → minimal C01 package baseline; no market/domain/strategy architecture added
 - What remained unchanged: later Cards, financial guardrails, live-trading prohibition, provider integrations
-- Known limitations / deferrals: GitHub-hosted CI was not executed locally; delivery has not been approved or performed
+- Known limitations / deferrals: GitHub-hosted CI was structurally validated locally, not executed in this environment
 
 ### Source / Provenance
 - Decision ID: Not applicable — C01 created TraID-owned baseline/Harness files and did not adapt external source
@@ -628,12 +628,12 @@ a profitable result != system-quality proof
 
 ### Tests / Evaluation
 - Content-alignment gate scenarios: PASS — 15 pytest cases, including 11 blocking cases
-- Focused tests: PASS — `pytest -q`: 15 passed, 2 dependency deprecation warnings
+- Focused tests: PASS — `.venv/bin/pytest -q`: 25 passed, 2 dependency deprecation warnings
 - Relevant regression tests: PASS — full available C01 suite
 - Card-specific evaluation / acceptance: PASS
 - Actual commands/runners: `.venv/bin/pytest`, `.venv/bin/uvicorn`, `curl`, `bash scripts/check_secrets.sh`, `docker build`, Docker container smoke test, `scripts/pre_card_readiness.py`, `scripts/harness_consistency_check.py`, `scripts/session_bootstrap.sh`, Ruby YAML parse
 - Actual results: app boot and `/health` PASS; pytest collection PASS; 25 tests PASS; secret scan PASS; CI YAML structural parse PASS; Docker image build PASS; container `/health` PASS; `READINESS_GATE: PASS`; `HARNESS_CONSISTENCY: PASS`; bootstrap PASS_WITH_2_WARNINGS
-- Warnings: Starlette/httpx deprecation warnings; session bootstrap uses system Python where pytest is unavailable, while the project `.venv` test runner passes; working tree is intentionally uncommitted
+- Warnings: Starlette/httpx deprecation warnings; session bootstrap uses system Python where pytest is unavailable, while the project `.venv` test runner passes
 - Environment/configuration: `.venv` Python 3.13.12; FastAPI/Uvicorn/pytest/httpx installed
 
 ### Financial / Data / AI / Risk / Security Evidence
@@ -651,15 +651,17 @@ a profitable result != system-quality proof
 - Diagnosis: verified by pytest collection output and Docker CLI error
 - Fix/recovery: renamed test parameter to `candidate`; reran Docker build with approved Docker access; image and container health passed; normalized active Card title parsing in the consistency checker
 - Regression proof: 25 tests pass; Docker image and container smoke test pass; bootstrap consistency check passes
-- Remaining risk: delivery approval and approved Git delivery remain pending; GitHub-hosted CI execution remains outside this local validation
+- Remaining risk: GitHub-hosted CI execution remains outside this local validation
 
 ### Git / Repository
-- Branch: `card/v1-c01-repository-baseline`
+- Branch: `main` (Card branch: `card/v1-c01-repository-baseline`)
 - Start commit: `f4a8e2e`
-- Checkpoint commit: Not created — commit not authorized
-- Push: Not performed — push not authorized
+- Checkpoint commit: `a304f51` — `feat: complete V1 C01 repository baseline and harness`
+- Merge commit: `7460443` — `merge: integrate V1 C01 repository baseline and harness`
+- Push: Card branch and `origin/main` verified
 - Draft PR: Pending
-- Merge: Not performed — merge not authorized
+- Merge: `7460443` verified on `main`
+- Post-merge verification: PASS — `main` contains `a304f51`; working tree clean
 - `git diff` review: PASS — diff checked for whitespace errors and scope
 - `git status` review: PASS — only authorized C01 files and control/evidence edits present
 - Secrets/generated artifacts/unrelated changes: secret scan PASS; `.venv` and `.DS_Store` ignored
@@ -696,15 +698,15 @@ Professional engineering lesson: executable scope controls need structured seman
 
 Student takeaway: a passing unit suite does not close a Card when a required environment-dependent gate remains unexecuted
 
-Exit Gate proof: Complete — runtime/config/tests/Harness/security/Docker evidence proven
+Exit Gate proof: Complete — runtime/config/tests/Harness/security/Docker evidence proven and approved delivery verified
 
-What this enables next: human delivery review for C01; after approved delivery, a separately authorized C02; this state does not authorize C02
+What this enables next: a separately authorized C02; this state does not authorize C02
 
 ### Exit Gate Proof
-- Exact Card Exit Gate: Re-read from `TRAID_CARD_SPECIFICATIONS.md`; fully proven for implementation/review readiness
-- Requirement-to-evidence mapping: Runtime/config/tests/Harness/security/Docker/CI evidence recorded above; delivery intentionally pending
-- Unproven requirements: Approved Git delivery and post-delivery verification, which are required for `COMPLETE`, remain intentionally unperformed
-- Exact Exit Gate fully proven: YES — implementation/review-readiness gate; not a delivery or `COMPLETE` claim
+- Exact Card Exit Gate: Re-read from `TRAID_CARD_SPECIFICATIONS.md`; fully proven for implementation/review readiness and approved delivery
+- Requirement-to-evidence mapping: Runtime/config/tests/Harness/security/Docker/CI and approved delivery evidence recorded above
+- Unproven requirements: None applicable to C01
+- Exact Exit Gate fully proven: YES — implementation/review-readiness and approved delivery verified
 
 ### CARD_QUALITY_GATE
 
@@ -726,7 +728,7 @@ AI / Risk tests: Not applicable — no AI, Strategy, or Risk implementation adde
 
 Security checks: PASS — deterministic secret scan
 
-Exit Gate proof: PASS — implementation/review-readiness evidence complete; delivery approval remains pending
+Exit Gate proof: PASS — implementation/review-readiness evidence and approved delivery complete
 
 Evidence updated: YES — actual C01 implementation and validation evidence recorded
 
@@ -740,11 +742,11 @@ Unrelated changes: None observed; diff is limited to C01 baseline, evidence, and
 
 Secrets / generated artifacts check: PASS — secret scan; ignored `.venv`/`.DS_Store`
 
-Known limitations: CI was structurally validated locally, not executed on GitHub; delivery approval is pending
+Known limitations: CI was structurally validated locally, not executed on GitHub
 
-Remaining issues: human delivery approval and approved delivery remain pending
+Remaining issues: GitHub-hosted CI execution remains outside this local validation
 
-Recommended status: READY_FOR_HUMAN_REVIEW
+Recommended status: COMPLETE
 
 Human approval required before next Card: YES
 
