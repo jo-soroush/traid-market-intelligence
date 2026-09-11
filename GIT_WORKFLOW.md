@@ -69,6 +69,31 @@ deployment/release
 
 Card-start approval is not commit/push/PR/merge approval. Approval for one action does not silently authorize later consequential actions.
 
+Two-phase Card workflow:
+
+```text
+PHASE 0 — PRE-CARD READINESS / PREFLIGHT
+→ verify mandatory runtime, tools, Docker, services, credentials/configuration,
+  network, source verification, datasets/fixtures, and Exit-Gate dependencies
+→ missing mandatory prerequisite = READINESS_GATE: BLOCKED
+→ STOP BEFORE IMPLEMENTATION
+
+PHASE 1 — IMPLEMENT + VALIDATE
+→ requires explicit Card-start approval
+→ bounded implementation, validation, Evidence, and CARD_QUALITY_GATE
+→ successful result = READY_FOR_HUMAN_REVIEW
+→ no commit/push/merge authority
+
+PHASE 2 — HUMAN REVIEW + DELIVERY
+→ requires explicit human delivery approval
+→ approved commit/push/merge, delivery verification, and reconciliation
+→ only then Card = COMPLETE and Active Card = NONE
+```
+
+`CARD_QUALITY_GATE: PASS` alone never authorizes delivery or implies
+`COMPLETE`. `READY_FOR_HUMAN_REVIEW` remains the active Card state until
+approved delivery is verified.
+
 ## 3. Repository Reality Check
 
 Before Card work and consequential Git actions inspect at minimum:
@@ -532,14 +557,15 @@ Do not start the next Card during verification.
 
 ## 22. Card Closure After Delivery
 
-After verified integration:
+After verified approved integration:
 
 ```text
 record branch/commit/PR/merge historical evidence
 confirm Quality Gate remains PASS
 confirm Exit Gate remains proven
 update Project Control
-mark COMPLETE only when closure contract is satisfied
+mark COMPLETE only when delivery approval, delivery verification, and the
+closure contract are satisfied
 Active Card = NONE
 STOP
 ```

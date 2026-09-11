@@ -392,7 +392,8 @@ Rules:
 NOT_STARTED → no implementation authority
 IN_PROGRESS → explicitly started and bounded work active
 BLOCKED → mandatory condition unresolved
-COMPLETE → exact Exit Gate + CARD_QUALITY_GATE proven
+READY_FOR_HUMAN_REVIEW → implementation/validation complete; delivery approval pending
+COMPLETE → exact Exit Gate + CARD_QUALITY_GATE + approved verified delivery
 DEFERRED → explicit approved deferral
 ```
 
@@ -401,6 +402,28 @@ Never infer `COMPLETE` from a merge, a prompt, a passing happy-path test, or app
 ---
 
 ## 12. Card Start Gate
+
+### Phase 0 — PRE-CARD READINESS / PREFLIGHT
+
+Before implementation, derive and check mandatory Card prerequisites:
+
+```text
+runtime and tool versions
+Docker and external services
+credentials/configuration
+network/API access
+test tools
+source verification
+datasets/fixtures
+other Exit-Gate dependencies
+```
+
+Missing mandatory prerequisites produce:
+
+```text
+READINESS_GATE: BLOCKED
+STOP BEFORE IMPLEMENTATION
+```
 
 A Card starts only when all are true:
 
@@ -1505,6 +1528,10 @@ CARD_QUALITY_GATE before merge
 post-merge verification
 ```
 
+`CARD_QUALITY_GATE: PASS` produces `READY_FOR_HUMAN_REVIEW`; it does not
+authorize commit, push, PR, merge, or delivery. Explicit human delivery
+approval is required before Phase 2.
+
 Merge does not authorize the next Card.
 
 ---
@@ -1693,8 +1720,8 @@ Do not create tool-specific governance before the coding tool is selected.
 C01 is not permission to implement market intelligence Cards.
 
 C01 must also provide executable proof that content alignment is semantic, not
-Card-string matching. The following cases are required future C01 scenarios,
-not current evidence:
+Card-string matching. The following cases are required C01 scenarios and must
+remain executable evidence:
 
 ```text
 1.  Correct Card ID + correct content → CONTENT_ALIGNMENT_GATE PASS
@@ -1713,7 +1740,9 @@ not current evidence:
 ```
 
 The proof must record actual commands/scenarios/results in the Evidence Map.
-No C01 proof is claimed by this Harness amendment.
+
+C01 also provides deterministic lifecycle protection for readiness, state,
+delivery authority, Project Control/Evidence agreement, and next-Card approval.
 
 ---
 
@@ -1826,6 +1855,9 @@ Then:
 Active Card = NONE
 STOP
 ```
+
+Before this point, successful implementation remains
+`READY_FOR_HUMAN_REVIEW` with the current Card active.
 
 Do not start the next Card.
 

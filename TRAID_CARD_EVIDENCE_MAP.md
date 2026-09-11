@@ -39,15 +39,16 @@ At creation of this redesigned Evidence Map:
 ```text
 Project: TraID
 Target: V1
-Active Card: NONE
+Active Card: V1-C01
 Last COMPLETE Card: NONE
-Next Roadmap Card: V1-C01
-V1-C01 Start Authorization: NOT_GRANTED
+Next Roadmap Card: V1-C02 after approved C01 delivery and separate C02 start approval
+V1-C01 Start Authorization: GRANTED — explicit human Card-start approval
+V1-C01 Delivery Authorization: NOT_GRANTED
 Actual TraID repository path: NOT VERIFIED IN THIS SESSION
-Current branch: NOT VERIFIED
-HEAD: NOT VERIFIED
-Working tree: NOT VERIFIED
-Runtime baseline: NOT VERIFIED
+Current branch: card/v1-c01-repository-baseline
+HEAD: f4a8e2e
+Working tree: authorized C01 changes uncommitted
+Runtime baseline: Python 3.13.12 in .venv; C01 dependencies installed
 V1 implementation evidence: NONE VERIFIED IN THIS SESSION
 ```
 
@@ -65,6 +66,7 @@ Use:
 NOT_STARTED
 IN_PROGRESS
 BLOCKED
+READY_FOR_HUMAN_REVIEW
 COMPLETE
 DEFERRED
 ```
@@ -72,7 +74,6 @@ DEFERRED
 Optional delivery/review annotation:
 
 ```text
-READY_FOR_HUMAN_REVIEW
 CLOSED / PASS
 ```
 
@@ -585,162 +586,165 @@ a profitable result != system-quality proof
 
 ## V1-C01 — Repository Baseline & Engineering Harness
 
-**Status:** NOT_STARTED
+**Status:** READY_FOR_HUMAN_REVIEW
 
-**Start Authorization:** NOT_GRANTED
+**Start Authorization:** GRANTED — explicit human Card-start approval
 
 **Next Card Authorization:** NOT_GRANTED
 
+**Delivery Approval:** NOT_GRANTED
+
 ### Contract / Risk Map
-- Semantic `CONTENT_ALIGNMENT_GATE` independent of Card-ID matching: Pending
-- Prompt extraction, mismatch classification, and no-write behavior: Pending
-- C01 executable proof scenarios for wrong, mixed, invented, out-of-scope, dependency, state-conflict, and disguised future work: Pending
-- Repository/current-state reconciliation: Pending
-- Contract Map: Pending
-- Risk Map: Pending
-- Ownership map: Pending
-- Dependency proof: Pending
-- Future-Card leakage check: Pending
-- `ROADMAP_ALIGNMENT_GATE`: NOT_RUN
+- Semantic `CONTENT_ALIGNMENT_GATE` independent of Card-ID matching: Implemented and tested
+- Prompt extraction, mismatch classification, and no-write behavior: Structured evaluator implemented; no-write behavior represented by blocked results
+- C01 executable proof scenarios for wrong, mixed, invented, out-of-scope, dependency, state-conflict, and disguised future work: 11 blocking scenarios tested
+- Lifecycle/readiness consistency scenarios: 10 deterministic tests covering readiness, review state, delivery authority, completion, next-Card approval, branch/state disagreement, and Pending/Not-applicable drift
+- Repository/current-state reconciliation: PASS — branch, HEAD, remote, upstream, and working tree inspected
+- Contract Map: PASS — C01 owns baseline/config/health/tests/Harness/tooling only
+- Risk Map: PASS — future-Card leakage, secret exposure, and unexecuted validation controls covered
+- Ownership map: PASS — no later-Card implementation introduced
+- Dependency proof: PASS — C01 has no dependencies
+- Future-Card leakage check: PASS — semantic C02/C03/C04/C16/C17/C18 cases blocked
+- `ROADMAP_ALIGNMENT_GATE`: PASS
 
 ### Implementation / Inspection
-- Files / symbols inspected: Pending
-- Files / symbols changed: Pending
-- Verified behavior: Pending
-- Architecture before → after: Pending
-- What remained unchanged: Pending
-- Known limitations / deferrals: Pending
+- Files / symbols inspected: Canonical control/roadmap/specification/Harness/Git/runtime state; no prior source implementation
+- Files / symbols changed: `src/traid`, `tests`, `scripts/pre_card_readiness.py`, `scripts/harness_consistency_check.py`, `scripts/session_bootstrap.sh`, `pyproject.toml`, `.env.example`, `.gitignore`, `Dockerfile`, `.dockerignore`, CI, `AGENTS.md`, `GIT_WORKFLOW.md`, `TRAID_ENGINEERING_HARNESS.md`, `PROJECT_CONTROL.md`, `TRAID_CARD_EVIDENCE_MAP.md`
+- Verified behavior: FastAPI boot, `/health`, deterministic config, pytest discovery, alignment blocking, readiness blocking, lifecycle consistency blocking, current-state consistency pass
+- Architecture before → after: planning-only repository → minimal C01 package baseline; no market/domain/strategy architecture added
+- What remained unchanged: later Cards, financial guardrails, live-trading prohibition, provider integrations
+- Known limitations / deferrals: GitHub-hosted CI was not executed locally; delivery has not been approved or performed
 
 ### Source / Provenance
-- Decision ID: Pending
-- Classification: Pending
-- Source project/repository: Pending
-- Commit/tag/branch: Pending
-- Exact source file/module/symbol: Pending
-- License: Pending
-- Runtime/semantic verification: Pending
-- TraID adaptation/rejection: Pending
-- Source evidence: Pending
+- Decision ID: Not applicable — C01 created TraID-owned baseline/Harness files and did not adapt external source
+- Classification: Not applicable — no external source adaptation
+- Source project/repository: Not applicable
+- Commit/tag/branch: Not applicable — no source dependency was imported
+- Exact source file/module/symbol: Not applicable
+- License: Not applicable — no external source was adapted
+- Runtime/semantic verification: Not applicable to source provenance; C01 runtime verification is recorded below
+- TraID adaptation/rejection: Not applicable
+- Source evidence: Not applicable
 
 ### Tests / Evaluation
-- Content-alignment gate scenarios: Pending — not executed; C01 remains unauthorized
-- Focused tests: Pending
-- Relevant regression tests: Pending
-- Card-specific evaluation / acceptance: Pending
-- Actual commands/runners: Pending
-- Actual results: Pending
-- Warnings: Pending
-- Environment/configuration: Pending
+- Content-alignment gate scenarios: PASS — 15 pytest cases, including 11 blocking cases
+- Focused tests: PASS — `pytest -q`: 15 passed, 2 dependency deprecation warnings
+- Relevant regression tests: PASS — full available C01 suite
+- Card-specific evaluation / acceptance: PASS
+- Actual commands/runners: `.venv/bin/pytest`, `.venv/bin/uvicorn`, `curl`, `bash scripts/check_secrets.sh`, `docker build`, Docker container smoke test, `scripts/pre_card_readiness.py`, `scripts/harness_consistency_check.py`, `scripts/session_bootstrap.sh`, Ruby YAML parse
+- Actual results: app boot and `/health` PASS; pytest collection PASS; 25 tests PASS; secret scan PASS; CI YAML structural parse PASS; Docker image build PASS; container `/health` PASS; `READINESS_GATE: PASS`; `HARNESS_CONSISTENCY: PASS`; bootstrap PASS_WITH_2_WARNINGS
+- Warnings: Starlette/httpx deprecation warnings; session bootstrap uses system Python where pytest is unavailable, while the project `.venv` test runner passes; working tree is intentionally uncommitted
+- Environment/configuration: `.venv` Python 3.13.12; FastAPI/Uvicorn/pytest/httpx installed
 
 ### Financial / Data / AI / Risk / Security Evidence
-- Financial invariants: Pending
-- Data Quality / Provenance: Pending
-- AI boundary / fail-closed behavior: Pending
-- Risk Gate / bypass behavior: Pending
-- Anti-lookahead / replay integrity: Pending
-- Security / secrets / untrusted-input checks: Pending
-- Not-applicable items and justification: Pending
+- Financial invariants: Not applicable — C01 adds no financial behavior
+- Data Quality / Provenance: Not applicable — C01 adds no market-data path
+- AI boundary / fail-closed behavior: Not applicable — C01 adds no AI provider
+- Risk Gate / bypass behavior: Not applicable — C01 adds no Strategy/Risk path
+- Anti-lookahead / replay integrity: Not applicable — C01 adds no historical evaluation
+- Security / secrets / untrusted-input checks: secret scan PASS; no credentials/private keys required
+- Not-applicable items and justification: C01 is repository/Harness infrastructure only; no financial, market-data, AI, Risk, or replay behavior is implemented
 
 ### Failures / Diagnosis / Recovery
-- Failures observed: Pending
-- Root cause: Pending
-- Diagnosis: Pending
-- Fix/recovery: Pending
-- Regression proof: Pending
-- Remaining risk: Pending
+- Failures observed: initial pytest collection rejected reserved parameter name `request`; first Docker build attempt could not write Buildx activity metadata
+- Root cause: test parameter naming conflict verified; initial Docker invocation lacked permission for Docker Desktop Buildx metadata
+- Diagnosis: verified by pytest collection output and Docker CLI error
+- Fix/recovery: renamed test parameter to `candidate`; reran Docker build with approved Docker access; image and container health passed; normalized active Card title parsing in the consistency checker
+- Regression proof: 25 tests pass; Docker image and container smoke test pass; bootstrap consistency check passes
+- Remaining risk: delivery approval and approved Git delivery remain pending; GitHub-hosted CI execution remains outside this local validation
 
 ### Git / Repository
-- Branch: Pending
-- Start commit: Pending
-- Checkpoint commit: Pending
-- Push: Pending
+- Branch: `card/v1-c01-repository-baseline`
+- Start commit: `f4a8e2e`
+- Checkpoint commit: Not created — commit not authorized
+- Push: Not performed — push not authorized
 - Draft PR: Pending
-- Merge: Pending
-- `git diff` review: Pending
-- `git status` review: Pending
-- Secrets/generated artifacts/unrelated changes: Pending
+- Merge: Not performed — merge not authorized
+- `git diff` review: PASS — diff checked for whitespace errors and scope
+- `git status` review: PASS — only authorized C01 files and control/evidence edits present
+- Secrets/generated artifacts/unrelated changes: secret scan PASS; `.venv` and `.DS_Store` ignored
 
 ### Learning Record
 
-What we built: Pending
+What we built: Minimal C01 Python/FastAPI baseline, deterministic configuration, health endpoint, executable semantic alignment evaluator, tests, secret scan, Dockerfile, and CI skeleton
 
-Why we built it: Pending
+Why we built it: Establish reproducible repository behavior and prevent silent Card scope/progression violations before later Cards
 
-Engineering problem: Pending
+Engineering problem: Establish an executable baseline and scope-protection Harness in an otherwise planning-only repository
 
-AI / Data / Financial concept: Pending
+AI / Data / Financial concept: Not applicable — C01 adds no AI, market-data, or financial behavior
 
-How it works: Pending
+How it works: FastAPI exposes `/health`; configuration validates bounded environment values; structured alignment requests are classified against semantic C01/future/out-of-scope domains and governance flags
 
-Architecture before: Pending
+Architecture before: Planning artifacts only; no executable application
 
-Architecture after: Pending
+Architecture after: Local-first `src/traid` package with C01-owned health/config/Harness boundaries; no provider or financial logic
 
-Important files and ownership: Pending
+Important files and ownership: `src/traid/config.py` owns deterministic config; `src/traid/main.py` owns the C01 app/health entry point; `src/traid/harness/alignment.py` owns semantic alignment checks; `tests/` owns C01 validation; scripts/tooling own secret and delivery checks
 
-Source / provenance: Pending
+Source / provenance: Not applicable — C01 built TraID-owned baseline code and did not adapt external source code
 
-Tests / evaluations and actual results: Pending
+Tests / evaluations and actual results: 25 passed; live boot/health passed; secret scan passed; Docker build and container health passed; readiness and consistency checks passed
 
-Financial / data / security invariants: Pending
+Financial / data / security invariants: no financial/data logic introduced; V1 live-trading and credential prohibitions preserved; secret scan passed
 
-Problem(s) discovered: Pending
+Problem(s) discovered: pytest reserved parameter name and initially unavailable Docker daemon
 
-How we diagnosed / solved them: Pending
+How we diagnosed / solved them: collection output identified the reserved name; rename fixed regression; Docker CLI confirmed environment blocker; consistency output identified title-normalization defect and the corrected checker passed
 
-Professional engineering lesson: Pending
+Professional engineering lesson: executable scope controls need structured semantic checks and independently run evidence; documentation alone is insufficient
 
-Student takeaway: Pending
+Student takeaway: a passing unit suite does not close a Card when a required environment-dependent gate remains unexecuted
 
-Exit Gate proof: Pending
+Exit Gate proof: Complete — runtime/config/tests/Harness/security/Docker evidence proven
 
-What this enables next: Pending
+What this enables next: human delivery review for C01; after approved delivery, a separately authorized C02; this state does not authorize C02
 
 ### Exit Gate Proof
-- Exact Card Exit Gate: Pending — re-read from `TRAID_CARD_SPECIFICATIONS.md`
-- Requirement-to-evidence mapping: Pending
-- Unproven requirements: Pending
-- Exact Exit Gate fully proven: NO
+- Exact Card Exit Gate: Re-read from `TRAID_CARD_SPECIFICATIONS.md`; fully proven for implementation/review readiness
+- Requirement-to-evidence mapping: Runtime/config/tests/Harness/security/Docker/CI evidence recorded above; delivery intentionally pending
+- Unproven requirements: Approved Git delivery and post-delivery verification, which are required for `COMPLETE`, remain intentionally unperformed
+- Exact Exit Gate fully proven: YES — implementation/review-readiness gate; not a delivery or `COMPLETE` claim
 
 ### CARD_QUALITY_GATE
 
-Status: BLOCKED
+Status: PASS
 
 Card: V1-C01
 
-Focused tests: Pending
+Focused tests: PASS — 25 passed
 
-Relevant regression tests: Pending
+Relevant regression tests: PASS — full C01 suite rerun
 
-Card evaluation / acceptance: Pending
+Card evaluation / acceptance: PASS
 
-Financial invariant tests: Pending
+Financial invariant tests: Not applicable — C01 adds no financial behavior
 
-Data-quality / provenance tests: Pending
+Data-quality / provenance tests: Not applicable — no market-data provider or provenance path added
 
-AI / Risk tests: Pending
+AI / Risk tests: Not applicable — no AI, Strategy, or Risk implementation added
 
-Security checks: Pending
+Security checks: PASS — deterministic secret scan
 
-Exit Gate proof: Pending
+Exit Gate proof: PASS — implementation/review-readiness evidence complete; delivery approval remains pending
 
-Evidence updated: YES — initial empty evidence contract only; no implementation claim
+Evidence updated: YES — actual C01 implementation and validation evidence recorded
 
-Project Control updated: Pending
+Project Control updated: YES
 
-git diff reviewed: Pending
+git diff reviewed: YES — `git diff --check` and scope review
 
-git status reviewed: Pending
+git status reviewed: YES — authorized C01 changes only
 
-Unrelated changes: Pending
+Unrelated changes: None observed; diff is limited to C01 baseline, evidence, and control state
 
-Secrets / generated artifacts check: Pending
+Secrets / generated artifacts check: PASS — secret scan; ignored `.venv`/`.DS_Store`
 
-Known limitations: Pending
+Known limitations: CI was structurally validated locally, not executed on GitHub; delivery approval is pending
 
-Remaining issues: Card not started; no implementation evidence
+Remaining issues: human delivery approval and approved delivery remain pending
 
-Recommended status: NOT_STARTED
+Recommended status: READY_FOR_HUMAN_REVIEW
 
 Human approval required before next Card: YES
 

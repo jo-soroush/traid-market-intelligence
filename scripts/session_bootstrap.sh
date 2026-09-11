@@ -146,12 +146,28 @@ if [[ -f "PROJECT_CONTROL.md" ]]; then
   fi
 fi
 
-# 9. Guard against accidental implementation start when control says no active Card
+# 9. Guard against accidental implementation start when control state is unresolved
 if [[ -f "PROJECT_CONTROL.md" ]]; then
   if grep -Eq 'Active Card(\*\*)?[[:space:]]*:[[:space:]]*NONE' PROJECT_CONTROL.md; then
     ok "no Active Card is currently declared"
+  elif grep -Eq 'Active Card State(\*\*)?[[:space:]]*:[[:space:]]*(IN_PROGRESS|READY_FOR_HUMAN_REVIEW)' PROJECT_CONTROL.md; then
+    ok "Active Card state is explicitly declared"
   else
-    warn "PROJECT_CONTROL does not clearly report Active Card: NONE; agent must resolve the exact active Card before writing"
+    warn "PROJECT_CONTROL does not clearly report an actionable Active Card state"
+  fi
+fi
+
+# 10. Deterministic current-state consistency protection
+if [[ -f "scripts/harness_consistency_check.py" ]]; then
+  if [[ -x ".venv/bin/python" ]]; then
+    PYTHON_BIN=".venv/bin/python"
+  else
+    PYTHON_BIN="python3"
+  fi
+  if PYTHONPATH="$PROJECT_ROOT/src" "$PYTHON_BIN" scripts/harness_consistency_check.py; then
+    ok "Harness state consistency check passed"
+  else
+    fail "Harness state consistency check blocked"
   fi
 fi
 
