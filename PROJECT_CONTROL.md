@@ -40,13 +40,13 @@ Never invent a convenient state.
 ```text
 Project: TraID
 Target: V1
-Project Phase: POST_IMPLEMENTATION / C02_COMPLETE
-Active Card: NONE
-Active Card State: NONE
+Project Phase: REVIEW / C03_READY_FOR_HUMAN_REVIEW
+Active Card: V1-C03 — Exchange Adapter Contract
+Active Card State: READY_FOR_HUMAN_REVIEW
 Last COMPLETE Card: V1-C02 — Canonical Domain Models
-Next Roadmap Card: V1-C03 — Exchange Adapter Contract
-Next Card Authorized: NO — C03 start NOT_GRANTED
-Implementation Authorization: NONE — no Active Card; C03 start NOT_GRANTED
+Next Roadmap Card: V1-C04 — Hyperliquid Provider Verification & Adapter
+Next Card Authorized: NO — C04 start NOT_GRANTED
+Implementation Authorization: GRANTED — V1-C03 Phase 1 complete; delivery approval remains NOT_GRANTED
 V1 COMPLETE: NO
 Live Trade Execution: PROHIBITED
 Human Final Authority: YES
@@ -108,12 +108,12 @@ Implementation: COMPLETE — C01 and C02 implementation, validation, and approve
 Source Code: PRESENT — C01 baseline and C02 canonical domain contracts
 Tests: PRESENT — C01 baseline and C02 domain/Harness tests
 Git Repository: INITIALIZED
-Git Branch: main
-Git HEAD: c957bd4 — verified squash merge of maintenance PR; later reconciliation commits may advance HEAD
+Git Branch: card/v1-c03-exchange-adapter-contract
+Git HEAD: 471a482 — verified clean main start checkpoint for C03; later implementation commits may advance HEAD
 Git Upstream: origin/main
 Git Remote: origin — https://github.com/jo-soroush/traid-market-intelligence.git
-Git Safe Checkpoint: VERIFIED — c957bd4; maintenance PR merged into main and post-merge validation passed
-Working Tree: CLEAN — post-merge maintenance closure checkpoint
+Git Safe Checkpoint: VERIFIED — 471a482; C03 branch created from clean synchronized main
+Working Tree: DIRTY_ALLOWED — authorized C03 Phase 1 changes; stopped for human review
 V1-C01: COMPLETE
 V1-C01 Authorization: START_GRANTED; DELIVERY_GRANTED; DELIVERY_COMPLETED
 V1-C02: COMPLETE
@@ -208,33 +208,33 @@ Human Start Approval:
 Human Delivery Approval:
 ```
 
-Current delivered-Card record (historical C02 integration):
+Current active Card record:
 
 ```text
-Card ID: V1-C02
-Title: Canonical Domain Models
-State: COMPLETE
-Branch: card/v1-c02-canonical-domain-models
-Start Commit: ab3912a
-Safe Checkpoint: f89af6d — C02 merged and verified on main
-Engineering Goal: Define TraID-owned provider-neutral typed domain contracts
-Learning Goal: Establish stable domain contracts without provider or transport ownership
-Authorized Scope: C02 canonical models, validation, provenance, quality state, serialization, and bounded evidence primitive
-Out of Scope: C03 and later Cards; providers; analytics; Strategy/Risk; API ownership; storage; live execution
-Dependencies: V1-C01 COMPLETE and delivery verified
-Source/Provenance Obligations: Preserve canonical source identity and timestamps; no external source-derived code
-Financial/Data Guardrails: explicit units/signs/timestamps; no guessed provider semantics; Decimal where materially appropriate
-Security Requirements: provider-neutral Core; no secrets or credentials
-Focused Validation: PASS — 9 focused C02 tests; 94 full tests
-Exit Gate: PASS — V1-C02 implementation, approved delivery, and post-merge verification proven
+Card ID: V1-C03
+Title: Exchange Adapter Contract
+State: READY_FOR_HUMAN_REVIEW
+Branch: card/v1-c03-exchange-adapter-contract
+Start Commit: 471a482
+Safe Checkpoint: 471a482 — clean synchronized main baseline
+Engineering Goal: Define a capability-aware exchange-neutral adapter contract without changing Core
+Learning Goal: Learn interface segregation, capability discovery, normalized errors, and provider isolation
+Authorized Scope: provider-neutral exchange boundary, capability discovery, lifecycle/health where needed, normalized errors, fake/test adapter, and C02 canonical outputs
+Out of Scope: C04 provider transport, Hyperliquid, live APIs, credentials, freshness, replay, analytics, Strategy, Risk Gate, and all later Cards
+Dependencies: V1-C02 COMPLETE and delivery verified
+Source/Provenance Obligations: no external source-derived implementation required; source/category coverage remains explicit at the contract boundary
+Financial/Data Guardrails: preserve C02 canonical types and explicit availability; no provider-specific or freshness semantics
+Security Requirements: no credentials, network transport, raw provider payloads, or live execution
+Focused Validation: PASS — 20 C03 tests; 83 relevant regression tests; 123 full tests with 2 dependency warnings
+Exit Gate: PASS — fake adapter, capabilities, normalized errors, canonical outputs, and provider-neutrality proof
 ROADMAP_ALIGNMENT_GATE: PASS
 CARD_QUALITY_GATE: PASS
 Learning Record Status: COMPLETE
 Blockers: None currently observed
-Known Limitations: C05 freshness transitions and C03 adapter contracts remain out of scope
-Human Start Approval: GRANTED — V1-C02
-Human Delivery Approval: GRANTED — explicit final delivery approval
-Delivery Verified: YES — branch push, main merge, remote verification, and post-merge validation complete
+Known Limitations: C04 provider verification/transport and C05 freshness remain out of scope
+Human Start Approval: GRANTED — V1-C03 Phase 1 authorization
+Human Delivery Approval: NOT_GRANTED — Phase 1 must stop for review
+Delivery Verified: NO
 ```
 
 ---
@@ -242,19 +242,20 @@ Delivery Verified: YES — branch push, main merge, remote verification, and pos
 ## 7. Authorization Ledger
 
 ```text
-Card Start: GRANTED — V1-C02; V1-C01 delivery completed
-Delivery Approval: GRANTED — V1-C01 and V1-C02 delivery completed
-Next Card: NOT_GRANTED — C03 remains unauthorized
+Card Start: GRANTED — V1-C03; V1-C02 delivery completed
+Delivery Approval: NOT_GRANTED — C03 remains Phase 1 only
+Next Card: NOT_GRANTED — C04 remains unauthorized
+V1-C03 Authorization: START_GRANTED; DELIVERY_NOT_GRANTED
 Architecture Change: NOT_GRANTED
 Material Scope Change: NOT_GRANTED
 Significant Technology Addition: NOT_GRANTED
 Sensitive Credential Use: NOT_GRANTED
 External Write/Action Capability: NOT_GRANTED
 Live Execution Capability: PROHIBITED IN V1
-Commit: GRANTED — 400358e
-Push: GRANTED — Card branch and main pushed
+Commit: GRANTED — C03 checkpoint commit only; push/PR/merge remain NOT_GRANTED
+Push: NOT_GRANTED — Phase 1 must stop at human review
 PR: NOT_GRANTED
-Merge: GRANTED — f89af6d on main
+Merge: NOT_GRANTED — Phase 1 must stop at human review
 Force Push/History Rewrite: NOT_GRANTED
 Deployment/Release: NOT_GRANTED
 ```
@@ -270,8 +271,8 @@ Routine reversible implementation is allowed only inside an explicitly approved 
 ```text
 Approved V1 Cards: 27
 Completed Cards: V1-C01, V1-C02
-Active Card: NONE
-Next Roadmap Card: V1-C03 — available only after separate C03 start approval
+Active Card: V1-C03 — Exchange Adapter Contract
+Next Roadmap Card: V1-C04 — available only after separate C04 start approval
 Later Cards: NOT AUTHORIZED
 ```
 
@@ -606,9 +607,9 @@ Evidence Reference:
 Current:
 
 ```text
-TraID repository test state: VERIFIED — `.venv/bin/pytest -q`: 45 passed, 2 warnings
-Harness consistency: PASS after post-merge checkpoint reconciliation
-Readiness gate: PASS for the delivered Harness and completed C01 dependency
+TraID repository test state: VERIFIED — C03/full regression: 123 passed, 2 warnings
+Harness consistency: PASS — C03 READY_FOR_HUMAN_REVIEW state and authorization declaration validated
+Readiness gate: PASS — V1-C03 dependency/runtime/configuration preflight
 Secret scan: PASS
 Python compilation: PASS
 git diff --check: PASS
@@ -643,11 +644,11 @@ Recommended State:
 Current:
 
 ```text
-CARD_QUALITY_GATE: PASS — C01 delivery remains complete; corrective Harness validation passed
-Focused tests: 45 passed, 2 dependency deprecation warnings
-Evidence updated: YES
+CARD_QUALITY_GATE: PASS — C03 Phase 1 evidence and exact Exit Gate proven after bounded public-boundary remediation
+Focused tests: 20 C03 tests passed; 83 relevant regression tests passed; 123 full tests passed
+Evidence updated: YES — C03 implementation, failures, learning, and Exit Gate recorded
 Learning Record: COMPLETE
-Remaining issue: GitHub-hosted CI execution remains outside local validation; no C01 blocker remains
+Remaining issue: Human review and separate delivery approval remain; no commit/push/PR/merge authorized
 ```
 
 ---
@@ -863,7 +864,7 @@ Exact source decisions belong in Card evidence/source mapping.
 |---|---|---|---|---|---|
 | V1-C01 | Repository Baseline & Engineering Harness | COMPLETE | YES | PASS | COMPLETE |
 | V1-C02 | Canonical Domain Models | COMPLETE | YES | PASS | COMPLETE |
-| V1-C03 | Exchange Adapter Contract | NOT_STARTED | NO | NOT_RUN | PENDING |
+| V1-C03 | Exchange Adapter Contract | READY_FOR_HUMAN_REVIEW | YES | PASS | READY_FOR_HUMAN_REVIEW |
 | V1-C04 | Hyperliquid Provider Verification & Adapter | NOT_STARTED | NO | NOT_RUN | PENDING |
 | V1-C05 | Data Quality, Freshness & Provenance | NOT_STARTED | NO | NOT_RUN | PENDING |
 | V1-C06 | Historical Data & Replay Foundation | NOT_STARTED | NO | NOT_RUN | PENDING |
@@ -981,17 +982,18 @@ when proof is absent.
 
 ```text
 Safe Resume:
-V1-C01 is delivered on `main` at merge commit `7460443`; the pre-C02 Harness
-hardening commit is `c9929e2`, merged and pushed in `cb7e145`. C02 Card commit
-`400358e` was pushed and merged into `main` at `f89af6d`; delivery and
-post-merge validation are verified. Active Card is NONE.
-Do not start C03 without separate explicit human approval.
+C01 and C02 are delivered and verified. C03 Phase 1 is authorized and active
+on `card/v1-c03-exchange-adapter-contract` from clean main checkpoint `471a482`.
+Complete only the exchange-neutral adapter contract, validate it, update
+Evidence/Learning, and stop at READY_FOR_HUMAN_REVIEW. Do not deliver or start
+C04.
 
-Implementation Card: NONE
-Repository Write Authorization: no Active Card; C03 start NOT_GRANTED
-Next Roadmap Card: V1-C03
+Implementation Card: V1-C03
+Repository Write Authorization: C03 Phase 1 only; commit/push/PR/merge NOT_GRANTED
+Next Roadmap Card: V1-C04
 V1-C01 Authorization: START_GRANTED; DELIVERY_GRANTED; DELIVERY_COMPLETED
 V1-C02 Authorization: START_GRANTED; DELIVERY_GRANTED; DELIVERY_COMPLETED
+V1-C03 Authorization: START_GRANTED; DELIVERY_NOT_GRANTED
 ```
 
 Current resume point:

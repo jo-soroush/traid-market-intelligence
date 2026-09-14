@@ -1166,160 +1166,249 @@ Human approval required before next Card: YES
 
 ## V1-C03 — Exchange Adapter Contract
 
-**Status:** NOT_STARTED
+**Status:** READY_FOR_HUMAN_REVIEW
 
-**Start Authorization:** NOT_GRANTED
+**Start Authorization:** GRANTED — explicit V1-C03 Phase 1 authorization
 
-**Next Card Authorization:** NOT_GRANTED
+**Next Card Authorization:** NOT_GRANTED — C04 remains unauthorized
 
 ### Contract / Risk Map
-- Relevant source/category coverage ownership and provider capability map: Pending
-- Coverage availability/limitation behavior: Pending
-- Repository/current-state reconciliation: Pending
-- Contract Map: Pending
-- Risk Map: Pending
-- Ownership map: Pending
-- Dependency proof: Pending
-- Future-Card leakage check: Pending
-- `ROADMAP_ALIGNMENT_GATE`: NOT_RUN
+- Relevant source/category coverage ownership and provider capability map: C03 contract exposes explicit capabilities; provider/source coverage remains implementation-specific and is not inferred
+- Coverage availability/limitation behavior: unsupported capability is explicit and fails with `UnsupportedCapabilityError`; freshness remains C05
+- Repository/current-state reconciliation: PASS — C03 branch is based on clean synchronized main checkpoint `471a482`; C02 COMPLETE; C03 start explicitly authorized
+- Contract Map: PASS — Core owns C02 canonical models; C03 owns the provider-neutral exchange boundary; C04 owns real provider transport
+- Risk Map: PASS — provider leakage, broad-interface pressure, capability mismatch, normalized error leakage, async ambiguity, and future-Card scope
+- Ownership map: PASS — proposed `src/traid/exchange/` contract with test-owned fake; no duplicate C02 models
+- Dependency proof: PASS — V1-C02 COMPLETE and delivery verified
+- Future-Card leakage check: PASS — no C04 transport, freshness, analytics, Strategy, Risk, or live-provider work authorized
+- `ROADMAP_ALIGNMENT_GATE`: PASS
 
 ### Implementation / Inspection
-- Files / symbols inspected: Pending
-- Files / symbols changed: Pending
-- Verified behavior: Pending
-- Architecture before → after: Pending
-- What remained unchanged: Pending
-- Known limitations / deferrals: Pending
+- Files / symbols inspected: `src/traid/domain/models.py`, `src/traid/domain/__init__.py`, `src/traid/main.py`, `pyproject.toml`, relevant tests and C03 contract
+- Files / symbols changed: `src/traid/exchange/contract.py`, `src/traid/exchange/contract_types.py`, `src/traid/exchange/errors.py`, `src/traid/exchange/__init__.py`, `tests/test_exchange_contract.py`, generic C03 state support in `scripts/harness_consistency_check.py`, `PROJECT_CONTROL.md`, and this Evidence Map
+- Verified behavior: validated public lifecycle/capability facade, capability discovery, deterministic unsupported/contract errors, normalized provider failures, canonical C02 outputs, and deterministic fake behavior
+- Public API: `ExchangeAdapter.connect`, `disconnect`, `health`, `capabilities`, `coverage`, `trades`, `order_book`, `candles`, `funding`, `open_interest`, `market_context`, plus `invoke_capability`; provider implementations use protected `_connect`, `_disconnect`, and `_trades`-style hooks only
+- Architecture before → after: C02 canonical domain models → provider-neutral exchange boundary contract; provider transport remains deferred to C04
+- What remained unchanged: C02 models, FastAPI health baseline, financial/data guardrails, and provider-free Core
+- Known limitations / deferrals: synchronous boundary selected; C04 may adapt transport internally; no real provider, transport, retries, rate limits, or freshness behavior; hosted CI remains a Phase 2 delivery gate; runtime checks validate C03 output shape while C02 remains the owner of model-field validity
 
 ### Source / Provenance
-- Decision ID: Pending
-- Classification: Pending
-- Source project/repository: Pending
-- Commit/tag/branch: Pending
-- Exact source file/module/symbol: Pending
-- License: Pending
-- Runtime/semantic verification: Pending
-- TraID adaptation/rejection: Pending
-- Source evidence: Pending
+- Decision ID: C03-D001 — provider-neutral exchange contract mechanism
+- Classification: repository-native design from C03 contract and current C02 architecture
+- Source project/repository: TraID repository canonical Card contract and existing C02 implementation
+- Commit/tag/branch: `471a482` / `card/v1-c03-exchange-adapter-contract`
+- Exact source file/module/symbol: `src/traid/domain/models.py`, `src/traid/domain/__init__.py`, FastAPI baseline, and C03 Specification
+- License: NOT_APPLICABLE — no external source code or dependency added
+- Runtime/semantic verification: NOT_APPLICABLE before implementation; no external provider or network source required
+- TraID adaptation/rejection: selected a concrete validated facade with protected provider hooks, `Enum`, `dataclass`, and typed C02 outputs; rejected provider-native and framework-specific abstractions
+- Source evidence: C03 Specification, C02 canonical model exports, `pyproject.toml`, and existing synchronous application style
 
 ### Tests / Evaluation
-- Focused tests: Pending
-- Relevant regression tests: Pending
-- Card-specific evaluation / acceptance: Pending
-- Actual commands/runners: Pending
-- Actual results: Pending
-- Warnings: Pending
-- Environment/configuration: Pending
+- Focused tests: PASS — 20 C03 contract tests
+- Relevant regression tests: PASS — 83 C02/Harness/lifecycle/maintenance tests
+- Card-specific evaluation / acceptance: PASS — fake adapter, capability discovery, unsupported behavior, normalized errors, canonical outputs, lifecycle, determinism, and no provider coupling
+- Actual commands/runners: `.venv/bin/pytest -q tests/test_exchange_contract.py`; `.venv/bin/pytest -q tests/test_domain_models.py tests/test_harness_consistency.py tests/test_lifecycle.py tests/test_maintenance_harness.py`; `.venv/bin/pytest -q`
+- Actual results: `20 passed`; `83 passed`; `123 passed, 2 warnings`
+- Warnings: two existing FastAPI/Starlette dependency deprecation warnings
+- Environment/configuration: Python 3.13 project environment; no credentials or live services required
 
 ### Financial / Data / AI / Risk / Security Evidence
-- Financial invariants: Pending
-- Data Quality / Provenance: Pending
-- AI boundary / fail-closed behavior: Pending
-- Risk Gate / bypass behavior: Pending
-- Anti-lookahead / replay integrity: Pending
-- Security / secrets / untrusted-input checks: Pending
-- Not-applicable items and justification: Pending
+- Financial invariants: NOT_APPLICABLE — C03 defines no financial formula, execution, or Risk behavior
+- Data Quality / Provenance: PASS — outputs use C02 canonical models; no freshness algorithm introduced
+- AI boundary / fail-closed behavior: NOT_APPLICABLE — no AI path
+- Risk Gate / bypass behavior: NOT_APPLICABLE — no Strategy/Risk path
+- Anti-lookahead / replay integrity: NOT_APPLICABLE — no historical/replay behavior
+- Security / secrets / untrusted-input checks: PASS — no credentials, network code, or raw provider payloads; `bash scripts/check_secrets.sh` passed
+- Not-applicable items and justification: recorded above; C04/C05+ semantics remain deferred
 
 ### Failures / Diagnosis / Recovery
-- Failures observed: Pending
-- Root cause: Pending
-- Diagnosis: Pending
-- Fix/recovery: Pending
-- Regression proof: Pending
-- Remaining risk: Pending
+- Failures observed: initial provider-coupling test used substring matching and falsely matched `rest` inside `open_interest`; independent audits also found four C03 contract gaps and one public-boundary bypass
+- Root cause: lexical assertion lacked token boundaries; the original boundary relied on annotations without runtime output enforcement; coverage/limitation metadata and disconnected-call semantics were implicit; public Protocol methods bypassed the dispatcher
+- Diagnosis: focused pytest failure, source inspection, independent adversarial probes, and targeted regression tests
+- Fix/recovery: word-boundary provider scan retained; added normalized invalid-capability handling, centralized canonical-output validation, explicit coverage metadata, deterministic disconnected-call rejection, and a concrete facade with protected provider hooks
+- Regression proof: C03 focused suite rerun with `20 passed`; full suite rerun with `123 passed, 2 warnings`
+- Remaining risk: future provider/transport semantics remain unverified until C04; hosted CI is deferred to approved Phase 2 delivery
+
+### Consolidated C03 Remediation Findings
+
+#### Finding 1 — Invalid / Unknown Capability
+- Observed behavior: a non-`Capability` value escaped as `AttributeError` while constructing the unsupported-capability error.
+- Expected behavior: invalid capability input produces a machine-usable provider-neutral contract error.
+- Impact: raw Python implementation detail could escape the C03 boundary.
+- Root cause: runtime capability input was not validated.
+- Diagnosis: independent adversarial probe using an unknown string.
+- Correction: validate `Capability` identity and raise `InvalidCapabilityError`.
+- Why correct: invalid input is rejected before capability-specific lookup.
+- Regression proof: `test_unknown_capability_is_normalized`.
+- Retest result: PASS — focused suite `18 passed`.
+- Remaining risk: none identified within C03.
+
+#### Finding 2 — Runtime Canonical Output Enforcement
+- Observed behavior: wrong scalar, wrong collection element, and raw-dict outputs were accepted by Protocol annotations at runtime.
+- Expected behavior: non-canonical adapter outputs are rejected while C02 retains model-field validation ownership.
+- Impact: provider-shaped data could false-green at the adapter boundary.
+- Root cause: no centralized runtime output check existed.
+- Diagnosis: independent adversarial probes with wrong-output fixtures.
+- Correction: added `invoke_capability` with capability-derived scalar/collection checks and `InvalidOutputError`.
+- Why correct: C03 validates output ownership without duplicating C02 model validation.
+- Regression proof: wrong scalar, wrong collection, and raw-dict rejection tests.
+- Retest result: PASS — focused and full suites passed.
+- Remaining risk: this dispatcher-only limitation was subsequently closed by the validated public facade; provider transport remains C04-owned.
+
+#### Finding 3 — Coverage / Availability / Known Limitations
+- Observed behavior: capabilities had no structured coverage, availability, or limitation metadata.
+- Expected behavior: support must distinguish supported, limited, and unavailable without C05 freshness logic.
+- Impact: downstream code could infer complete support from a bare capability set.
+- Root cause: capability discovery lacked typed metadata.
+- Diagnosis: contract inspection against the C03 specification and independent audit.
+- Correction: added immutable `CapabilityCoverage` and `CapabilityAvailability` metadata plus consistency checks.
+- Why correct: metadata is bounded, inspectable, provider-neutral, and separate from freshness algorithms.
+- Regression proof: explicit supported/limited/unavailable and limitation-validation tests.
+- Retest result: PASS — focused suite `18 passed`.
+- Remaining risk: real provider coverage remains C04-owned and unverified.
+
+#### Finding 4 — Disconnected Data Calls
+- Observed behavior: the fake returned data while `DISCONNECTED`.
+- Expected behavior: data calls through the C03 boundary fail as unavailable while disconnected; degraded calls remain explicit and callable.
+- Impact: an unconnected adapter could be treated as a successful data source.
+- Root cause: lifecycle state was exposed but not enforced at invocation.
+- Diagnosis: independent disconnected/connected/degraded probes.
+- Correction: `invoke_capability` rejects disconnected calls with `AdapterUnavailableError`.
+- Why correct: it adds deterministic lifecycle semantics without retry, transport, or freshness behavior.
+- Regression proof: disconnected/connected and degraded lifecycle tests.
+- Retest result: PASS — focused suite `18 passed`.
+- Remaining risk: lifecycle enforcement now applies to public typed methods and dispatcher calls through the shared facade; provider transport remains C04-owned.
+
+#### Finding 5 — Public Typed-Method Bypass
+- Observed behavior: exported Protocol methods could return invalid values directly without dispatcher validation.
+- Expected behavior: every public typed capability method uses the same lifecycle, capability, normalization, and canonical-output enforcement path.
+- Impact: a future provider could appear structurally compliant while returning invalid Core data through direct calls.
+- Root cause: runtime enforcement existed only in `invoke_capability`; public Protocol methods were independently callable.
+- Diagnosis: independent direct-call probe returned `"wrong"` from `OrderBookAdapter.order_book()` without error.
+- Correction: replaced the exported Protocol surface with a concrete validated `ExchangeAdapter` facade; providers implement protected `_trades`-style hooks, and public methods cannot be overridden.
+- Why correct: direct typed calls and dispatcher calls share one enforcement mechanism while C04 provider behavior remains behind protected hooks.
+- Regression proof: direct-method adversarial tests, dispatcher/direct equivalence tests, and public-override rejection test.
+- Retest result: PASS — focused suite `20 passed`; full suite `123 passed, 2 warnings`.
+- Remaining risk: provider transport and real provider semantics remain C04-owned.
 
 ### Git / Repository
-- Branch: Pending
-- Start commit: Pending
-- Checkpoint commit: Pending
+- Branch: `card/v1-c03-exchange-adapter-contract`
+- Start commit: `471a482`
+- Checkpoint commit: APPROVED — this C03 checkpoint commit only; SHA is recorded in the delivery result; push/PR/merge remain NOT_GRANTED
 - Push: Pending
-- Draft PR: Pending
-- Merge: Pending
-- `git diff` review: Pending
-- `git status` review: Pending
-- Secrets/generated artifacts/unrelated changes: Pending
+- Draft PR: NOT_APPLICABLE — Phase 1 explicitly stops before delivery
+- Merge: NOT_APPLICABLE — Phase 1 explicitly stops before delivery
+- `git diff` review: PASS — `git diff --check` and changed-file scope review passed
+- `git status` review: PASS — dirty only with authorized C03 Phase 1 changes
+- Secrets/generated artifacts/unrelated changes: PASS so far — no product/provider files or generated artifacts added
 
 ### Learning Record
 
-What we built: Pending
+What We Wanted To Build: A capability-aware, exchange-neutral adapter contract over the C02 canonical models.
 
-Why we built it: Pending
+Why It Matters: Future providers must not force provider payloads, transport, or unsupported capability assumptions into Core.
 
-Engineering problem: Pending
+System Before This Card: C02 canonical domain models existed, but no exchange boundary or capability contract existed.
 
-AI / Data / Financial concept: Pending
+Design Decision: Use a concrete validated public facade with protected provider implementation hooks and one shared runtime enforcement path; use stable normalized error categories.
 
-How it works: Pending
+Alternatives Considered: A large abstract base class was rejected because it would force unsupported methods; a third-party interface framework was rejected because the standard library is sufficient; async/dual APIs were rejected because current repository evidence is synchronous and C04 can adapt transport internally.
 
-Architecture before: Pending
+Why We Chose This Approach: It is the smallest typed boundary that keeps optional capabilities explicit, preserves provider neutrality, and adds no dependency or transport behavior.
 
-Architecture after: Pending
+What We Implemented: Capability enum, adapter health state, typed coverage metadata, validated public typed methods, protected provider hooks, centralized runtime invocation/output enforcement, normalized errors, and deterministic test-owned fake behavior.
 
-Important files and ownership: Pending
+What We Built: `src/traid/exchange/contract.py`, `contract_types.py`, `errors.py`, package exports, and `tests/test_exchange_contract.py`.
 
-Source / provenance: Pending
+Why We Built It: To give C04 a stable boundary for verified provider implementation without changing C02 Core models.
 
-Tests / evaluations and actual results: Pending
+Engineering problem: Define useful optional capabilities and normalized failures without a broad provider-specific interface.
 
-Financial / data / security invariants: Pending
+AI / Data / Financial concept: Deterministic data-boundary typing and explicit availability; no AI or financial decision behavior.
 
-Problem(s) discovered: Pending
+How it works: Callers inspect advertised capabilities and coverage, invoke data through the centralized runtime boundary, receive canonical C02 outputs, and receive deterministic invalid/unsupported/unavailable/output/provider error categories.
 
-How we diagnosed / solved them: Pending
+Architecture before: C02 canonical domain models with no exchange boundary.
 
-Professional engineering lesson: Pending
+Architecture after: Core/C02 models → C03 exchange contract → future provider adapter/transport owned by C04.
 
-Student takeaway: Pending
+Important files and ownership: `contract.py` owns the validated public facade and protected hooks; `contract_types.py` owns capability identity; `errors.py` owns normalized errors; the test file owns the fake and behavior proof.
 
-Exit Gate proof: Pending
+Source / provenance: Repository-native implementation; no external code or provider source used.
 
-What this enables next: Pending
+Tests / evaluations and actual results: C03 focused tests 20 passed; 83 relevant regression tests passed; full suite 123 passed with 2 warnings.
+
+Financial / data / security invariants: C02 canonical output types preserved; no credentials, transport, or financial authority introduced.
+
+Problems We Hit: Initial lexical provider-coupling assertion was too broad; adversarial review exposed invalid-capability, runtime-output, coverage-metadata, disconnected-call, and public-method-bypass false-green paths.
+
+Root Cause: The test searched for `rest` as a substring and matched `open_interest`; Protocol annotations did not enforce runtime output shape, capability coverage/lifecycle availability were implicit, and public Protocol methods bypassed the dispatcher.
+
+How We Solved It: Replaced substring search with word-boundary matching; added centralized runtime boundary validation, normalized invalid-capability/output errors, explicit coverage metadata, disconnected-call enforcement, and a concrete facade that routes all public typed methods through the same boundary.
+
+Why The Fix Is Correct: It detects actual provider/transport tokens without rejecting valid canonical capability names, protects the C03/C02 boundary, and keeps C04/C05 behavior out of scope.
+
+What We Rejected: Hyperliquid/transport types, network clients, retries, rate limits, freshness, replay, analytics, Strategy, Risk, and duplicate C02 models.
+
+Problem(s) discovered: Initial lexical provider-coupling assertion was too broad; independent audits found five contract false-green paths, all corrected and retested.
+
+How we diagnosed / solved them: Focused pytest identified the false positive; adversarial probes and source inspection identified the five contract gaps; targeted boundary tests verified the corrections.
+
+Known Limitations: Hosted CI and Git delivery are Phase 2; provider semantics and transport remain C04-owned; provider implementations must use protected hooks inherited by the validated facade.
+
+Professional engineering lesson: Interface segregation and explicit capability checks prevent unsupported-provider behavior from becoming implicit.
+
+Student takeaway: A small typed boundary can make optional support and failure behavior visible without pretending all providers are identical.
+
+Exit Gate proof: PASS — fake/capability/error/canonical-output/provider-neutrality evidence and applicable regression checks pass; delivery remains intentionally unapproved.
+
+What this enables next: A separately authorized C04 provider adapter can implement verified transport behind this boundary; this record does not authorize C04.
 
 ### Exit Gate Proof
-- Exact Card Exit Gate: Pending — re-read from `TRAID_CARD_SPECIFICATIONS.md`
-- Requirement-to-evidence mapping: Pending
-- Unproven requirements: Pending
-- Exact Exit Gate fully proven: NO
+- Exact Card Exit Gate: PASS — fake adapter satisfies the contract; capabilities and errors are explicit; C02 canonical outputs are returned; no Hyperliquid-specific Core types exist
+- Requirement-to-evidence mapping: PASS — focused tests cover direct public methods, dispatcher equivalence, lifecycle, discovery, supported/unsupported capabilities, normalized errors, all required canonical outputs, determinism, and provider-neutrality
+- Unproven requirements: Hosted CI and approved Git delivery are Phase 2 requirements and are intentionally not run/authorized in Phase 1
+- Exact Exit Gate fully proven: YES — remediation findings were corrected and mapped to executable tests; implementation, validation, Evidence, Learning Record, and quality gate complete
 
 ### CARD_QUALITY_GATE
 
-Status: BLOCKED
+Status: PASS
 
 Card: V1-C03
 
-Focused tests: Pending
+Focused tests: PASS — 20 C03 contract tests
 
-Relevant regression tests: Pending
+Relevant regression tests: PASS — 83 relevant tests; 123 full tests
 
-Card evaluation / acceptance: Pending
+Card evaluation / acceptance: PASS — C03 acceptance behaviors proven
 
-Financial invariant tests: Pending
+Financial invariant tests: NOT_APPLICABLE — no financial behavior added
 
-Data-quality / provenance tests: Pending
+Data-quality / provenance tests: PASS — C02 canonical types and explicit availability boundary preserved
 
-AI / Risk tests: Pending
+AI / Risk tests: NOT_APPLICABLE — no AI, Strategy, or Risk behavior added
 
-Security checks: Pending
+Security checks: PASS — secret scan and provider-leakage inspection passed
 
-Exit Gate proof: Pending
+Exit Gate proof: PASS — exact C03 Exit Gate mapped above
 
-Evidence updated: YES — initial empty evidence contract only; no implementation claim
+Evidence updated: YES — implementation, design basis, failures, learning, and Exit Gate recorded
 
-Project Control updated: Pending
+Project Control updated: YES — C03 active state and authorization reconciled
 
-git diff reviewed: Pending
+git diff reviewed: PASS
 
-git status reviewed: Pending
+git status reviewed: PASS — authorized C03 Phase 1 changes only
 
-Unrelated changes: Pending
+Unrelated changes: None observed
 
-Secrets / generated artifacts check: Pending
+Secrets / generated artifacts check: PASS
 
-Known limitations: Pending
+Known limitations: Hosted CI and Git delivery remain Phase 2; no provider transport, credentials, freshness, or analytics is implemented
 
-Remaining issues: Card not started; no implementation evidence
+Remaining issues: Human review and explicit delivery approval remain required
 
-Recommended status: NOT_STARTED
+Recommended status: READY_FOR_HUMAN_REVIEW
 
 Human approval required before next Card: YES
 
