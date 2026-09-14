@@ -28,6 +28,34 @@ CARD_STATES = {"NOT_STARTED", "IN_PROGRESS", "BLOCKED", "READY_FOR_HUMAN_REVIEW"
 ACTIVE_STATES = {"IN_PROGRESS", "BLOCKED", "READY_FOR_HUMAN_REVIEW"}
 CARD_ROW = re.compile(r"^\|\s*(V1-C\d{2})\s*\|\s*([^|]+?)\s*\|\s*(\w+)\s*\|\s*(YES|NO)\s*\|", re.MULTILINE)
 CARD_ID = re.compile(r"^(V1-C\d{2})(?:\s+—\s+(.+))?$")
+MAINTENANCE_BRANCH = re.compile(r"^(maintenance|hotfix)/[^/\s]+(?:[-/][^\s]+)*$")
+MAINTENANCE_STATUSES = {
+    "IN_PROGRESS",
+    "READY_FOR_HUMAN_REVIEW",
+    "READY_TO_DELIVER",
+    "PUSHED",
+    "CI_VERIFIED",
+    "MERGED",
+    "POST_MERGE_VERIFIED",
+    "CLOSED / DELIVERED / VERIFIED",
+}
+MAINTENANCE_FIELDS = (
+    "Maintenance Task ID",
+    "Title",
+    "Status",
+    "Reason",
+    "Originating Evidence",
+    "Base Commit",
+    "Branch",
+    "Authorized Scope",
+    "Prohibited Scope",
+    "Expected Areas",
+    "Required Validation",
+    "External Git Permissions",
+    "Closure Evidence",
+    "Safe Resume",
+    "Allowed Paths",
+)
 
 
 @dataclass(frozen=True)
@@ -91,6 +119,53 @@ def parse_card_table(control: str) -> tuple[CardRecord, ...]:
 
 def _line_values(pattern: str, text: str) -> tuple[str, ...]:
     return tuple(match.group(1).strip() for match in re.finditer(pattern, text, re.MULTILINE))
+
+
+def _maintenance_record(control: str) -> str:
+    match = re.search(r"^### Current Maintenance Record\n(.*?)(?=^---$|^## \d+\.)", control, re.MULTILINE | re.DOTALL)
+    return match.group(1) if match else ""
+
+
+def maintenance_consistency_issues(
+    control: str,
+    branch: str,
+    head: str,
+    changed_paths: tuple[str, ...],
+) -> tuple[str, ...]:
+    """Validate the generic, record-backed maintenance/hotfix contract."""
+
+    if not (branch.startswith("maintenance/") or branch.startswith("hotfix/")):
+        return ()
+    issues: list[str] = []
+    if not MAINTENANCE_BRANCH.fullmatch(branch):
+        issues.append("MAINTENANCE_BRANCH_NAME_INVALID")
+    record = _maintenance_record(control)
+    values = {
+        key: match.group(1).strip()
+        for key in MAINTENANCE_FIELDS
+        if (match := re.search(rf"^{re.escape(key)}:\s*(.+)$", record, re.MULTILINE))
+    }
+    missing = [field for field in MAINTENANCE_FIELDS if not values.get(field)]
+    if missing:
+        issues.append(f"MAINTENANCE_RECORD_MISSING:{','.join(missing)}")
+        return tuple(issues)
+    if values["Branch"] != branch:
+        issues.append("MAINTENANCE_BRANCH_AUTHORIZATION_MISMATCH")
+    status = values["Status"].split(" —", 1)[0].strip()
+    if status not in MAINTENANCE_STATUSES:
+        issues.append("MAINTENANCE_STATUS_INVALID")
+    base = values["Base Commit"].split(" —", 1)[0].strip()
+    if not re.fullmatch(r"[0-9a-f]{7,40}", base):
+        issues.append("MAINTENANCE_BASE_INVALID")
+    else:
+        ancestry = subprocess.run(["git", "merge-base", "--is-ancestor", base, head], check=False)
+        if ancestry.returncode != 0:
+            issues.append("MAINTENANCE_BASE_NOT_ANCESTOR")
+    allowed = {path.strip().lstrip("./") for path in values["Allowed Paths"].split(",") if path.strip()}
+    unexpected = sorted(path for path in changed_paths if path.lstrip("./") not in allowed)
+    if unexpected:
+        issues.append(f"MAINTENANCE_OUT_OF_SCOPE:{','.join(unexpected)}")
+    return tuple(dict.fromkeys(issues))
 
 
 def resolve_card_state(control: str) -> ResolvedState:
@@ -226,6 +301,15 @@ def main() -> int:
     )
     branch = subprocess.check_output(["git", "branch", "--show-current"], text=True).strip()
     head = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], text=True).strip()
+    changed_paths = tuple(
+        line[3:] if len(line) > 3 else line
+        for line in subprocess.check_output(["git", "status", "--porcelain", "--untracked-files=all"], text=True).splitlines()
+        if line
+    )
+    maintenance_issues = maintenance_consistency_issues(control, branch, head, changed_paths)
+    if maintenance_issues:
+        print(f"HARNESS_CONSISTENCY: BLOCKED: {', '.join(maintenance_issues)}")
+        return 1
     checkpoint = bool(expected_head and subprocess.run(["git", "merge-base", "--is-ancestor", expected_head.group(1), head], check=False).returncode == 0)
     clean = not subprocess.check_output(["git", "status", "--porcelain"], text=True).strip()
     learning_issues = learning_record_issues(evidence_current) if current_card_id == "V1-C01" else ()

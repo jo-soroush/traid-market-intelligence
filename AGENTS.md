@@ -362,6 +362,13 @@ auto-merge
 auto-start next Card
 ```
 
+Post-delivery defects use the generic maintenance/hotfix procedure in
+`GIT_WORKFLOW.md` and `TRAID_ENGINEERING_HARNESS.md`. They do not reopen a
+completed Card: `Active Card` remains `NONE`, completed Cards remain
+`COMPLETE`, and a separate maintenance authorization record is required.
+Hosted GitHub Actions evidence is distinct from local validation; the current
+workflow and any unverified platform settings must be reported as such.
+
 Git records repository state. It does not redefine Roadmap/Card intent.
 
 ## 13. Card Closure

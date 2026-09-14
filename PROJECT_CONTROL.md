@@ -108,12 +108,12 @@ Implementation: COMPLETE — C01 and C02 implementation, validation, and approve
 Source Code: PRESENT — C01 baseline and C02 canonical domain contracts
 Tests: PRESENT — C01 baseline and C02 domain/Harness tests
 Git Repository: INITIALIZED
-Git Branch: main
-Git HEAD: f89af6d — verified C02 merge; later reconciliation commits may advance HEAD
+Git Branch: maintenance/ci-python-portability
+Git HEAD: 5da30cb — validated maintenance enforcement checkpoint; later reconciliation commits may advance HEAD
 Git Upstream: origin/main
 Git Remote: origin — https://github.com/jo-soroush/traid-market-intelligence.git
-Git Safe Checkpoint: VERIFIED — f89af6d; C02 merged into main
-Working Tree: CLEAN — C02 delivery and canonical reconciliation verified
+Git Safe Checkpoint: VERIFIED — 5da30cb; C02 merged into main and maintenance enforcement is locally validated
+Working Tree: CLEAN — validated maintenance checkpoint; external delivery remains pending
 V1-C01: COMPLETE
 V1-C01 Authorization: START_GRANTED; DELIVERY_GRANTED; DELIVERY_COMPLETED
 V1-C02: COMPLETE
@@ -126,6 +126,32 @@ Git delivery claims require their own executed evidence.
 C01 and C02 repository, runtime, validation, approved delivery, and post-merge
 verification evidence are recorded. Active Card is NONE; C03 remains
 unauthorized.
+
+### Current Maintenance Record
+
+```text
+Maintenance Task ID: MAINT-CI-PYTHON-PORTABILITY
+Title: Hosted-CI Python subprocess interpreter portability correction
+Status: READY_TO_DELIVER — generic enforcement and local validation pass; hosted CI and delivery remain pending
+Reason: hosted CI evidence showed Harness subprocess tests assumed ROOT/.venv/bin/python
+Originating Evidence: post-delivery CI portability incident; see TRAID_CARD_EVIDENCE_MAP.md
+Base Commit: ef35af1 — verified main checkpoint
+Branch: maintenance/ci-python-portability
+Authorized Scope: CI interpreter portability correction plus generic maintenance/hotfix Harness enforcement and its governance/evidence reconciliation
+Prohibited Scope: C03, product/domain behavior, financial rules, Harness semantics, architecture, and Card-state changes
+Expected Areas: scripts/harness_consistency_check.py, tests/test_harness_consistency.py, tests/test_maintenance_harness.py, PROJECT_CONTROL.md, TRAID_CARD_EVIDENCE_MAP.md, TRAID_ENGINEERING_HARNESS.md, GIT_WORKFLOW.md, AGENTS.md, and the Card-execution Skill
+Allowed Paths: scripts/harness_consistency_check.py, tests/test_harness_consistency.py, tests/test_maintenance_harness.py, PROJECT_CONTROL.md, TRAID_CARD_EVIDENCE_MAP.md, TRAID_ENGINEERING_HARNESS.md, GIT_WORKFLOW.md, AGENTS.md, .agents/skills/traid-card-execution/SKILL.md
+Required Validation: focused portability tests, Harness/lifecycle tests, affected C02 tests, full pytest, secret scan, compilation, diff check
+External Git Permissions: PUSH/PR/MERGE GRANTED for this bounded maintenance cycle only; no force push
+Closure Evidence: pending human review, explicit delivery approval, hosted CI, approved integration, and post-merge verification
+Safe Resume: review the maintenance diff; do not start C03; request separate delivery approval before external Git actions
+```
+
+This record is operational maintenance state, not a Roadmap Card and not a
+new source of truth for Card order or authorization. The Harness checker and
+Bootstrap now validate its branch category, authorization, base ancestry, and
+allowed changed paths. Hosted CI and GitHub branch-protection settings remain
+external evidence and are not inferred from local validation.
 
 ---
 
@@ -182,7 +208,7 @@ Human Start Approval:
 Human Delivery Approval:
 ```
 
-Current:
+Current delivered-Card record (historical C02 integration):
 
 ```text
 Card ID: V1-C02
@@ -708,6 +734,10 @@ Merge Approval: GRANTED
 Merge: VERIFIED — f89af6d on main
 Post-Merge Verification: PASS — main contains 400358e; remote and working tree verified
 ```
+
+The live repository is currently on the authorized maintenance branch recorded
+in Section 4. The block above is retained as C02 delivery history and is not a
+claim that the current worktree is `main` or clean.
 
 Files designed outside the repository are not Git delivery evidence.
 

@@ -1992,3 +1992,160 @@ HUMAN APPROVAL PRECEDES CONSEQUENTIAL ACTION.
 CARD COMPLETE → STOP.
 NEXT CARD → NEW HUMAN APPROVAL.
 ```
+
+## 62. Complete Card Lifecycle Contract
+
+The lifecycle is one controlled sequence, with no implicit transition:
+
+```text
+verified main
+→ explicit Card-start approval
+→ READINESS_GATE
+→ Card branch
+→ bounded implementation
+→ focused and relevant regression validation
+→ self-audit, Evidence, Learning Record
+→ CARD_QUALITY_GATE: PASS
+→ READY_FOR_HUMAN_REVIEW
+→ STOP for human review
+→ independent audit
+→ one consolidated remediation cycle if required
+→ explicit delivery approval
+→ commit
+→ push
+→ hosted CI
+→ review / merge
+→ post-merge verification
+→ PROJECT_CONTROL / Evidence reconciliation
+→ COMPLETE
+→ Active Card NONE
+→ STOP
+→ separate authorization for the next Card
+```
+
+At every arrow, the preceding evidence is the entry condition; the required
+authority is the approval named above; the output is the next named state; a
+failed mandatory check is `BLOCKED` and produces `STOP`. Passing
+`CARD_QUALITY_GATE` produces `READY_FOR_HUMAN_REVIEW`, not delivery or
+`COMPLETE`. Card-start approval is not delivery approval. Merge is not
+completion until hosted CI, post-merge verification, and canonical
+reconciliation are recorded.
+
+## 63. Prompt Churn Control
+
+Use one comprehensive Phase 1 execution prompt, one independent audit, at
+most one consolidated remediation cycle for related findings, and one
+delivery cycle. Diagnose related findings together and retain their individual
+evidence. Further prompts are justified only by new external failure
+evidence, a genuine scope/architecture conflict, missing human authorization,
+unexpected repository state, or an unavailable external result. This avoids
+avoidable prompt churn without pretending that a numerical prompt count is a
+machine safety control.
+
+## 64. Readiness and External Delivery Risk
+
+Readiness covers the Card's implementation prerequisites and likely delivery
+risks: runtime/interpreter, dependency installation, working directory and
+repository-relative paths, Docker or external services, credentials, network
+and egress approval, GitHub destination, branch-protection assumptions,
+platform permissions, and hosted workflow compatibility. Label each fact:
+
+```text
+PROBED          directly checked by an executed command or repository inspection
+DERIVED         deterministically inferred from verified repository evidence
+CALLER_SUPPLIED explicitly supplied by the human and not independently probed
+NOT_VERIFIED    relevant but not checked
+NOT_APPLICABLE  irrelevant to the bounded work
+```
+
+The current local scripts probe repository/runtime facts but do not inspect
+GitHub settings or execute hosted CI. Those facts remain `NOT_VERIFIED` until
+their external evidence exists. `LOCAL PASS != HOSTED CI PASS`.
+
+## 65. Maintenance / Hotfix Contract
+
+Post-delivery defects use a bounded maintenance or hotfix record, not a
+reopened Card:
+
+```text
+verified main
+→ verified defect
+→ explicit maintenance authorization
+→ maintenance/* or hotfix/* from verified main
+→ focused regression and affected validation
+→ Evidence / PROJECT_CONTROL maintenance record
+→ human delivery approval
+→ push → hosted CI → merge → post-merge verification → clean main
+```
+
+During this path `Active Card = NONE`, completed Cards remain `COMPLETE`, and
+the next Card remains separately unauthorized. The record must contain task
+identity, reason, failure evidence, base commit, branch, scope, prohibited
+scope, expected files, validation, external permissions, status, safe resume,
+and closure evidence. The current Harness and Bootstrap compare exact branch
+and tree declarations. The current generic checker now additionally requires
+an authorized `maintenance/*`/`hotfix/*` record, matching branch, verified
+base ancestry, and allowed changed paths; it preserves no Active Card and
+rejects unauthorized dirty state. Regression tests cover future maintenance
+branch names and invalid records. Hosted CI remains an external gate.
+
+## 66. Evidence and Failure Remediation Contract
+
+For every material failure retain observed behavior, expected behavior,
+impact, root cause, diagnosis method/evidence, correction, why it is correct,
+affected regression, retest result, and remaining risk. Diagnose once and
+collect related findings before repairing a shared root cause. A fixed failure
+remains historical evidence. Use `NOT VERIFIED` rather than inference.
+
+Each significant decision should be understandable as:
+
+```text
+Rule → Problem → Evidence → Owner → Validation → Limitation
+```
+
+## 67. Current vs Historical State Safety
+
+Git is the live source for current branch, SHA, ancestry, remote, and worktree.
+`PROJECT_CONTROL.md` owns the current operational declaration; the Evidence
+Map owns historical execution and delivery proof. Historical SHAs may remain
+recorded without creating endless reconciliation commits. A checker must query
+Git for live facts and compare them to the current declaration; it must not
+promote a historical delivery line into current reality. Contradictory,
+missing, or stale required state fails closed.
+
+## 68. Executable Support Matrix
+
+| Capability | Documented policy | Machine enforced | Tested | Current status |
+|---|---|---|---|---|
+| Card lifecycle and approvals | YES | PARTIAL | YES | enforced for canonical Card state; delivery authority remains human |
+| Card branch validation | YES | PARTIAL | YES | exact declared branch/tree checks |
+| Maintenance/hotfix branch validation | YES | YES | YES | generic record/base/scope enforcement |
+| Hosted CI portability | YES | NO | YES locally | hosted result is external evidence |
+| Current-state reconciliation | YES | YES | YES | checker queries live Git and canonical state |
+| Stale Git/documentation detection | YES | PARTIAL | YES | exact fields checked; category semantics incomplete |
+| Evidence/failure records | YES | PARTIAL | YES | required Card evidence fields, not all prose contracts |
+| Secret scanning | YES | YES | YES | repository scanner and hosted workflow step |
+| External action approval | YES | NO | NOT_APPLICABLE | human authorization boundary |
+| Post-delivery recovery | YES | NO | NO | procedure documented; implementation gap remains |
+
+This matrix is a support statement, not a completion claim for future Cards.
+
+## 69. Future-Card Preflight Checklist
+
+Before C03 or any later Card receives separate authorization, verify:
+
+```text
+Card identity/title matches Roadmap, Specification, Control, and Evidence
+dependency Cards are COMPLETE and delivery-verified
+explicit start authorization exists
+READINESS_GATE covers runtime, sources, data, external services, and delivery risks
+CONTENT_ALIGNMENT_GATE and ROADMAP_ALIGNMENT_GATE PASS
+ownership and future-Card boundaries are explicit
+financial/data/security invariants are identified
+tests/evaluation and exact Exit Gate are mapped
+branch/base/remote/CI path is verified
+required egress and later delivery approvals are known
+maintenance/hotfix records are not mistaken for Card authorization
+```
+
+The checklist does not authorize C03 and does not alter the Roadmap.
