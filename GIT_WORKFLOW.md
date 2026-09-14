@@ -797,3 +797,124 @@ NO DIRECT CARD WORK ON MAIN.
 MERGE → VERIFY → RECORD → STOP.
 NEXT CARD → SEPARATE HUMAN APPROVAL.
 ```
+
+## 33. Hosted CI and Local Parity Contract
+
+The repository workflow is `.github/workflows/ci.yml`, named `c01-baseline`.
+It runs on `push` and `pull_request` on `ubuntu-latest`, installs Python
+`3.13`, installs the project with `python -m pip install '.[dev]'`, runs
+`pytest`, and runs `bash scripts/check_secrets.sh`. The workflow does not
+currently run the local Harness checker, session bootstrap, readiness script,
+or a separate compilation command.
+
+Local success and hosted success are different facts:
+
+```text
+LOCAL PASS != HOSTED CI PASS
+```
+
+Python tests and subprocess helpers must not assume
+`ROOT/.venv/bin/python` unless the workflow explicitly creates that path.
+When the test is intended to exercise the current test interpreter,
+`sys.executable` is the preferred portable choice. A test may intentionally
+select another interpreter only when that distinction is part of the test
+contract. Repository-relative paths, shell commands, permissions, working
+directory, environment variables, case sensitivity, and generated/local-only
+files must be reviewed against the hosted runner.
+
+`CI_VERIFIED` requires the applicable GitHub Actions run for the pushed
+commit/PR to show the required `test` job PASS, including its pytest and
+secret-scan steps. GitHub branch-protection settings are NOT_VERIFIED from the
+repository checkout; repository policy still requires the applicable hosted
+CI result before delivery is called fully verified or a Card is called
+COMPLETE. A failed run is a delivery blocker until diagnosed, corrected,
+affected regression is rerun, and the new hosted result is recorded. A failure
+after merge requires the same bounded maintenance path below and does not
+silently reopen the completed Card. The human who approved the maintenance
+change authorizes any subsequent push, PR update, or merge.
+
+## 34. Post-Delivery Maintenance and Hotfixes
+
+Completed Cards are not reopened for a bounded post-delivery defect. The
+generic path is:
+
+```text
+verified main
+→ verified defect
+→ maintenance/hotfix authorization
+→ maintenance or hotfix branch from verified main
+→ smallest fix
+→ focused regression
+→ full affected validation
+→ evidence and maintenance record
+→ human delivery approval
+→ push
+→ hosted CI
+→ merge
+→ post-merge validation
+→ clean main
+```
+
+While maintenance is active, `Active Card = NONE` and completed Card states
+remain `COMPLETE`. A maintenance record belongs in `PROJECT_CONTROL.md`; it is
+not a Roadmap Card and cannot authorize the next Card. It must identify a
+task ID/title, reason, originating failure, base commit, branch, authorized
+and prohibited scope, expected files, validation, external Git permissions,
+status, safe resume point, and closure evidence.
+
+Branch categories are:
+
+| Category | Base and state | Active Card | Delivery rule |
+|---|---|---|---|
+| `main` | verified integration branch; clean after delivery | NONE after Card closure | protected; merge and post-merge verification |
+| `card/v1-cNN-*` | verified `main`; one approved Card | required | Card Phase 1 then approved Phase 2 |
+| `maintenance/*` | verified `main`; bounded post-delivery defect | NONE | maintenance authorization, focused/affected validation, hosted CI, approved merge |
+| `hotfix/*` | verified `main`; urgent bounded defect when needed | NONE | same maintenance controls, with urgency recorded |
+| recovery/review branch | only when explicitly authorized for recovery or review | depends on recorded purpose | no delivery until reconciled with the owning branch and approval |
+
+The Harness/Bootstrap now accept an explicit, schema-checked maintenance
+record only when the branch is `maintenance/*` or `hotfix/*`, require a
+verified base and allowed dirty state, reject missing/mismatched records and
+out-of-scope changes, and preserve `Active Card = NONE` and no next-Card
+authorization. This generic enforcement is covered by maintenance regression
+tests. Hosted CI remains a separate external gate.
+
+## 35. External Actions and Egress
+
+Read-only inspection is allowed. Push, PR creation/update, merge, deployment,
+external API writes, and other consequential egress require explicit human
+approval at the phase where the exact destination, commit, and scope are
+known. Record the trusted destination identity before acting. The configured
+Git remote is `origin` at
+`https://github.com/jo-soroush/traid-market-intelligence.git`; current GitHub
+branch-protection/settings status is `NOT_VERIFIED` from this checkout.
+Least privilege, no-force-push, and no secret transmission remain mandatory.
+
+## 36. Delivery State Definitions
+
+These states are distinct and require their own evidence:
+
+```text
+IMPLEMENTED              approved files changed; no validation claim
+LOCALLY_VALIDATED        required local checks passed
+READY_FOR_HUMAN_REVIEW   Phase 1 evidence and CARD_QUALITY_GATE are complete; STOP
+READY_TO_DELIVER         human review accepted; delivery approval still required
+PUSHED                   approved commit exists on the intended remote branch
+CI_VERIFIED              applicable hosted workflow/job passed for that commit
+MERGED                   target branch contains the approved integration commit
+POST_MERGE_VERIFIED      target branch and affected checks were reverified
+COMPLETE                 all contract, evidence, approval, delivery, and reconciliation conditions pass
+```
+
+No generic `PASS` label substitutes for these states.
+
+## 37. Consolidated Remediation and Prompt Churn
+
+Prefer one comprehensive Phase 1 prompt, one independent audit, at most one
+consolidated remediation cycle for related findings, and one delivery cycle.
+Collect related symptoms, diagnose once, classify severity, repair the root
+cause, rerun affected validation, and retain each failure record. Additional
+prompts are justified only by new external failure evidence, genuine scope or
+architecture conflict, missing approval, unexpected repository state, or an
+unavailable external result. This is an operational rule, not an arbitrary
+machine-count limit.

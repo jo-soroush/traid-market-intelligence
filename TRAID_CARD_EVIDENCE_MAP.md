@@ -5223,6 +5223,31 @@ Reason: C01 is complete, but C02 through C27 remain incomplete/not started and t
 
 ---
 
+## 20. Post-Delivery Maintenance Evidence (Not a Card Reopening)
+
+The following record documents a defect found after V1-C02 delivery. It does
+not change V1-C02, does not create an Active Card, and does not authorize C03.
+
+```text
+Maintenance Task ID: MAINT-CI-PYTHON-PORTABILITY
+Failure classification: post-delivery CI portability defect
+Observed behavior: two Harness subprocess tests failed in hosted CI because the test helper attempted to execute ROOT/.venv/bin/python
+Command / scenario: hosted GitHub Actions run of the c01-baseline test job; local reproduction used the Harness test helper
+Actual error/result: FileNotFoundError for the hard-coded interpreter path; local focused rerun after correction passed 2 tests
+Expected behavior: subprocess tests use an interpreter available in the executing environment unless a different interpreter is explicitly under test
+Impact: hosted CI failed after C02 delivery; no product or domain behavior impact
+Root cause: test code assumed a repository-local .venv path that the workflow does not create
+Diagnosis method: inspected .github/workflows/ci.yml and the failing subprocess helper; verified the workflow installs into the hosted runner environment
+Fix / mitigation: use sys.executable in tests/test_harness_consistency.py
+Why the fix is correct: it selects the interpreter running the test process and removes the unsupported local-path assumption
+Permanent fix or workaround: bounded test portability correction plus generic maintenance/hotfix record enforcement; hosted CI confirmation remains pending until this maintenance branch is delivered
+Regression test added: tests/test_maintenance_harness.py covers valid future maintenance/hotfix branches, missing/mismatched records, wrong base, out-of-scope changes, and lifecycle protection; existing real subprocess tests remain unmocked
+Retest result: maintenance/Harness suite 52 passed; full pytest and hosted-CI gate remain pending final delivery validation
+Remaining risk: hosted CI and GitHub branch-protection settings are NOT_VERIFIED until the approved branch push and Actions run
+Base / branch: ef35af1 / maintenance/ci-python-portability
+External delivery: PUSH/PR/MERGE GRANTED for this bounded maintenance cycle only; no force push
+```
+
 # 20. Final Evidence Principle
 
 ```text

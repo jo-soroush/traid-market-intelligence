@@ -1184,7 +1184,17 @@ RESOLVE CARD
 
 ---
 
-## 37. Final Rule
+## 37. Post-Delivery Maintenance Boundary
+
+After a Card is `COMPLETE`, a verified defect follows the generic
+maintenance/hotfix procedure in `GIT_WORKFLOW.md` and
+`TRAID_ENGINEERING_HARNESS.md`. It does not reopen the Card or authorize the
+next Card: `Active Card = NONE` remains true, and a separate maintenance
+record and delivery approval are required. Local validation never substitutes
+for hosted CI evidence. Do not claim generic maintenance-branch enforcement
+until the Harness/Bootstrap implementation supports the documented contract.
+
+## 38. Final Rule
 
 ```text
 ONE CARD.

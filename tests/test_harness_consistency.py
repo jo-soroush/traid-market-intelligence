@@ -99,7 +99,7 @@ V1-C01 Authorization: START_GRANTED; DELIVERY_NOT_GRANTED
 
 def _run_checker(tmp_path: Path) -> subprocess.CompletedProcess[str]:
     env = {**os.environ, "PYTHONPATH": str(ROOT / "src")}
-    return subprocess.run([str(ROOT / ".venv" / "bin" / "python"), str(CHECKER)], cwd=tmp_path, text=True, capture_output=True, env=env)
+    return subprocess.run([sys.executable, str(CHECKER)], cwd=tmp_path, text=True, capture_output=True, env=env)
 
 
 def test_actual_checker_normalizes_titles_and_rejects_wrong_card(tmp_path: Path) -> None:
