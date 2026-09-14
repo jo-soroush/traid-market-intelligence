@@ -40,13 +40,14 @@ Never invent a convenient state.
 ```text
 Project: TraID
 Target: V1
-Project Phase: POST_IMPLEMENTATION / C01_COMPLETE
-Active Card: NONE
-Active Card State: NONE
+Project Phase: REVIEW / C02_READY_FOR_HUMAN_REVIEW
+Active Card: V1-C02 — Canonical Domain Models
+Active Card State: READY_FOR_HUMAN_REVIEW
 Last COMPLETE Card: V1-C01 — Repository Baseline & Engineering Harness
-Next Roadmap Card: V1-C02 — Canonical Domain Models
-Next Card Authorized: NO
-Implementation Authorization: NONE — no Active Card; C02 start NOT_GRANTED
+Next Roadmap Card: V1-C03 — Exchange Adapter Contract
+Next Card Authorized: NO — C03 start NOT_GRANTED
+Implementation Authorization: GRANTED — V1-C02 start approval
+V1 COMPLETE: NO
 Live Trade Execution: PROHIBITED
 Human Final Authority: YES
 ```
@@ -107,12 +108,12 @@ Implementation: COMPLETE — C01 implementation, validation, and approved delive
 Source Code: PRESENT — C01 baseline only
 Tests: PRESENT — C01 baseline tests
 Git Repository: INITIALIZED
-Git Branch: main
-Git HEAD: cb7e145 — verified delivery checkpoint; later reconciliation commits may advance HEAD
+Git Branch: card/v1-c02-canonical-domain-models
+Git HEAD: ab3912a — verified C02 start checkpoint; later C02 commits may advance HEAD
 Git Upstream: origin/main
 Git Remote: origin — https://github.com/jo-soroush/traid-market-intelligence.git
-Git Safe Checkpoint: VERIFIED — cb7e145; pre-C02 Harness hardening merged and pushed
-Working Tree: CLEAN — delivered Harness hardening verified on main
+Git Safe Checkpoint: VERIFIED — ab3912a; C02 branch created from delivered main
+Working Tree: DIRTY_ALLOWED — authorized C02 implementation changes are in progress
 V1-C01: COMPLETE
 V1-C01 Authorization: START_GRANTED; DELIVERY_GRANTED; DELIVERY_COMPLETED
 ```
@@ -121,8 +122,8 @@ Filesystem verification is not implementation evidence. Runtime, test, and
 Git delivery claims require their own executed evidence.
 
 C01 repository, runtime, validation, approved delivery, and corrective Harness
-evidence are recorded. Harness hardening is delivered and verified. Active Card
-remains NONE; C02 remains unauthorized.
+evidence are recorded. The current operational state is the C02 review state
+above; historical C01 checkpoints remain in the Evidence Map.
 
 ---
 
@@ -182,29 +183,30 @@ Human Delivery Approval:
 Current:
 
 ```text
-Card ID: V1-C01
-Title: Repository Baseline & Engineering Harness
-State: COMPLETE
-Branch: card/v1-c01-repository-baseline
-Start Commit: f4a8e2e
-Safe Checkpoint: 7460443 — merged C01 delivery on main
-Engineering Goal: C01 implementation and approved delivery complete
-Learning Goal: C01 learning recorded in TRAID_CARD_EVIDENCE_MAP.md
-Authorized Scope: C01 implementation and explicitly approved delivery
-Out of Scope: C02 and all later Cards; deployment
-Dependencies: None
-Source/Provenance Obligations: None; no source-derived implementation
-Financial/Data Guardrails: global V1 guardrails remain applicable
-Security Requirements: V1 prohibitions remain applicable
-Focused Validation: C01 complete; see Evidence Map
-Exit Gate: PASS — V1-C01 proven
+Card ID: V1-C02
+Title: Canonical Domain Models
+State: READY_FOR_HUMAN_REVIEW
+Branch: card/v1-c02-canonical-domain-models
+Start Commit: ab3912a
+Safe Checkpoint: ab3912a — delivered C01 and Harness hardening on main
+Engineering Goal: Define TraID-owned provider-neutral typed domain contracts
+Learning Goal: Establish stable domain contracts without provider or transport ownership
+Authorized Scope: C02 canonical models, validation, provenance, quality state, serialization, and bounded evidence primitive
+Out of Scope: C03 and later Cards; providers; analytics; Strategy/Risk; API ownership; storage; live execution
+Dependencies: V1-C01 COMPLETE and delivery verified
+Source/Provenance Obligations: Preserve canonical source identity and timestamps; no external source-derived code
+Financial/Data Guardrails: explicit units/signs/timestamps; no guessed provider semantics; Decimal where materially appropriate
+Security Requirements: provider-neutral Core; no secrets or credentials
+Focused Validation: PASS — 9 focused C02 tests; 54 full tests
+Exit Gate: PASS — V1-C02 implementation/review gate proven
 ROADMAP_ALIGNMENT_GATE: PASS
 CARD_QUALITY_GATE: PASS
-Blockers: None for C01 closure
-Known Limitations: GitHub-hosted CI was structurally validated locally but not executed in this environment
-Human Start Approval: GRANTED — V1-C01
-Human Delivery Approval: GRANTED — delivery completed and verified
-Delivery Verified: YES — Card branch push, main merge, remote main, and clean worktree verified
+Learning Record Status: COMPLETE
+Blockers: None currently observed
+Known Limitations: C05 freshness transitions and C03 adapter contracts remain out of scope
+Human Start Approval: GRANTED — V1-C02
+Human Delivery Approval: NOT_GRANTED
+Delivery Verified: NO — delivery approval not granted; Phase 1 complete
 ```
 
 ---
@@ -212,9 +214,9 @@ Delivery Verified: YES — Card branch push, main merge, remote main, and clean 
 ## 7. Authorization Ledger
 
 ```text
-Card Start: GRANTED — V1-C01 only
+Card Start: GRANTED — V1-C02 only; V1-C01 delivery completed
 Delivery Approval: GRANTED — V1-C01 delivery completed
-Next Card: NOT_GRANTED
+Next Card: NOT_GRANTED — C03 remains unauthorized
 Architecture Change: NOT_GRANTED
 Material Scope Change: NOT_GRANTED
 Significant Technology Addition: NOT_GRANTED
@@ -240,8 +242,8 @@ Routine reversible implementation is allowed only inside an explicitly approved 
 ```text
 Approved V1 Cards: 27
 Completed Cards: V1-C01
-Active Card: NONE
-Next Roadmap Card: V1-C02 — available only after separate C02 start approval
+Active Card: V1-C02 — Canonical Domain Models
+Next Roadmap Card: V1-C03 — available only after separate C03 start approval
 Later Cards: NOT AUTHORIZED
 ```
 
@@ -640,10 +642,10 @@ Key Demonstrated Lesson:
 Current:
 
 ```text
-Latest Evidence Update: PRE-C02 HARNESS HARDENING — delivered and verified
-Evidence Card: V1-C01
-Evidence Status: COMPLETE — project-local corrective evidence reconciled
-Critical Missing Proof: none for C01; GitHub-hosted CI execution remains outside local validation
+Latest Evidence Update: C02 PHASE 1 + GENERIC HARNESS STATE CORRECTION — validation recorded
+Evidence Card: V1-C02
+Evidence Status: READY_FOR_HUMAN_REVIEW — delivery approval remains outstanding
+Critical Missing Proof: approved C02 Git delivery and human delivery approval
 Learning Record Status: COMPLETE — explicit 30-field record recorded in Evidence Map
 Key Demonstrated Lesson: executable Harness checks must agree with safe repository conventions
 ```
@@ -828,7 +830,7 @@ Exact source decisions belong in Card evidence/source mapping.
 | Card | Title | State | Start Approved | Quality Gate | Evidence |
 |---|---|---|---|---|---|
 | V1-C01 | Repository Baseline & Engineering Harness | COMPLETE | YES | PASS | COMPLETE |
-| V1-C02 | Canonical Domain Models | NOT_STARTED | NO | NOT_RUN | PENDING |
+| V1-C02 | Canonical Domain Models | READY_FOR_HUMAN_REVIEW | YES | PASS | COMPLETE |
 | V1-C03 | Exchange Adapter Contract | NOT_STARTED | NO | NOT_RUN | PENDING |
 | V1-C04 | Hyperliquid Provider Verification & Adapter | NOT_STARTED | NO | NOT_RUN | PENDING |
 | V1-C05 | Data Quality, Freshness & Provenance | NOT_STARTED | NO | NOT_RUN | PENDING |
@@ -950,22 +952,25 @@ Safe Resume:
 V1-C01 is delivered on `main` at merge commit `7460443`; Card commit
 `a304f51` is an ancestor and the pre-C02 Harness hardening commit is
 `c9929e2`, merged and pushed in `cb7e145`. The recorded SHA is a verified
-delivery checkpoint; later reconciliation commits may advance `main`. Active
-Card is NONE.
-Do not start C02 without separate explicit human approval.
+delivery checkpoint; later reconciliation commits may advance `main`. C02
+implementation is complete on `card/v1-c02-canonical-domain-models` from
+start commit `ab3912a` and is ready for human delivery review. Active Card is
+V1-C02.
+Do not start C03 without separate explicit human approval.
 
-Implementation Card: NONE
-Repository Write Authorization: no Active Card; C02 start NOT_GRANTED
-Next Roadmap Card: V1-C02
+Implementation Card: V1-C02
+Repository Write Authorization: C02 Phase 1 complete; delivery approval NOT_GRANTED
+Next Roadmap Card: V1-C03
 V1-C01 Authorization: START_GRANTED; DELIVERY_GRANTED; DELIVERY_COMPLETED
+V1-C02 Authorization: START_GRANTED; DELIVERY_NOT_GRANTED
 ```
 
-Current C01 resume point:
+Current C02 resume point:
 
 ```text
-C01 delivery is complete and verified. Active Card is NONE.
-→ stop
-→ obtain separate explicit approval before starting C02
+C02 implementation and validation are complete.
+→ READY_FOR_HUMAN_REVIEW
+→ STOP for explicit human delivery approval
 ```
 
 ---

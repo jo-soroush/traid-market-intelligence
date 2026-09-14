@@ -972,158 +972,187 @@ Human approval required before next Card: YES
 
 ## V1-C02 — Canonical Domain Models
 
-**Status:** NOT_STARTED
+**Status:** READY_FOR_HUMAN_REVIEW
 
-**Start Authorization:** NOT_GRANTED
+**Start Authorization:** GRANTED — explicit human C02 Card-start approval
 
-**Next Card Authorization:** NOT_GRANTED
+**Next Card Authorization:** NOT_GRANTED — C03 remains unauthorized
 
 ### Contract / Risk Map
-- Repository/current-state reconciliation: Pending
-- Contract Map: Pending
-- Risk Map: Pending
-- Ownership map: Pending
-- Dependency proof: Pending
-- Future-Card leakage check: Pending
-- `ROADMAP_ALIGNMENT_GATE`: NOT_RUN
+- Repository/current-state reconciliation: PASS — C02 branch starts at `ab3912a`; C01 COMPLETE and delivery verified
+- Contract Map: PASS — C02 owns provider-neutral typed market, provenance, quality, context, and bounded evidence contracts
+- Risk Map: PASS — provider leakage, timestamp, numeric, provenance, schema-version, and future-Card scope risks bounded
+- Ownership map: PASS — `src/traid/domain/models.py` owns canonical models; providers/adapters remain future boundaries
+- Dependency proof: PASS — V1-C01 COMPLETE and delivery verified
+- Future-Card leakage check: PASS — no C03 adapters, C05 freshness transitions, analytics, Strategy/Risk, API, storage, or live execution
+- `ROADMAP_ALIGNMENT_GATE`: PASS
+- Branch: `card/v1-c02-canonical-domain-models`
+- Start commit: `ab3912a`
 
 ### Implementation / Inspection
-- Files / symbols inspected: Pending
-- Files / symbols changed: Pending
-- Verified behavior: Pending
-- Architecture before → after: Pending
-- What remained unchanged: Pending
-- Known limitations / deferrals: Pending
+- Files / symbols inspected: C02 Roadmap/specification, Project Profile, Final System Blueprint, guardrails, delivered C01 package/Harness
+- Files / symbols changed: `src/traid/domain/__init__.py`, `src/traid/domain/models.py`, `tests/test_domain_models.py`, `pyproject.toml`, generic Harness resolver/lifecycle checks, Harness tests, C02 Evidence/Control state
+- Verified behavior: typed construction, UTC timestamp normalization/rejection, Decimal constraints, provenance ordering, schema version validation, serialization round-trip, quality enum, provider-neutral source inspection
+- Architecture before → after: C01 baseline only → small TraID-owned provider-neutral domain package; no provider or downstream consumer added
+- What remained unchanged: FastAPI/API ownership, adapters, external APIs, analytics, Strategy, Risk, storage, Docker behavior, and C01 Harness boundaries
+- Known limitations / deferrals: C05 owns freshness transitions; C03 owns adapter contracts; no provider-specific semantics or evidence registry implemented
 
 ### Source / Provenance
-- Decision ID: Pending
-- Classification: Pending
-- Source project/repository: Pending
-- Commit/tag/branch: Pending
-- Exact source file/module/symbol: Pending
-- License: Pending
-- Runtime/semantic verification: Pending
-- TraID adaptation/rejection: Pending
-- Source evidence: Pending
+- Decision ID: `C02-DOMAIN-01`
+- Classification: DECISION — TraID-owned canonical contract
+- Source project/repository: TraID canonical documents only; no external source code adapted
+- Commit/tag/branch: `card/v1-c02-canonical-domain-models` from `ab3912a`
+- Exact source file/module/symbol: `src/traid/domain/models.py`; `CanonicalModel`, `SourceProvenance`, `EvidenceReference`
+- License: NOT_APPLICABLE — no external implementation copied
+- Runtime/semantic verification: PASS — Pydantic construction and serialization tests
+- TraID adaptation/rejection: Provider payloads and transport objects rejected from Core ownership
+- Source evidence: PROJECT_PROFILE evidence registry fields, Blueprint canonical boundary, C02 Specification
 
 ### Tests / Evaluation
-- Focused tests: Pending
-- Relevant regression tests: Pending
-- Card-specific evaluation / acceptance: Pending
-- Actual commands/runners: Pending
-- Actual results: Pending
-- Warnings: Pending
-- Environment/configuration: Pending
+- Focused tests: PASS — `tests/test_domain_models.py`: 9 passed
+- Relevant regression tests: PASS — full `.venv/bin/pytest -q`: 94 passed, 2 warnings
+- Card-specific evaluation / acceptance: PASS — all required C02 model categories and invariants exercised
+- Actual commands/runners: `.venv/bin/pytest -q tests/test_domain_models.py`; `.venv/bin/pytest -q`; compilation; Harness consistency; readiness; bootstrap; secret scan; diff check
+- Actual results: focused 9 passed; full 94 passed; generic Harness/lifecycle and all-27 resolver tests passed; `HARNESS_CONSISTENCY: PASS`; `READINESS_GATE: PASS (V1-C02)`; secret scan PASS; bootstrap PASS_WITH_2_WARNINGS; compilation PASS; diff check PASS
+- Warnings: two FastAPI/Starlette dependency deprecation warnings; two bootstrap warnings for dirty authorized worktree and system pytest absence
+- Environment/configuration: project `.venv` Python 3.13; Pydantic 2.13.5; explicit Pydantic project dependency added
 
 ### Financial / Data / AI / Risk / Security Evidence
-- Financial invariants: Pending
-- Data Quality / Provenance: Pending
-- AI boundary / fail-closed behavior: Pending
-- Risk Gate / bypass behavior: Pending
-- Anti-lookahead / replay integrity: Pending
-- Security / secrets / untrusted-input checks: Pending
-- Not-applicable items and justification: Pending
+- Financial invariants: PASS — positive price/quantity, nonnegative size/volume/open interest, Decimal representation, no guessed funding sign semantics
+- Data Quality / Provenance: PASS — typed `DataQualityState`, source/received timestamps, source identity, versioned provenance
+- AI boundary / fail-closed behavior: NOT_APPLICABLE — no AI provider or interpretation path added
+- Risk Gate / bypass behavior: NOT_APPLICABLE — no Strategy/Risk path added
+- Anti-lookahead / replay integrity: NOT_APPLICABLE — no replay/evaluation behavior added
+- Security / secrets / untrusted-input checks: PASS — existing secret scan and C01 regression pass; no credentials or provider client imports
+- Not-applicable items and justification: C02 is structural domain modeling only; downstream financial/AI/provider behaviors remain future Card ownership
 
 ### Failures / Diagnosis / Recovery
-- Failures observed: Pending
-- Root cause: Pending
-- Diagnosis: Pending
-- Fix/recovery: Pending
-- Regression proof: Pending
-- Remaining risk: Pending
+- Failures observed: JSON round-trip initially passed timestamp strings to a datetime-only validator; provider-leakage test initially false-positive matched `rest` inside `open_interest`; integration test initially expected a narrower wrong-title reason; independent review then found active-C02 Harness exemptions, stale duplicated current-state text, and an omitted explicit `V1 COMPLETE: NO` declaration
+- Root cause: Pydantic `mode="before"` validation needed explicit ISO-string parsing; leakage assertion used substring matching; the fixture rejected on state disagreement first; the Harness encoded C02-specific lifecycle assumptions and `PROJECT_CONTROL.md` repeated obsolete C01 checkpoint prose as if current
+- Diagnosis: focused pytest output, checker subprocess output, independent repository audit, semantic search for Card-specific branches, and comparison of all current-state declarations
+- Fix/recovery: parse ISO timestamps; use token matching; assert the actual deterministic rejection; replace Card-specific lifecycle facts with one generic 27-Card resolver, fail closed on ambiguity/order/authorization conflicts, reconcile current-state documentation while retaining historical evidence, and add the explicit `V1 COMPLETE: NO` declaration without changing product or Harness behavior
+- Why the correction is structurally better: future Cards use the same normalized identity, ordering, authorization, active-state, and delivery-proof rules without edits to generic lifecycle logic
+- Regression proof: generic active C02/C03/C10/C27 and no-active-card fixtures, invalid false-green fixtures, and parameterized all-27 Card ordering tests pass; full 94-test regression and Harness checks rerun after correction
+- Remaining risk: provider-specific semantics and freshness remain deferred to adapter/provider Cards; future documentation changes must preserve the single current-state ownership rule. No product impact from the completion-state reconciliation.
 
 ### Git / Repository
-- Branch: Pending
-- Start commit: Pending
-- Checkpoint commit: Pending
-- Push: Pending
-- Draft PR: Pending
-- Merge: Pending
-- `git diff` review: Pending
-- `git status` review: Pending
-- Secrets/generated artifacts/unrelated changes: Pending
+- Branch: `card/v1-c02-canonical-domain-models`
+- Start commit: `ab3912a`
+- Checkpoint commit: NOT_CREATED — Phase 1 remains uncommitted by instruction
+- Push: NOT_PERFORMED — Phase 1 remains undelivered
+- Draft PR: Not applicable — no delivery approval and no PR requested
+- Merge: NOT_PERFORMED
+- `git diff` review: PASS — `git diff --check`; authorized C02 files only
+- `git status` review: PASS — expected uncommitted C02 implementation/evidence changes
+- Secrets/generated artifacts/unrelated changes: PASS — secret scan; ignored runtime artifacts; no unrelated files
 
 ### Learning Record
 
-What we built: Pending
+What We Wanted To Build: Stable TraID-owned provider-neutral contracts for later market-data and evidence consumers.
 
-Why we built it: Pending
+Why It Matters: Later Cards need one canonical language so provider payloads, transports, and UI/API shapes cannot become business logic.
 
-Engineering problem: Pending
+System Before This Card: C01 delivered a verified Python/FastAPI baseline and Harness, but no canonical domain package existed.
 
-AI / Data / Financial concept: Pending
+Design Decision: Build a small immutable Pydantic domain package with explicit timestamps, Decimal values, provenance, quality state, version, and round-trip serialization.
 
-How it works: Pending
+Alternatives Considered: Provider-owned payload models were rejected; a new modeling framework was rejected because Pydantic was already available; a schema registry and database were rejected as future infrastructure.
 
-Architecture before: Pending
+Why We Chose This Approach: It preserves ownership at the normalization boundary and provides the smallest testable contract surface for later Cards.
 
-Architecture after: Pending
+What We Implemented: Eleven required model categories, `EvidenceReference`, UTC-aware timestamp validation, Decimal constraints, provenance ordering, schema version validation, and focused tests.
 
-Important files and ownership: Pending
+What We Built: `src/traid/domain/models.py` and exports in `src/traid/domain/__init__.py`, with explicit C02 tests and a direct Pydantic dependency.
 
-Source / provenance: Pending
+Why We Built It: To make later adapters and consumers depend on stable TraID contracts rather than external payload representations.
 
-Tests / evaluations and actual results: Pending
+Engineering problem: Establish useful canonical structure without guessing provider-specific semantics or implementing future behavior.
 
-Financial / data / security invariants: Pending
+AI / Data / Financial concept: Data-contract semantics are deterministic; C02 adds no AI, Strategy, Risk, live trading, or market-data fetching.
 
-Problem(s) discovered: Pending
+How it works: Models validate typed values at construction, normalize aware timestamps to UTC, reject invalid numeric/domain states, carry provenance/version, and serialize through Pydantic.
 
-How we diagnosed / solved them: Pending
+Architecture before: C01 baseline package with no domain model ownership.
 
-Professional engineering lesson: Pending
+Architecture after: TraID-owned `domain` boundary between future normalization adapters and downstream consumers.
 
-Student takeaway: Pending
+Important files and ownership: `models.py` owns canonical types; `domain/__init__.py` owns exports; `test_domain_models.py` owns C02 behavior proof; `pyproject.toml` declares Pydantic.
 
-Exit Gate proof: Pending
+Source / provenance: No external source code copied; field decisions derive from the C02 Specification, Project Profile, Blueprint, and guardrails.
 
-What this enables next: Pending
+Tests / evaluations and actual results: Focused C02 tests 9 passed; generic Harness/lifecycle tests and all-27 resolver tests passed; full suite 94 passed with 2 dependency deprecation warnings; consistency, readiness, bootstrap, secret, compilation, and diff checks passed as recorded.
+
+Financial / data / security invariants: Decimal values and defensible nonnegative/positive constraints are enforced; timestamps are aware; provenance is explicit; no secrets or provider clients are introduced.
+
+Problems We Hit: Timestamp JSON round-trip validation, a token-substring false positive in provider inspection, and an overly narrow integration-test expectation.
+
+Root Cause: Pre-validation received JSON strings; `rest` matched part of `open_interest`; the fixture legitimately failed on state disagreement before the narrower expected reason.
+
+How We Solved It: Parse ISO timestamps before normalization, use precise token matching, and assert the actual deterministic rejection from the full checker path.
+
+Why The Fix Is Correct: Each fix addresses the observed failure without weakening validation or adding provider semantics, and all are covered by rerun tests.
+
+What We Rejected: Hyperliquid/transport types, external API calls, adapter contracts, freshness transitions, analytics, Strategy/Risk, API response ownership, storage, and schema-registry infrastructure.
+
+Problem(s) discovered: Pydantic's pre-validation boundary and integration fixture semantics required explicit handling; no unresolved C02 blocker remains.
+
+How we diagnosed / solved them: Focused pytest output, actual checker subprocess output, source inspection, and full regression reruns supplied the evidence.
+
+Known Limitations: Provider units/signs and freshness transitions remain unverified until their owning Cards; Docker was not rerun because C02 does not affect Docker behavior.
+
+Professional engineering lesson: Canonical boundaries are strongest when temporal, numeric, provenance, and serialization rules are executable rather than implied.
+
+Student takeaway: A small typed contract can prevent large downstream coupling when ownership and invalid states are explicit.
+
+Exit Gate proof: Required C02 models exist; focused/full tests, timestamp rejection/normalization, numeric validation, provenance, versioning, serialization, and provider-leakage checks pass; no future-Card behavior was added.
+
+What this enables next: A separately authorized C03 adapter-contract Card can normalize providers into these models; this C02 record does not authorize C03.
 
 ### Exit Gate Proof
-- Exact Card Exit Gate: Pending — re-read from `TRAID_CARD_SPECIFICATIONS.md`
-- Requirement-to-evidence mapping: Pending
-- Unproven requirements: Pending
-- Exact Exit Gate fully proven: NO
+- Exact Card Exit Gate: PASS — canonical schemas are typed, tested, serializable, temporally explicit, source-aware, and provider-neutral
+- Requirement-to-evidence mapping: PASS — model implementation and tests above map to each required C02 behavior
+- Unproven requirements: No C02 mandatory requirement; provider-specific semantics and freshness transitions are explicitly deferred
+- Exact Exit Gate fully proven: YES — Phase 1 implementation/review evidence only
 
 ### CARD_QUALITY_GATE
 
-Status: BLOCKED
+Status: PASS
 
 Card: V1-C02
 
-Focused tests: Pending
+Focused tests: PASS — 9 C02 domain tests
 
-Relevant regression tests: Pending
+Relevant regression tests: PASS — full suite 94 passed
 
-Card evaluation / acceptance: Pending
+Card evaluation / acceptance: PASS
 
-Financial invariant tests: Pending
+Financial invariant tests: PASS — applicable Decimal and structural constraints; broader financial behavior not applicable
 
-Data-quality / provenance tests: Pending
+Data-quality / provenance tests: PASS — quality enum and provenance validation
 
-AI / Risk tests: Pending
+AI / Risk tests: Not applicable — no AI/Strategy/Risk implementation
 
-Security checks: Pending
+Security checks: PASS — secret scan and provider-neutral source inspection
 
-Exit Gate proof: Pending
+Exit Gate proof: PASS — exact C02 Exit Gate proven for Phase 1
 
-Evidence updated: YES — initial empty evidence contract only; no implementation claim
+Evidence updated: YES — actual C02 implementation and validation evidence recorded
 
-Project Control updated: Pending
+Project Control updated: YES — Active Card and authorization reconciled
 
-git diff reviewed: Pending
+git diff reviewed: YES — diff check and scope review
 
-git status reviewed: Pending
+git status reviewed: YES — expected uncommitted Phase 1 changes
 
-Unrelated changes: Pending
+Unrelated changes: None observed
 
-Secrets / generated artifacts check: Pending
+Secrets / generated artifacts check: PASS
 
-Known limitations: Pending
+Known limitations: Provider semantics/freshness and Docker rerun deferred to owning scope
 
-Remaining issues: Card not started; no implementation evidence
+Remaining issues: Human delivery approval remains required; no implementation blocker
 
-Recommended status: NOT_STARTED
+Recommended status: READY_FOR_HUMAN_REVIEW
 
 Human approval required before next Card: YES
 
