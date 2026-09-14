@@ -218,6 +218,20 @@ Do not create `.claude/`, Codex-specific, or other proprietary governance as the
 
 A future tool adapter must be thin and point back to canonical TraID files.
 
+## 6.1 Generic Lifecycle State Integrity
+
+Lifecycle consistency is Card-agnostic across the canonical V1-C01 through
+V1-C27 ordering. The Harness resolves one canonical Card record, normalizes
+short and titled Card identities, derives the next roadmap Card from that
+ordering, and rejects ambiguous or contradictory state. It contains no
+active-Card-specific lifecycle bypasses.
+
+`PROJECT_CONTROL.md` owns current operational state, the Evidence Map owns
+historical execution evidence, and Git owns repository/delivery truth. A next
+roadmap Card is planning information, not authorization. Missing, duplicated,
+conflicting, or stale current-state declarations fail closed as
+`HARNESS_CONSISTENCY: BLOCKED`.
+
 Tool-specific behavior may improve ergonomics. It may not weaken project rules.
 
 ---

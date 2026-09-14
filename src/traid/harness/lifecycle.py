@@ -101,8 +101,6 @@ class LifecycleFacts:
     delivery_recorded: bool = True
     evidence_delivery_recorded: bool = True
     learning_record_complete: bool = True
-    c02_not_started: bool = True
-    c02_authorized: bool = False
     stale_completion_rationale: bool = False
     expected_working_tree_clean: bool = True
     actual_working_tree_clean: bool = True
@@ -111,6 +109,13 @@ class LifecycleFacts:
     next_card_requested: bool = False
     next_card_start_approval: bool = False
     pending_not_applicable: bool = False
+    active_card_exists: bool = True
+    active_card_start_authorized: bool = True
+    active_card_state_valid: bool = True
+    current_state_unambiguous: bool = True
+    active_execution_count: int = 1
+    declared_next_card: str = ""
+    derived_next_card: str = ""
 
 
 def evaluate_lifecycle_transition(
@@ -177,12 +182,21 @@ def evaluate_state_consistency(facts: LifecycleFacts) -> GateResult:
         reasons.append("PENDING_NOT_APPLICABLE_MISMATCH")
     if facts.next_card_requested and not facts.next_card_start_approval:
         reasons.append("NEXT_CARD_START_APPROVAL_MISSING")
-    if not facts.c02_not_started:
-        reasons.append("NEXT_CARD_ALREADY_STARTED")
-    if facts.c02_authorized:
-        reasons.append("NEXT_CARD_AUTHORIZATION_PRESENT")
     if facts.stale_completion_rationale:
         reasons.append("STALE_V1_COMPLETION_RATIONALE")
+    if not facts.current_state_unambiguous:
+        reasons.append("CANONICAL_STATE_AMBIGUOUS")
+    if facts.active_execution_count != (0 if facts.active_card == "NONE" else 1):
+        reasons.append("ACTIVE_EXECUTION_COUNT_MISMATCH")
+    if facts.active_card != "NONE":
+        if not facts.active_card_exists:
+            reasons.append("ACTIVE_CARD_UNKNOWN")
+        if not facts.active_card_state_valid:
+            reasons.append("ACTIVE_CARD_INVALID_STATE")
+        if not facts.active_card_start_authorized:
+            reasons.append("ACTIVE_CARD_START_APPROVAL_MISSING")
+    if facts.declared_next_card != facts.derived_next_card:
+        reasons.append("NEXT_ROADMAP_CARD_MISMATCH")
 
     if facts.card_state == READY_FOR_HUMAN_REVIEW:
         if facts.active_card != facts.card_id:

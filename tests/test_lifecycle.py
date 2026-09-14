@@ -28,6 +28,7 @@ def ready_facts() -> LifecycleFacts:
         evidence_state=READY_FOR_HUMAN_REVIEW,
         expected_branch="card/v1-c01-repository-baseline",
         actual_branch="card/v1-c01-repository-baseline",
+        active_execution_count=1,
     )
 
 
@@ -40,6 +41,7 @@ def complete_facts() -> LifecycleFacts:
         delivery_verified=True,
         project_control_state=COMPLETE,
         evidence_state=COMPLETE,
+        active_execution_count=0,
     )
 
 
