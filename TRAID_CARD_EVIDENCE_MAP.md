@@ -597,8 +597,8 @@ a profitable result != system-quality proof
 ### Contract / Risk Map
 - Semantic `CONTENT_ALIGNMENT_GATE` independent of Card-ID matching: Implemented and tested
 - Prompt extraction, mismatch classification, and no-write behavior: Structured evaluator implemented; no-write behavior represented by blocked results
-- C01 executable proof scenarios for wrong, mixed, invented, out-of-scope, dependency, state-conflict, and disguised future work: 11 blocking scenarios tested
-- Lifecycle/readiness consistency scenarios: 10 deterministic tests covering readiness, review state, delivery authority, completion, next-Card approval, branch/state disagreement, and Pending/Not-applicable drift
+- C01 executable proof scenarios: 13 total scenarios tested — 1 valid PASS and 12 blocking cases covering wrong ID, mixed/future content, small future capability, out-of-scope work, invented requirement, incomplete dependency, state conflict, both next-Card authorization cases, failed validation, and disguised future terminology
+- Lifecycle/readiness consistency scenarios: 21 deterministic tests covering readiness, repository/branch/environment/dependency probes, review state, delivery authority, completion, next-Card approval, branch/state disagreement, HEAD drift, working-tree drift, stale completion rationale, learning completeness, six-state transitions, and Pending/Not-applicable drift
 - Repository/current-state reconciliation: PASS — branch, HEAD, remote, upstream, and working tree inspected
 - Contract Map: PASS — C01 owns baseline/config/health/tests/Harness/tooling only
 - Risk Map: PASS — future-Card leakage, secret exposure, and unexecuted validation controls covered
@@ -609,8 +609,8 @@ a profitable result != system-quality proof
 
 ### Implementation / Inspection
 - Files / symbols inspected: Canonical control/roadmap/specification/Harness/Git/runtime state; no prior source implementation
-- Files / symbols changed: `src/traid`, `tests`, `scripts/pre_card_readiness.py`, `scripts/harness_consistency_check.py`, `scripts/session_bootstrap.sh`, `pyproject.toml`, `.env.example`, `.gitignore`, `Dockerfile`, `.dockerignore`, CI, `AGENTS.md`, `GIT_WORKFLOW.md`, `TRAID_ENGINEERING_HARNESS.md`, `PROJECT_CONTROL.md`, `TRAID_CARD_EVIDENCE_MAP.md`
-- Verified behavior: FastAPI boot, `/health`, deterministic config, pytest discovery, alignment blocking, readiness blocking, lifecycle consistency blocking, current-state consistency pass
+- Files / symbols changed: `src/traid`, `tests`, `scripts/pre_card_readiness.py`, `scripts/harness_consistency_check.py`, `scripts/session_bootstrap.sh`, `scripts/check_tracked_secret_filenames.sh`, `pyproject.toml`, `.env.example`, `.gitignore`, `Dockerfile`, `.dockerignore`, CI, `AGENTS.md`, `GIT_WORKFLOW.md`, `TRAID_ENGINEERING_HARNESS.md`, `PROJECT_CONTROL.md`, `TRAID_CARD_EVIDENCE_MAP.md`
+- Verified behavior: FastAPI boot, `/health`, deterministic config, pytest discovery, 13 alignment scenarios, actual readiness probes, safe secret filename handling, lifecycle consistency blocking, current-state consistency pass
 - Architecture before → after: planning-only repository → minimal C01 package baseline; no market/domain/strategy architecture added
 - What remained unchanged: later Cards, financial guardrails, live-trading prohibition, provider integrations
 - Known limitations / deferrals: GitHub-hosted CI was structurally validated locally, not executed in this environment
@@ -627,12 +627,12 @@ a profitable result != system-quality proof
 - Source evidence: Not applicable
 
 ### Tests / Evaluation
-- Content-alignment gate scenarios: PASS — 15 pytest cases, including 11 blocking cases
-- Focused tests: PASS — `.venv/bin/pytest -q`: 25 passed, 2 dependency deprecation warnings
+- Content-alignment gate scenarios: PASS — 13 explicit scenarios: 1 valid PASS and 12 blocking cases
+- Focused tests: PASS — `.venv/bin/pytest -q`: 44 passed, 2 dependency deprecation warnings
 - Relevant regression tests: PASS — full available C01 suite
 - Card-specific evaluation / acceptance: PASS
 - Actual commands/runners: `.venv/bin/pytest`, `.venv/bin/uvicorn`, `curl`, `bash scripts/check_secrets.sh`, `docker build`, Docker container smoke test, `scripts/pre_card_readiness.py`, `scripts/harness_consistency_check.py`, `scripts/session_bootstrap.sh`, Ruby YAML parse
-- Actual results: app boot and `/health` PASS; pytest collection PASS; 25 tests PASS; secret scan PASS; CI YAML structural parse PASS; Docker image build PASS; container `/health` PASS; `READINESS_GATE: PASS`; `HARNESS_CONSISTENCY: PASS`; bootstrap PASS_WITH_2_WARNINGS
+- Actual results: app boot and `/health` PASS; pytest collection PASS; 44 tests PASS; secret scan PASS; CI YAML structural parse PASS; Docker image build PASS; container `/health` PASS; `READINESS_GATE: PASS`; `HARNESS_CONSISTENCY: PASS`; bootstrap PASS_WITH_2_WARNINGS after `.env.example` correction
 - Warnings: Starlette/httpx deprecation warnings; session bootstrap uses system Python where pytest is unavailable, while the project `.venv` test runner passes
 - Environment/configuration: `.venv` Python 3.13.12; FastAPI/Uvicorn/pytest/httpx installed
 
@@ -646,20 +646,203 @@ a profitable result != system-quality proof
 - Not-applicable items and justification: C01 is repository/Harness infrastructure only; no financial, market-data, AI, Risk, or replay behavior is implemented
 
 ### Failures / Diagnosis / Recovery
-- Failures observed: initial pytest collection rejected reserved parameter name `request`; first Docker build attempt could not write Buildx activity metadata
-- Root cause: test parameter naming conflict verified; initial Docker invocation lacked permission for Docker Desktop Buildx metadata
-- Diagnosis: verified by pytest collection output and Docker CLI error
-- Fix/recovery: renamed test parameter to `candidate`; reran Docker build with approved Docker access; image and container health passed; normalized active Card title parsing in the consistency checker
-- Regression proof: 25 tests pass; Docker image and container smoke test pass; bootstrap consistency check passes
-- Remaining risk: GitHub-hosted CI execution remains outside this local validation
+- Failures observed: pytest collection rejected reserved parameter `request`; Docker Buildx could not write activity metadata; consistency checker rejected active Card title parsing; post-delivery bootstrap falsely rejected tracked `.env.example`
+- Root cause: pytest reserved a parameter name; Docker Desktop Buildx metadata lacked permission on the first invocation; state parser compared the full titled value with the short Card ID; bootstrap used a broader `.env.*` filename pattern than the approved secret scanner
+- Diagnosis: verified from pytest collection output, Docker CLI error, consistency reason code, and bootstrap output naming `.env.example`
+- Fix/recovery: renamed test parameter to `candidate`; reran Docker validation with approved Docker access; normalized Card title parsing; centralized the safe filename rule and allowlisted `.env.example` while retaining `.env`/key/pem blocking
+- Why the fixes are correct: each fix addresses the observed failure at its owning boundary and is covered by focused regression evidence; the secret rule now matches `check_secrets.sh` rather than weakening it
+- Permanent fix vs workaround: pytest rename, parser normalization, and shared filename-rule alignment are permanent repository fixes; Docker permission handling was an environment recovery, not a product workaround
+- Regression proof: 44 tests pass; secret scan passes; readiness and consistency pass; bootstrap PASS_WITH_2_WARNINGS; Docker build/container health remain previously verified
+- Remaining risk: GitHub-hosted CI execution remains outside this local validation; shared execution skill alignment is now explicit and validated
+
+#### Failure Record A — pytest reserved parameter
+
+Failure ID: `C01-PYTEST-RESERVED-PARAMETER`
+
+Card: `V1-C01`
+
+Failure classification: `FAILURE` / `REGRESSION`
+
+Observed behavior: Initial pytest collection did not complete because a test
+parameter was named `request`, which conflicted with pytest's reserved fixture
+name.
+
+Command / scenario: Initial `.venv/bin/pytest -q` collection of the C01 test
+suite.
+
+Actual error/result: Pytest collection rejected the reserved parameter
+`request`.
+
+Expected behavior: The C01 test suite should collect and execute successfully.
+
+Impact: C01 validation could not begin until the test collection error was
+removed.
+
+Root cause: The test used pytest's reserved fixture parameter name.
+
+Diagnosis method: Pytest collection output identified the parameter conflict.
+
+Fix / mitigation: Renamed the test parameter from `request` to `candidate`.
+
+Why the fix is correct: The rename removes the pytest namespace collision
+without changing the test scenario or production behavior.
+
+Permanent fix or workaround: Permanent repository fix.
+
+Regression test added: Existing alignment parameterized tests retained and
+executed with the corrected parameter name; no new product behavior was added.
+
+Retest result: `.venv/bin/pytest -q` passed with 44 tests.
+
+Remaining risk: Two dependency deprecation warnings remain; no collection
+failure remains.
+
+#### Failure Record B — Docker Buildx permission
+
+Failure ID: `C01-DOCKER-BUILDX-PERMISSION`
+
+Card: `V1-C01`
+
+Failure classification: `BLOCKER` / `RECOVERY`
+
+Observed behavior: The first Docker validation could not complete because
+Docker Buildx could not write its activity metadata.
+
+Command / scenario: C01 Docker image build and container `/health` smoke test.
+
+Actual error/result: Docker Buildx reported that activity metadata could not be
+written because of a Docker Desktop permission failure.
+
+Expected behavior: The Docker image should build and the container health
+endpoint should respond successfully.
+
+Impact: Docker was the only blocking C01 Exit Gate item and temporarily
+prevented completion evidence.
+
+Root cause: Docker Desktop lacked permission for the first Buildx metadata
+write.
+
+Diagnosis method: Docker CLI/build output identified the Buildx metadata write
+failure.
+
+Fix / mitigation: Docker access was repaired in the environment and the
+approved Docker build/container validation was rerun.
+
+Why the fix is correct: The repository Dockerfile and health path were not
+changed; the environment permission issue was corrected and the exact Docker
+validation then completed.
+
+Permanent fix or workaround: Environment recovery; not a product workaround.
+
+Regression test added: No repository test was added for the external Docker
+Desktop permission boundary; existing Docker build and container smoke evidence
+was rerun after recovery.
+
+Retest result: Docker image build PASS and container `/health` PASS, as recorded
+in the C01 delivery evidence.
+
+Remaining risk: Docker Desktop/Buildx permissions remain environment-specific;
+GitHub-hosted CI Docker execution was not run locally.
+
+#### Failure Record C — Active Card title normalization
+
+Failure ID: `C01-ACTIVE-CARD-TITLE-NORMALIZATION`
+
+Card: `V1-C01`
+
+Failure classification: `FAILURE` / `REGRESSION`
+
+Observed behavior: The consistency checker rejected the current Active Card
+because the canonical state contained the titled Card value while the checker
+compared it with the short Card ID.
+
+Command / scenario: `PYTHONPATH=src .venv/bin/python scripts/harness_consistency_check.py`
+against the delivered C01 state.
+
+Actual error/result: Consistency validation reported an Active Card title/ID
+mismatch.
+
+Expected behavior: Equivalent canonical Card title and short Card ID forms
+should normalize consistently for validation.
+
+Impact: A valid delivered C01 state was incorrectly blocked by the Harness.
+
+Root cause: The state parser compared the full titled value with the short Card
+ID.
+
+Diagnosis method: The consistency checker reason code and the Project Control
+Active Card value were compared directly.
+
+Fix / mitigation: Normalized a titled `V1-C01` Active Card value to the short
+Card ID before consistency evaluation.
+
+Why the fix is correct: It reconciles equivalent canonical representations and
+does not permit a different Card ID or bypass state validation.
+
+Permanent fix or workaround: Permanent parser normalization fix.
+
+Regression test added: Lifecycle consistency tests cover Card state agreement,
+including current-state and mismatch cases.
+
+Retest result: `HARNESS_CONSISTENCY: PASS`; full pytest passed with 44 tests.
+
+Remaining risk: Future Card title formats would require their own explicit
+normalization coverage.
+
+#### Failure Record D — `.env.example` bootstrap false positive
+
+Failure ID: `C01-ENV-EXAMPLE-BOOTSTRAP-FALSE-POSITIVE`
+
+Card: `V1-C01`
+
+Failure classification: `REGRESSION` / `FAILURE`
+
+Observed behavior: Post-delivery bootstrap rejected the tracked safe template
+`.env.example` as though it were a secret-bearing filename.
+
+Command / scenario: `bash scripts/session_bootstrap.sh` after the C01 delivery
+included `.env.example` in tracked files.
+
+Actual error/result: Bootstrap's broad `.env.*` filename pattern produced a
+false-positive secret filename failure.
+
+Expected behavior: `.env.example` should be allowed while real `.env`, PEM,
+and key files remain blocked.
+
+Impact: A valid repository bootstrap failed after delivery and disagreed with
+the intended secret-scanning policy.
+
+Root cause: Bootstrap used a broader `.env.*` filename pattern than the
+approved secret scanner.
+
+Diagnosis method: Bootstrap output identified `.env.example`; comparison with
+`scripts/check_secrets.sh` exposed the filename-rule mismatch.
+
+Fix / mitigation: Centralized the tracked-filename rule in
+`scripts/check_tracked_secret_filenames.sh`; allowed `.env.example` while
+retaining `.env`, `.pem`, and `.key` blocking.
+
+Why the fix is correct: The checks now share one explicit safe-template rule
+without weakening credential-pattern scanning or allowing real secret files.
+
+Permanent fix or workaround: Permanent repository consistency fix.
+
+Regression test added: `tests/test_secret_filenames.py` covers allowed
+`.env.example` and blocked `.env`, `.pem`, and `.key` cases.
+
+Retest result: `bash scripts/check_secrets.sh` passed; bootstrap completed with
+`PASS_WITH_2_WARNINGS` and 0 failures; full pytest passed with 44 tests.
+
+Remaining risk: Secret scanning remains pattern-based and is not a substitute
+for external secret-management controls.
 
 ### Git / Repository
-- Branch: `main` (Card branch: `card/v1-c01-repository-baseline`)
+- Branch: `main` (delivered C01); corrective audit branch: `maintenance/pre-c02-harness-hardening`
 - Start commit: `f4a8e2e`
 - Checkpoint commit: `a304f51` — `feat: complete V1 C01 repository baseline and harness`
 - Merge commit: `7460443` — `merge: integrate V1 C01 repository baseline and harness`
 - Push: Card branch and `origin/main` verified
-- Draft PR: Pending
+- Draft PR: Not applicable — approved direct branch merge; no PR was created
 - Merge: `7460443` verified on `main`
 - Post-merge verification: PASS — `main` contains `a304f51`; working tree clean
 - `git diff` review: PASS — diff checked for whitespace errors and scope
@@ -668,39 +851,65 @@ a profitable result != system-quality proof
 
 ### Learning Record
 
-What we built: Minimal C01 Python/FastAPI baseline, deterministic configuration, health endpoint, executable semantic alignment evaluator, tests, secret scan, Dockerfile, and CI skeleton
+What We Wanted To Build: A minimal reproducible TraID repository baseline and a tool-neutral Harness that blocks semantic scope drift before later feature Cards.
 
-Why we built it: Establish reproducible repository behavior and prevent silent Card scope/progression violations before later Cards
+Why It Matters: Later Cards require a trustworthy repository state, deterministic configuration, executable validation, explicit approval boundaries, and evidence that cannot be fabricated from Card IDs or documentation alone.
 
-Engineering problem: Establish an executable baseline and scope-protection Harness in an otherwise planning-only repository
+System Before This Card: TraID had planning, Roadmap, source-audit, architecture, and Harness documents, but no verified executable package, runtime health endpoint, test baseline, or committed C01 implementation.
 
-AI / Data / Financial concept: Not applicable — C01 adds no AI, market-data, or financial behavior
+Design Decision: BUILD a TraID-owned Python/FastAPI baseline and Harness; use external projects and the engineering playbook as reference only, without importing an external repository skeleton.
 
-How it works: FastAPI exposes `/health`; configuration validates bounded environment values; structured alignment requests are classified against semantic C01/future/out-of-scope domains and governance flags
+Alternatives Considered: A wholesale external repository skeleton was explicitly rejected by the C01 contract. A documentation-only Harness was insufficient because the contract required executable alignment and validation. No comparative implementation experiment was run; those alternatives are recorded as contract-level rejections, not measured benchmarks.
 
-Architecture before: Planning artifacts only; no executable application
+Why We Chose This Approach: It keeps ownership explicit, minimizes technology, preserves future provider-neutral architecture, and makes scope, readiness, lifecycle, secret, and delivery checks executable at the repository boundary.
 
-Architecture after: Local-first `src/traid` package with C01-owned health/config/Harness boundaries; no provider or financial logic
+What We Implemented: `src/traid` package/config/health entry point; semantic alignment evaluator; readiness and lifecycle evaluators; secret filename helper; tests; Dockerfile; CI skeleton; configuration and repository safety files; canonical state/evidence updates.
 
-Important files and ownership: `src/traid/config.py` owns deterministic config; `src/traid/main.py` owns the C01 app/health entry point; `src/traid/harness/alignment.py` owns semantic alignment checks; `tests/` owns C01 validation; scripts/tooling own secret and delivery checks
+What We Built: Minimal C01 Python/FastAPI baseline, deterministic configuration, `/health`, pytest baseline, semantic alignment protection, readiness/lifecycle consistency checks, secret scanning, Docker baseline, and CI skeleton.
 
-Source / provenance: Not applicable — C01 built TraID-owned baseline code and did not adapt external source code
+Why We Built It: To establish reproducible engineering behavior and prevent silent Card scope, approval, state, secret, and evidence failures before later Cards.
 
-Tests / evaluations and actual results: 25 passed; live boot/health passed; secret scan passed; Docker build and container health passed; readiness and consistency checks passed
+Engineering problem: Establish an executable baseline and scope-protection Harness in an otherwise planning-only repository.
 
-Financial / data / security invariants: no financial/data logic introduced; V1 live-trading and credential prohibitions preserved; secret scan passed
+AI / Data / Financial concept: NOT_APPLICABLE — C01 adds no AI provider, market-data path, Strategy, Risk Gate, or financial calculation.
 
-Problem(s) discovered: pytest reserved parameter name and initially unavailable Docker daemon
+How it works: FastAPI exposes `/health`; configuration validates bounded environment values; alignment requests are classified against C01, future-Card, and out-of-scope domains; readiness probes applicable repository/runtime prerequisites; lifecycle checks enforce review, delivery, completion, branch, and evidence consistency.
 
-How we diagnosed / solved them: collection output identified the reserved name; rename fixed regression; Docker CLI confirmed environment blocker; consistency output identified title-normalization defect and the corrected checker passed
+Architecture before: Planning artifacts only; no executable application.
 
-Professional engineering lesson: executable scope controls need structured semantic checks and independently run evidence; documentation alone is insufficient
+Architecture after: Local-first `src/traid` package with C01-owned health/config/Harness boundaries; no provider, market, Strategy, Risk, or financial logic.
 
-Student takeaway: a passing unit suite does not close a Card when a required environment-dependent gate remains unexecuted
+Important files and ownership: `src/traid/config.py` owns deterministic config; `src/traid/main.py` owns the app/health entry point; `src/traid/harness/alignment.py` owns semantic scope checks; `src/traid/harness/lifecycle.py` owns readiness/lifecycle rules; `tests/` owns validation; scripts own operational checks.
 
-Exit Gate proof: Complete — runtime/config/tests/Harness/security/Docker evidence proven and approved delivery verified
+Source / provenance: NOT_APPLICABLE — C01 created TraID-owned files and did not adapt external source code. External projects were reference-only.
 
-What this enables next: a separately authorized C02; this state does not authorize C02
+Tests / evaluations and actual results: 44 tests passed with 2 dependency deprecation warnings; app boot/health, secret scan, CI structural parse, Docker build/container health, readiness, consistency, compilation, and diff checks passed as recorded. Bootstrap passed with two non-blocking warnings after the `.env.example` correction.
+
+Financial / data / security invariants: Financial/data/AI/Risk/replay behavior is NOT_APPLICABLE to C01. V1 prohibitions remain preserved; no credentials/private keys are required; safe `.env.example` is allowed while real `.env`, key, and PEM filenames are blocked.
+
+Problems We Hit: Reserved pytest parameter; initial Docker Buildx metadata permission failure; active Card title normalization mismatch; bootstrap false-positive rejection of `.env.example` after delivery.
+
+Root Cause: The pytest name conflicted with a reserved fixture parameter; Docker Desktop lacked permission for the first Buildx metadata write; the consistency parser compared a titled Card value with a short ID; bootstrap used a broader `.env.*` regex than the secret scanner.
+
+How We Solved It: Renamed the test parameter; reran Docker with approved access; normalized title parsing; centralized the tracked-filename rule and excluded only the safe `.env.example` template.
+
+Why The Fix Is Correct: Each fix is at the owning boundary, preserves the intended contract, and has focused regression evidence. The secret correction aligns two checks without permitting real `.env`, PEM, or key files.
+
+What We Rejected: Wholesale external repository import, documentation-only scope protection, heavy infrastructure, future-Card product functionality, and weakening the secret scanner to hide `.env.example` were rejected by the C01 contract or observed safety requirements.
+
+Problem(s) discovered: The four failures above were retained rather than erased; the latest audit additionally exposed stale current-state documentation and incomplete Learning Record structure, which this maintenance branch reconciles.
+
+How we diagnosed / solved them: Pytest, Docker CLI, consistency reason codes, bootstrap output, and the directly authorized skill edit supplied direct observations; focused tests and reruns verified the fixes.
+
+Known Limitations: GitHub-hosted CI was structurally validated locally but not executed here; Docker evidence is recorded from the approved C01 delivery validation; this corrective branch remains uncommitted and unpushed.
+
+Professional engineering lesson: Executable controls must agree with safe repository conventions, and current-state ledgers must be reconciled separately from historical checkpoints.
+
+Student takeaway: Passing application tests is not enough; a completed Card also needs honest failure history, educational decisions, current state, delivery evidence, and a Harness that passes from the delivered repository.
+
+Exit Gate proof: C01 runtime/config/tests/alignment/readiness/security/Docker/CI and approved Git delivery evidence are recorded; project-local corrective validation and the shared execution skill alignment pass.
+
+What this enables next: A separately authorized C02 after this corrective maintenance is delivered and verified; this record does not authorize C02.
 
 ### Exit Gate Proof
 - Exact Card Exit Gate: Re-read from `TRAID_CARD_SPECIFICATIONS.md`; fully proven for implementation/review readiness and approved delivery
@@ -714,7 +923,7 @@ Status: PASS
 
 Card: V1-C01
 
-Focused tests: PASS — 25 passed
+Focused tests: PASS — 44 passed
 
 Relevant regression tests: PASS — full C01 suite rerun
 
@@ -732,6 +941,10 @@ Exit Gate proof: PASS — implementation/review-readiness evidence and approved 
 
 Evidence updated: YES — actual C01 implementation and validation evidence recorded
 
+Learning / decision record integrity: PASS — all 30 canonical fields are explicit
+
+Failure history retained: PASS — pytest, Docker, title-normalization, and bootstrap failures retained with diagnosis, fix, regression, and remaining risk
+
 Project Control updated: YES
 
 git diff reviewed: YES — `git diff --check` and scope review
@@ -744,7 +957,7 @@ Secrets / generated artifacts check: PASS — secret scan; ignored `.venv`/`.DS_
 
 Known limitations: CI was structurally validated locally, not executed on GitHub
 
-Remaining issues: GitHub-hosted CI execution remains outside this local validation
+Remaining issues: GitHub-hosted CI execution remains outside this local validation; no C01 Harness blocker remains
 
 Recommended status: COMPLETE
 
@@ -4967,7 +5180,7 @@ Current status:
 
 ```text
 V1 COMPLETE: NO
-Reason: implementation has not started under this redesigned Evidence Map.
+Reason: C01 is complete, but C02 through C27 remain incomplete/not started and the V1-wide Exit Gates are not proven.
 ```
 
 ---

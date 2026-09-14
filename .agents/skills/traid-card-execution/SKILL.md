@@ -135,6 +135,29 @@ STOP
 
 ## 4. Card Start Rule
 
+### Phase 0 — PRE-CARD READINESS / READINESS_GATE
+
+Before implementation, inspect applicable prerequisites against repository
+and runtime reality:
+
+```text
+repository/Git state and required branch condition
+Python/project environment and project test runner
+Docker or external services where the Card requires them
+required configuration files
+completed dependency Cards
+source verification and datasets/fixtures where applicable
+```
+
+Missing mandatory prerequisites produce:
+
+```text
+READINESS_GATE: BLOCKED
+STOP BEFORE IMPLEMENTATION
+```
+
+### Phase 1 — START, IMPLEMENT, AND VALIDATE
+
 Implementation may start only when:
 
 ```text
@@ -988,6 +1011,27 @@ Do not imply the next step is authorized.
 
 ## 32. Card Closure
 
+Successful Phase 1 validation produces:
+
+```text
+READY_FOR_HUMAN_REVIEW
+STOP FOR HUMAN REVIEW
+```
+
+`CARD_QUALITY_GATE: PASS` does not authorize delivery or imply `COMPLETE`.
+Card-start approval is not delivery approval.
+
+Phase 2 requires explicit human delivery approval and a final delivery
+sanity check before:
+
+```text
+commit
+push
+merge
+remote verification
+final PROJECT_CONTROL / Evidence reconciliation
+```
+
 A Card becomes `COMPLETE` only when:
 
 ```text
@@ -1010,7 +1054,8 @@ Active Card = NONE
 STOP
 ```
 
-Never start the next Card.
+The next Card requires separate explicit authorization. Failed readiness,
+quality, or delivery validation produces `STOP`; do not claim `COMPLETE`.
 
 ---
 
@@ -1103,11 +1148,12 @@ RESOLVE CARD
 → READ CONTRACT + EVIDENCE
 → INSPECT REPOSITORY/GIT
 → RECONCILE REALITY
+→ PHASE 0 READINESS_GATE
 → CONTRACT MAP
 → RISK MAP
 → EXTRACT REQUESTED WORK SEMANTICALLY
 → CONTENT_ALIGNMENT_GATE
-→ VERIFY HUMAN START APPROVAL
+→ VERIFY EXPLICIT CARD-START APPROVAL
 → ROADMAP_ALIGNMENT_GATE
 → DEFINE ONE BOUNDED STEP
 → VERIFY SOURCE / FINANCIAL SEMANTICS
@@ -1121,13 +1167,19 @@ RESOLVE CARD
 → PROVE EXIT GATE
 → COMPLETE LEARNING RECORD
 → CARD_QUALITY_GATE
-→ HUMAN-APPROVED GIT DELIVERY
-→ POST-MERGE VERIFICATION
-→ RECONCILE PROJECT_CONTROL
-→ CARD COMPLETE
+→ READY_FOR_HUMAN_REVIEW
+→ STOP FOR HUMAN REVIEW
+→ EXPLICIT HUMAN DELIVERY APPROVAL
+→ FINAL DELIVERY SANITY CHECK
+→ COMMIT
+→ PUSH
+→ MERGE
+→ REMOTE VERIFICATION
+→ FINAL PROJECT_CONTROL / EVIDENCE RECONCILIATION
+→ COMPLETE
 → ACTIVE CARD NONE
 → STOP
-→ SEPARATE HUMAN APPROVAL FOR NEXT CARD
+→ SEPARATE AUTHORIZATION FOR NEXT CARD
 ```
 
 ---

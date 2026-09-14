@@ -21,6 +21,7 @@ def test_correct_id_and_content_passes() -> None:
     ("candidate", "reason"),
     [
         (CardRequest(**{**VALID.__dict__, "card_id": "V1-C02"}), "CARD_MISMATCH"),
+        (CardRequest(**{**VALID.__dict__, "objective": "Create a reproducible repository baseline and canonical domain model"}), "FUTURE_CARD_LEAKAGE:V1-C02"),
         (CardRequest(**{**VALID.__dict__, "objective": "Create a canonical domain model and engineering harness"}), "FUTURE_CARD_LEAKAGE:V1-C02"),
         (CardRequest(**{**VALID.__dict__, "behaviors": ("market data ingestion",)}), "CARD_SCOPE_MISMATCH"),
         (CardRequest(**{**VALID.__dict__, "behaviors": ("adapter contract",)}), "FUTURE_CARD_LEAKAGE:V1-C03"),

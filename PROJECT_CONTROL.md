@@ -107,11 +107,12 @@ Implementation: COMPLETE — C01 implementation, validation, and approved delive
 Source Code: PRESENT — C01 baseline only
 Tests: PRESENT — C01 baseline tests
 Git Repository: INITIALIZED
-Git Branch: main
-Git HEAD: 7460443 — merge: integrate V1 C01 repository baseline and harness
-Git Upstream: origin/main
+Git Branch: maintenance/pre-c02-harness-hardening
+Git HEAD: c508ab9 — delivered C01 reconciliation baseline; corrective branch is uncommitted
+Git Upstream: none — corrective branch is local and unpushed
 Git Remote: origin — https://github.com/jo-soroush/traid-market-intelligence.git
-Git Safe Checkpoint: VERIFIED — 7460443; C01 merge delivered to origin/main
+Git Safe Checkpoint: VERIFIED — c508ab9; corrective Harness changes are uncommitted
+Working Tree: DIRTY_ALLOWED — authorized pre-C02 Harness corrections are uncommitted and unpushed
 V1-C01: COMPLETE
 V1-C01 Authorization: START_GRANTED; DELIVERY_GRANTED; DELIVERY_COMPLETED
 ```
@@ -119,8 +120,8 @@ V1-C01 Authorization: START_GRANTED; DELIVERY_GRANTED; DELIVERY_COMPLETED
 Filesystem verification is not implementation evidence. Runtime, test, and
 Git delivery claims require their own executed evidence.
 
-C01 repository, runtime, and validation evidence is recorded; delivery remains
-pending human approval.
+C01 repository, runtime, validation, approved delivery, and corrective Harness
+evidence are recorded. Active Card remains NONE; C02 remains unauthorized.
 
 ---
 
@@ -574,7 +575,12 @@ Evidence Reference:
 Current:
 
 ```text
-TraID repository test state: NOT VERIFIED IN THIS SESSION
+TraID repository test state: VERIFIED — `.venv/bin/pytest -q`: 44 passed, 2 warnings
+Harness consistency: PASS after current-branch reconciliation
+Readiness gate: PASS for the corrective branch and completed C01 dependency
+Secret scan: PASS
+Python compilation: PASS
+git diff --check: PASS
 ```
 
 An intended or inspected test is not a passed test.
@@ -606,8 +612,11 @@ Recommended State:
 Current:
 
 ```text
-CARD_QUALITY_GATE: NOT_RUN
-Reason: no active Card
+CARD_QUALITY_GATE: PASS — C01 delivery remains complete; corrective Harness validation passed
+Focused tests: 44 passed, 2 dependency deprecation warnings
+Evidence updated: YES
+Learning Record: COMPLETE
+Remaining issue: GitHub-hosted CI execution remains outside local validation; no C01 blocker remains
 ```
 
 ---
@@ -630,12 +639,12 @@ Key Demonstrated Lesson:
 Current:
 
 ```text
-Latest Evidence Update: NOT VERIFIED
-Evidence Card: NONE
-Evidence Status: PENDING
-Critical Missing Proof: repository baseline and all V1 implementation evidence
-Learning Record Status: NOT_STARTED
-Key Demonstrated Lesson: NONE
+Latest Evidence Update: PRE-C02 HARNESS CORRECTION — project-local validation PASS
+Evidence Card: V1-C01
+Evidence Status: COMPLETE — project-local corrective evidence reconciled
+Critical Missing Proof: none for C01; GitHub-hosted CI execution remains outside local validation
+Learning Record Status: COMPLETE — explicit 30-field record recorded in Evidence Map
+Key Demonstrated Lesson: executable Harness checks must agree with safe repository conventions
 ```
 
 Never duplicate or fabricate the Evidence Map here.
@@ -937,9 +946,10 @@ when proof is absent.
 
 ```text
 Safe Resume:
-Final Harness is canonicalized and verified at the current TraID root.
 V1-C01 is delivered on `main` at merge commit `7460443`; Card commit
-`a304f51` is an ancestor and the Card branch is pushed. Active Card is NONE.
+`a304f51` is an ancestor and the reconciliation commit is `c508ab9`. Current
+corrective work is on local branch `maintenance/pre-c02-harness-hardening`
+from `c508ab9`; it is uncommitted and unpushed. Active Card is NONE.
 Do not start C02 without separate explicit human approval.
 
 Implementation Card: NONE
