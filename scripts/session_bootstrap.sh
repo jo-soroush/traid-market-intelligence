@@ -116,12 +116,10 @@ fi
 
 # 7. Detect obvious tracked secret-file hazards without reading secret contents
 if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-  TRACKED_SECRET_FILES="$(git ls-files 2>/dev/null | grep -E '(^|/)(\.env|\.env\..+|.*\.pem|.*\.key)$' || true)"
-  if [[ -n "$TRACKED_SECRET_FILES" ]]; then
-    fail "potential secret-bearing files are tracked by Git"
-    printf "%s\n" "$TRACKED_SECRET_FILES"
-  else
+  if scripts/check_tracked_secret_filenames.sh; then
     ok "no obvious secret-bearing filenames detected in tracked files"
+  else
+    fail "potential secret-bearing files are tracked by Git"
   fi
 fi
 
