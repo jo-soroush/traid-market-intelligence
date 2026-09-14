@@ -5240,12 +5240,15 @@ Root cause: test code assumed a repository-local .venv path that the workflow do
 Diagnosis method: inspected .github/workflows/ci.yml and the failing subprocess helper; verified the workflow installs into the hosted runner environment
 Fix / mitigation: use sys.executable in tests/test_harness_consistency.py
 Why the fix is correct: it selects the interpreter running the test process and removes the unsupported local-path assumption
-Permanent fix or workaround: bounded test portability correction plus generic maintenance/hotfix record enforcement; hosted CI confirmation remains pending until this maintenance branch is delivered
+Permanent fix or workaround: bounded test portability correction plus generic maintenance/hotfix record enforcement; delivered and verified
 Regression test added: tests/test_maintenance_harness.py covers valid future maintenance/hotfix branches, missing/mismatched records, wrong base, out-of-scope changes, and lifecycle protection; existing real subprocess tests remain unmocked
 Retest result: original portability tests 2 passed; maintenance/Harness/lifecycle suite 74 passed; C02 domain tests 9 passed; full pytest 103 passed with 2 warnings; Harness consistency and Bootstrap passed; secret scan, compilation, and git diff --check passed
-Remaining risk: hosted CI and GitHub branch-protection settings are NOT_VERIFIED until the approved branch push and Actions run
+Hosted CI result: PASS — c01-baseline/test for push and PR at c396c0e; post-merge push run 34841403500 PASS for c957bd4
+Maintenance enforcement result: PASS — generic branch/category, authorization, base, scope, dirty-state, and Card-lifecycle regressions passed
+Remaining risk: GitHub branch-protection settings remain NOT_VERIFIED; no product/domain impact
 Base / branch: ef35af1 / maintenance/ci-python-portability
-External delivery: PUSH/PR/MERGE GRANTED for this bounded maintenance cycle only; no force push
+External delivery: COMPLETE — PR #1 merged at c957bd4; no force push
+Closure state: CLOSED / DELIVERED / VERIFIED
 ```
 
 # 20. Final Evidence Principle

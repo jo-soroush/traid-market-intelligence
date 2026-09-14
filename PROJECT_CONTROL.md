@@ -108,12 +108,12 @@ Implementation: COMPLETE — C01 and C02 implementation, validation, and approve
 Source Code: PRESENT — C01 baseline and C02 canonical domain contracts
 Tests: PRESENT — C01 baseline and C02 domain/Harness tests
 Git Repository: INITIALIZED
-Git Branch: maintenance/ci-python-portability
-Git HEAD: 5da30cb — validated maintenance enforcement checkpoint; later reconciliation commits may advance HEAD
+Git Branch: main
+Git HEAD: c957bd4 — verified squash merge of maintenance PR; later reconciliation commits may advance HEAD
 Git Upstream: origin/main
 Git Remote: origin — https://github.com/jo-soroush/traid-market-intelligence.git
-Git Safe Checkpoint: VERIFIED — 5da30cb; C02 merged into main and maintenance enforcement is locally validated
-Working Tree: CLEAN — validated maintenance checkpoint; external delivery remains pending
+Git Safe Checkpoint: VERIFIED — c957bd4; maintenance PR merged into main and post-merge validation passed
+Working Tree: CLEAN — post-merge maintenance closure checkpoint
 V1-C01: COMPLETE
 V1-C01 Authorization: START_GRANTED; DELIVERY_GRANTED; DELIVERY_COMPLETED
 V1-C02: COMPLETE
@@ -132,7 +132,7 @@ unauthorized.
 ```text
 Maintenance Task ID: MAINT-CI-PYTHON-PORTABILITY
 Title: Hosted-CI Python subprocess interpreter portability correction
-Status: READY_TO_DELIVER — generic enforcement and local validation pass; hosted CI and delivery remain pending
+Status: CLOSED / DELIVERED / VERIFIED — generic enforcement delivered and post-merge validation passed
 Reason: hosted CI evidence showed Harness subprocess tests assumed ROOT/.venv/bin/python
 Originating Evidence: post-delivery CI portability incident; see TRAID_CARD_EVIDENCE_MAP.md
 Base Commit: ef35af1 — verified main checkpoint
@@ -142,9 +142,9 @@ Prohibited Scope: C03, product/domain behavior, financial rules, Harness semanti
 Expected Areas: scripts/harness_consistency_check.py, tests/test_harness_consistency.py, tests/test_maintenance_harness.py, PROJECT_CONTROL.md, TRAID_CARD_EVIDENCE_MAP.md, TRAID_ENGINEERING_HARNESS.md, GIT_WORKFLOW.md, AGENTS.md, and the Card-execution Skill
 Allowed Paths: scripts/harness_consistency_check.py, tests/test_harness_consistency.py, tests/test_maintenance_harness.py, PROJECT_CONTROL.md, TRAID_CARD_EVIDENCE_MAP.md, TRAID_ENGINEERING_HARNESS.md, GIT_WORKFLOW.md, AGENTS.md, .agents/skills/traid-card-execution/SKILL.md
 Required Validation: focused portability tests, Harness/lifecycle tests, affected C02 tests, full pytest, secret scan, compilation, diff check
-External Git Permissions: PUSH/PR/MERGE GRANTED for this bounded maintenance cycle only; no force push
-Closure Evidence: pending human review, explicit delivery approval, hosted CI, approved integration, and post-merge verification
-Safe Resume: review the maintenance diff; do not start C03; request separate delivery approval before external Git actions
+External Git Permissions: COMPLETED — approved push, PR, merge, and verification completed; no force push
+Closure Evidence: PR #1 merged at c957bd4; push/PR hosted c01-baseline passed for c396c0e; post-merge main hosted c01-baseline run 34841403500 passed; local post-merge validation passed
+Safe Resume: maintenance incident closed; do not start C03; obtain separate explicit C03 start authorization before any Card implementation
 ```
 
 This record is operational maintenance state, not a Roadmap Card and not a
