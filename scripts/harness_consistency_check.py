@@ -82,6 +82,9 @@ def main() -> int:
     head = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], text=True).strip()
     expected_branch = extract(r"^Git Branch: (.+)$", control)
     expected_head = extract(r"^Git HEAD: ([0-9a-f]+)", control)
+    checkpoint_verified = subprocess.run(
+        ["git", "merge-base", "--is-ancestor", expected_head, head], check=False
+    ).returncode == 0
     expected_working_tree = extract(r"^Working Tree: (.+)$", control)
     actual_working_tree_clean = not subprocess.check_output(["git", "status", "--porcelain"], text=True).strip()
     evidence_section = re.search(r"## V1-C01 .*?(?=\n## V1-C02)", evidence, re.DOTALL)
@@ -116,6 +119,7 @@ def main() -> int:
             actual_branch=branch,
             expected_head=expected_head,
             actual_head=head,
+            head_checkpoint_verified=checkpoint_verified,
             test_state_verified=test_state_verified,
             quality_gate_state=control_quality,
             evidence_status=evidence_status,

@@ -122,6 +122,11 @@ def test_head_state_disagreement_is_blocked() -> None:
     assert "GIT_HEAD_STATE_MISMATCH" in result.reason_codes
 
 
+def test_descendant_of_recorded_checkpoint_is_valid() -> None:
+    facts = replace(ready_facts(), expected_head="abc1234", actual_head="def5678", head_checkpoint_verified=True)
+    assert evaluate_state_consistency(facts).passed
+
+
 def test_stale_completion_rationale_is_blocked() -> None:
     result = evaluate_state_consistency(replace(complete_facts(), stale_completion_rationale=True))
     assert not result.passed

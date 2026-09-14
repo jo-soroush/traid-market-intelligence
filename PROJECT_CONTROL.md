@@ -107,12 +107,12 @@ Implementation: COMPLETE — C01 implementation, validation, and approved delive
 Source Code: PRESENT — C01 baseline only
 Tests: PRESENT — C01 baseline tests
 Git Repository: INITIALIZED
-Git Branch: maintenance/pre-c02-harness-hardening
-Git HEAD: c508ab9 — delivered C01 reconciliation baseline; corrective branch is uncommitted
-Git Upstream: none — corrective branch is local and unpushed
+Git Branch: main
+Git HEAD: cb7e145 — verified delivery checkpoint; later reconciliation commits may advance HEAD
+Git Upstream: origin/main
 Git Remote: origin — https://github.com/jo-soroush/traid-market-intelligence.git
-Git Safe Checkpoint: VERIFIED — c508ab9; corrective Harness changes are uncommitted
-Working Tree: DIRTY_ALLOWED — authorized pre-C02 Harness corrections are uncommitted and unpushed
+Git Safe Checkpoint: VERIFIED — cb7e145; pre-C02 Harness hardening merged and pushed
+Working Tree: CLEAN — delivered Harness hardening verified on main
 V1-C01: COMPLETE
 V1-C01 Authorization: START_GRANTED; DELIVERY_GRANTED; DELIVERY_COMPLETED
 ```
@@ -121,7 +121,8 @@ Filesystem verification is not implementation evidence. Runtime, test, and
 Git delivery claims require their own executed evidence.
 
 C01 repository, runtime, validation, approved delivery, and corrective Harness
-evidence are recorded. Active Card remains NONE; C02 remains unauthorized.
+evidence are recorded. Harness hardening is delivered and verified. Active Card
+remains NONE; C02 remains unauthorized.
 
 ---
 
@@ -575,9 +576,9 @@ Evidence Reference:
 Current:
 
 ```text
-TraID repository test state: VERIFIED — `.venv/bin/pytest -q`: 44 passed, 2 warnings
-Harness consistency: PASS after current-branch reconciliation
-Readiness gate: PASS for the corrective branch and completed C01 dependency
+TraID repository test state: VERIFIED — `.venv/bin/pytest -q`: 45 passed, 2 warnings
+Harness consistency: PASS after post-merge checkpoint reconciliation
+Readiness gate: PASS for the delivered Harness and completed C01 dependency
 Secret scan: PASS
 Python compilation: PASS
 git diff --check: PASS
@@ -613,7 +614,7 @@ Current:
 
 ```text
 CARD_QUALITY_GATE: PASS — C01 delivery remains complete; corrective Harness validation passed
-Focused tests: 44 passed, 2 dependency deprecation warnings
+Focused tests: 45 passed, 2 dependency deprecation warnings
 Evidence updated: YES
 Learning Record: COMPLETE
 Remaining issue: GitHub-hosted CI execution remains outside local validation; no C01 blocker remains
@@ -639,7 +640,7 @@ Key Demonstrated Lesson:
 Current:
 
 ```text
-Latest Evidence Update: PRE-C02 HARNESS CORRECTION — project-local validation PASS
+Latest Evidence Update: PRE-C02 HARNESS HARDENING — delivered and verified
 Evidence Card: V1-C01
 Evidence Status: COMPLETE — project-local corrective evidence reconciled
 Critical Missing Proof: none for C01; GitHub-hosted CI execution remains outside local validation
@@ -694,14 +695,14 @@ Current:
 
 ```text
 Branch: main; Card branch: card/v1-c01-repository-baseline
-Commits: a304f51 (C01); 7460443 (merge)
+Commits: a304f51 (C01); 7460443 (merge); c9929e2 (Harness hardening); cb7e145 (hardening merge)
 Push: Card branch and origin/main VERIFIED
 PR: NONE
 PR State: N/A
 Human Review: APPROVED — C01 delivery approval granted
 Merge Approval: GRANTED
 Merge: VERIFIED — 7460443 on main
-Post-Merge Verification: PASS — main contains a304f51; remote and working tree verified
+Post-Merge Verification: PASS — main contains a304f51 and c9929e2 via cb7e145; remote and working tree verified
 ```
 
 Files designed outside the repository are not Git delivery evidence.
@@ -947,9 +948,10 @@ when proof is absent.
 ```text
 Safe Resume:
 V1-C01 is delivered on `main` at merge commit `7460443`; Card commit
-`a304f51` is an ancestor and the reconciliation commit is `c508ab9`. Current
-corrective work is on local branch `maintenance/pre-c02-harness-hardening`
-from `c508ab9`; it is uncommitted and unpushed. Active Card is NONE.
+`a304f51` is an ancestor and the pre-C02 Harness hardening commit is
+`c9929e2`, merged and pushed in `cb7e145`. The recorded SHA is a verified
+delivery checkpoint; later reconciliation commits may advance `main`. Active
+Card is NONE.
 Do not start C02 without separate explicit human approval.
 
 Implementation Card: NONE

@@ -92,6 +92,7 @@ class LifecycleFacts:
     actual_branch: str
     expected_head: str = ""
     actual_head: str = ""
+    head_checkpoint_verified: bool | None = None
     test_state_verified: bool = True
     quality_gate_state: str = "PASS"
     evidence_status: str = "COMPLETE"
@@ -168,7 +169,7 @@ def evaluate_state_consistency(facts: LifecycleFacts) -> GateResult:
         reasons.append("PROJECT_CONTROL_EVIDENCE_STATE_MISMATCH")
     if facts.actual_branch != facts.expected_branch:
         reasons.append("GIT_BRANCH_STATE_MISMATCH")
-    if facts.expected_head and facts.actual_head != facts.expected_head:
+    if facts.expected_head and facts.actual_head != facts.expected_head and facts.head_checkpoint_verified is not True:
         reasons.append("GIT_HEAD_STATE_MISMATCH")
     if facts.expected_working_tree_clean != facts.actual_working_tree_clean:
         reasons.append("WORKING_TREE_STATE_MISMATCH")

@@ -628,11 +628,11 @@ a profitable result != system-quality proof
 
 ### Tests / Evaluation
 - Content-alignment gate scenarios: PASS — 13 explicit scenarios: 1 valid PASS and 12 blocking cases
-- Focused tests: PASS — `.venv/bin/pytest -q`: 44 passed, 2 dependency deprecation warnings
+- Focused tests: PASS — `.venv/bin/pytest -q`: 45 passed, 2 dependency deprecation warnings
 - Relevant regression tests: PASS — full available C01 suite
 - Card-specific evaluation / acceptance: PASS
 - Actual commands/runners: `.venv/bin/pytest`, `.venv/bin/uvicorn`, `curl`, `bash scripts/check_secrets.sh`, `docker build`, Docker container smoke test, `scripts/pre_card_readiness.py`, `scripts/harness_consistency_check.py`, `scripts/session_bootstrap.sh`, Ruby YAML parse
-- Actual results: app boot and `/health` PASS; pytest collection PASS; 44 tests PASS; secret scan PASS; CI YAML structural parse PASS; Docker image build PASS; container `/health` PASS; `READINESS_GATE: PASS`; `HARNESS_CONSISTENCY: PASS`; bootstrap PASS_WITH_2_WARNINGS after `.env.example` correction
+- Actual results: app boot and `/health` PASS; pytest collection PASS; 45 tests PASS; secret scan PASS; CI YAML structural parse PASS; Docker image build PASS; container `/health` PASS; `READINESS_GATE: PASS`; `HARNESS_CONSISTENCY: PASS`; bootstrap PASS_WITH_2_WARNINGS after `.env.example` correction
 - Warnings: Starlette/httpx deprecation warnings; session bootstrap uses system Python where pytest is unavailable, while the project `.venv` test runner passes
 - Environment/configuration: `.venv` Python 3.13.12; FastAPI/Uvicorn/pytest/httpx installed
 
@@ -652,7 +652,7 @@ a profitable result != system-quality proof
 - Fix/recovery: renamed test parameter to `candidate`; reran Docker validation with approved Docker access; normalized Card title parsing; centralized the safe filename rule and allowlisted `.env.example` while retaining `.env`/key/pem blocking
 - Why the fixes are correct: each fix addresses the observed failure at its owning boundary and is covered by focused regression evidence; the secret rule now matches `check_secrets.sh` rather than weakening it
 - Permanent fix vs workaround: pytest rename, parser normalization, and shared filename-rule alignment are permanent repository fixes; Docker permission handling was an environment recovery, not a product workaround
-- Regression proof: 44 tests pass; secret scan passes; readiness and consistency pass; bootstrap PASS_WITH_2_WARNINGS; Docker build/container health remain previously verified
+- Regression proof: 45 tests pass; secret scan passes; readiness and consistency pass; bootstrap PASS_WITH_2_WARNINGS; Docker build/container health remain previously verified
 - Remaining risk: GitHub-hosted CI execution remains outside this local validation; shared execution skill alignment is now explicit and validated
 
 #### Failure Record A — pytest reserved parameter
@@ -692,7 +692,7 @@ Permanent fix or workaround: Permanent repository fix.
 Regression test added: Existing alignment parameterized tests retained and
 executed with the corrected parameter name; no new product behavior was added.
 
-Retest result: `.venv/bin/pytest -q` passed with 44 tests.
+Retest result: `.venv/bin/pytest -q` passed with 45 tests.
 
 Remaining risk: Two dependency deprecation warnings remain; no collection
 failure remains.
@@ -784,7 +784,7 @@ Permanent fix or workaround: Permanent parser normalization fix.
 Regression test added: Lifecycle consistency tests cover Card state agreement,
 including current-state and mismatch cases.
 
-Retest result: `HARNESS_CONSISTENCY: PASS`; full pytest passed with 44 tests.
+Retest result: `HARNESS_CONSISTENCY: PASS`; full pytest passed with 45 tests.
 
 Remaining risk: Future Card title formats would require their own explicit
 normalization coverage.
@@ -831,19 +831,23 @@ Regression test added: `tests/test_secret_filenames.py` covers allowed
 `.env.example` and blocked `.env`, `.pem`, and `.key` cases.
 
 Retest result: `bash scripts/check_secrets.sh` passed; bootstrap completed with
-`PASS_WITH_2_WARNINGS` and 0 failures; full pytest passed with 44 tests.
+`PASS_WITH_2_WARNINGS` and 0 failures; full pytest passed with 45 tests.
 
 Remaining risk: Secret scanning remains pattern-based and is not a substitute
 for external secret-management controls.
 
 ### Git / Repository
-- Branch: `main` (delivered C01); corrective audit branch: `maintenance/pre-c02-harness-hardening`
+- Branch: `main` (delivered C01 and Harness hardening)
 - Start commit: `f4a8e2e`
 - Checkpoint commit: `a304f51` — `feat: complete V1 C01 repository baseline and harness`
 - Merge commit: `7460443` — `merge: integrate V1 C01 repository baseline and harness`
 - Push: Card branch and `origin/main` verified
 - Draft PR: Not applicable — approved direct branch merge; no PR was created
 - Merge: `7460443` verified on `main`
+- Harness hardening commit: `c9929e2` — `chore: harden pre-C02 engineering harness`
+- Harness hardening merge: `cb7e145` — verified on `main` and `origin/main`
+- Harness hardening branch: `maintenance/pre-c02-harness-hardening` pushed and verified at `c9929e2`
+- Post-hardening validation: 45 tests PASS; consistency PASS; bootstrap PASS_WITH_2_WARNINGS; secret scan PASS; compilation PASS; diff check PASS
 - Post-merge verification: PASS — `main` contains `a304f51`; working tree clean
 - `git diff` review: PASS — diff checked for whitespace errors and scope
 - `git status` review: PASS — only authorized C01 files and control/evidence edits present
@@ -883,7 +887,7 @@ Important files and ownership: `src/traid/config.py` owns deterministic config; 
 
 Source / provenance: NOT_APPLICABLE — C01 created TraID-owned files and did not adapt external source code. External projects were reference-only.
 
-Tests / evaluations and actual results: 44 tests passed with 2 dependency deprecation warnings; app boot/health, secret scan, CI structural parse, Docker build/container health, readiness, consistency, compilation, and diff checks passed as recorded. Bootstrap passed with two non-blocking warnings after the `.env.example` correction.
+Tests / evaluations and actual results: 45 tests passed with 2 dependency deprecation warnings; app boot/health, secret scan, CI structural parse, Docker build/container health, readiness, consistency, compilation, and diff checks passed as recorded. Bootstrap passed with two non-blocking warnings after the `.env.example` correction.
 
 Financial / data / security invariants: Financial/data/AI/Risk/replay behavior is NOT_APPLICABLE to C01. V1 prohibitions remain preserved; no credentials/private keys are required; safe `.env.example` is allowed while real `.env`, key, and PEM filenames are blocked.
 
@@ -901,7 +905,7 @@ Problem(s) discovered: The four failures above were retained rather than erased;
 
 How we diagnosed / solved them: Pytest, Docker CLI, consistency reason codes, bootstrap output, and the directly authorized skill edit supplied direct observations; focused tests and reruns verified the fixes.
 
-Known Limitations: GitHub-hosted CI was structurally validated locally but not executed here; Docker evidence is recorded from the approved C01 delivery validation; this corrective branch remains uncommitted and unpushed.
+Known Limitations: GitHub-hosted CI was structurally validated locally but not executed here; Docker evidence is recorded from the approved C01 delivery validation; the delivered hardening checkpoint is recorded separately from later reconciliation commits.
 
 Professional engineering lesson: Executable controls must agree with safe repository conventions, and current-state ledgers must be reconciled separately from historical checkpoints.
 
@@ -923,7 +927,7 @@ Status: PASS
 
 Card: V1-C01
 
-Focused tests: PASS — 44 passed
+Focused tests: PASS — 45 passed
 
 Relevant regression tests: PASS — full C01 suite rerun
 
