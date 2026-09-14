@@ -109,11 +109,11 @@ Source Code: PRESENT — C01 baseline and C02 canonical domain contracts
 Tests: PRESENT — C01 baseline and C02 domain/Harness tests
 Git Repository: INITIALIZED
 Git Branch: maintenance/ci-python-portability
-Git HEAD: ef35af1 — verified main base; authorized maintenance correction is uncommitted
+Git HEAD: 5da30cb — validated maintenance enforcement checkpoint; later reconciliation commits may advance HEAD
 Git Upstream: origin/main
 Git Remote: origin — https://github.com/jo-soroush/traid-market-intelligence.git
-Git Safe Checkpoint: VERIFIED — ef35af1; C02 merged into main and maintenance is based on it
-Working Tree: DIRTY_ALLOWED — authorized maintenance/test-only correction and documentation hardening are uncommitted
+Git Safe Checkpoint: VERIFIED — 5da30cb; C02 merged into main and maintenance enforcement is locally validated
+Working Tree: CLEAN — validated maintenance checkpoint; external delivery remains pending
 V1-C01: COMPLETE
 V1-C01 Authorization: START_GRANTED; DELIVERY_GRANTED; DELIVERY_COMPLETED
 V1-C02: COMPLETE

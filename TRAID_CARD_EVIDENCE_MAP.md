@@ -5242,7 +5242,7 @@ Fix / mitigation: use sys.executable in tests/test_harness_consistency.py
 Why the fix is correct: it selects the interpreter running the test process and removes the unsupported local-path assumption
 Permanent fix or workaround: bounded test portability correction plus generic maintenance/hotfix record enforcement; hosted CI confirmation remains pending until this maintenance branch is delivered
 Regression test added: tests/test_maintenance_harness.py covers valid future maintenance/hotfix branches, missing/mismatched records, wrong base, out-of-scope changes, and lifecycle protection; existing real subprocess tests remain unmocked
-Retest result: maintenance/Harness suite 52 passed; full pytest and hosted-CI gate remain pending final delivery validation
+Retest result: original portability tests 2 passed; maintenance/Harness/lifecycle suite 74 passed; C02 domain tests 9 passed; full pytest 103 passed with 2 warnings; Harness consistency and Bootstrap passed; secret scan, compilation, and git diff --check passed
 Remaining risk: hosted CI and GitHub branch-protection settings are NOT_VERIFIED until the approved branch push and Actions run
 Base / branch: ef35af1 / maintenance/ci-python-portability
 External delivery: PUSH/PR/MERGE GRANTED for this bounded maintenance cycle only; no force push
