@@ -264,7 +264,7 @@ A gate label groups work. It does not authorize parallel execution.
 
 **Dependencies:** C03
 
-**Exit Gate:** Verified real BTC data is normalized to canonical models; provider semantics/source/license are recorded; reconnect, malformed input, failure and rate-limit behavior are tested; raw provider payloads stay outside Core.
+**Exit Gate:** Verified real BTC data is normalized to canonical models where semantics are verified; provider semantics/source/license are recorded; open interest is either mapped only after semantic verification or exposed as explicitly unavailable/unverified with evidence and reason; reconnect, malformed input, failure and rate-limit behavior are tested; raw provider payloads stay outside Core.
 
 **Start Rule:** Explicit human Card-start approval + dependency proof + `ROADMAP_ALIGNMENT_GATE: PASS`.
 
@@ -334,7 +334,7 @@ A gate label groups work. It does not authorize parallel execution.
 
 **Dependencies:** C05 + C06
 
-**Exit Gate:** Formula fixtures pass; units/signs/intervals are verified; warm-up/missing/stale states are explicit; no guessed provider semantics.
+**Exit Gate:** Formula fixtures pass; units/signs/intervals are verified; warm-up/missing/stale states are explicit; OI-dependent metrics use only verified canonical OI and otherwise remain unavailable with an explicit reason; no guessed provider semantics.
 
 **Start Rule:** Explicit human Card-start approval + dependency proof + `ROADMAP_ALIGNMENT_GATE: PASS`.
 

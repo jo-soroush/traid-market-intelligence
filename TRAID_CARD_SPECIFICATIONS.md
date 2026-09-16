@@ -387,7 +387,7 @@ ADAPT verified patterns only after re-confirming exact source/license/behavior. 
 
 ### 8. Implementation Scope
 - re-verify selected Hyperliquid source files/modules and official semantics before reuse
-- implement BTC trades/order book/candles/funding/open-interest/market-context capabilities required by V1
+- implement verified BTC trades/order book/candles/funding/open-interest/market-context capabilities required by V1; for open interest whose provider semantics remain unverified, block canonical mapping and expose explicit unavailable/unverified coverage with evidence and reason
 - normalize timestamps and numeric values
 - implement health/rate-limit/error mapping
 - implement bounded WebSocket reconnect/recovery behavior where required
@@ -420,7 +420,7 @@ All dependencies must be proven from canonical Evidence/repository reality befor
 Required rule: run the narrowest relevant tests during bounded implementation, then all relevant regression/financial/data/AI/security tests required by affected contracts before closure. Do not claim PASS for an unexecuted test.
 
 ### 12. Exit Gate
-Verified real BTC Hyperliquid data reaches canonical models; source/license/semantics and relevant coverage limitations are recorded; failure/reconnect/rate-limit/availability paths are tested; no provider payload escapes into Core and no complete-market claim is made.
+Verified real BTC Hyperliquid data reaches canonical models where semantics are verified; open interest either has a verified canonical mapping or is blocked from Core and exposed as explicitly unavailable/unverified with evidence and reason; source/license/semantics and relevant coverage limitations are recorded; failure/reconnect/rate-limit/availability paths are tested; no provider payload escapes into Core and no complete-market claim is made.
 
 Closure additionally requires `CARD_QUALITY_GATE: PASS`, Evidence update, repository/Git review, and applicable human approval.
 
@@ -746,7 +746,7 @@ Repository reality must be re-inspected when this Card actually starts. This sec
 BUILD/ADAPT formulas only after verifying provider units/signs/timestamps; fail closed on unknown semantics.
 
 ### 8. Implementation Scope
-- open-interest change/context
+- open-interest change/context only from verified canonical OI; otherwise preserve explicit unavailable state and reason without synthetic zero/default values
 - funding normalization with explicit interval
 - basis only where required inputs/semantics are verified
 - ATR
@@ -780,7 +780,7 @@ All dependencies must be proven from canonical Evidence/repository reality befor
 Required rule: run the narrowest relevant tests during bounded implementation, then all relevant regression/financial/data/AI/security tests required by affected contracts before closure. Do not claim PASS for an unexecuted test.
 
 ### 12. Exit Gate
-Required metrics match verified fixtures; units/signs/intervals/warm-up are explicit; unknown semantics never become trusted values.
+Required metrics match verified fixtures; units/signs/intervals/warm-up are explicit; OI-dependent metrics are computed only from verified canonical OI and otherwise remain explicitly unavailable; unknown semantics never become trusted values.
 
 Closure additionally requires `CARD_QUALITY_GATE: PASS`, Evidence update, repository/Git review, and applicable human approval.
 
