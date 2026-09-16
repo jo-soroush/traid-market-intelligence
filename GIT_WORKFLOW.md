@@ -544,6 +544,12 @@ Evidence delivery history is accurate
 Project Control is reconciled
 ```
 
+The final reconciliation must not record its own commit as a mutable
+`Current HEAD` value. Runtime branch, HEAD, remote, and worktree facts are
+derived from Git when validated. Project Control may retain an explicitly
+historical checkpoint or delivery commit, which must exist and be an ancestor
+of the runtime HEAD.
+
 Typical checks, when appropriate:
 
 ```bash

@@ -2107,11 +2107,12 @@ Rule → Problem → Evidence → Owner → Validation → Limitation
 
 Git is the live source for current branch, SHA, ancestry, remote, and worktree.
 `PROJECT_CONTROL.md` owns the current operational declaration; the Evidence
-Map owns historical execution and delivery proof. Historical SHAs may remain
-recorded without creating endless reconciliation commits. A checker must query
-Git for live facts and compare them to the current declaration; it must not
-promote a historical delivery line into current reality. Contradictory,
-missing, or stale required state fails closed.
+Map owns historical execution and delivery proof. Project Control may record a
+historical/checkpoint SHA only with checkpoint semantics; it must not store a
+mutable exact `Current HEAD` claim. Historical SHAs may remain recorded without
+creating endless reconciliation commits. The checker queries Git for live facts,
+validates checkpoint existence/ancestry, and rejects contradictory current
+maintenance, completion-summary, safe-resume, or authorization state.
 
 ## 68. Executable Support Matrix
 
@@ -2122,7 +2123,7 @@ missing, or stale required state fails closed.
 | Maintenance/hotfix branch validation | YES | YES | YES | generic record/base/scope enforcement |
 | Hosted CI portability | YES | NO | YES locally | hosted result is external evidence |
 | Current-state reconciliation | YES | YES | YES | checker queries live Git and canonical state |
-| Stale Git/documentation detection | YES | PARTIAL | YES | exact fields checked; category semantics incomplete |
+| Stale Git/documentation detection | YES | YES | YES | runtime Git facts, checkpoint ancestry, closure, summary, safe-resume, and authorization semantics checked |
 | Evidence/failure records | YES | PARTIAL | YES | required Card evidence fields, not all prose contracts |
 | Secret scanning | YES | YES | YES | repository scanner and hosted workflow step |
 | External action approval | YES | NO | NOT_APPLICABLE | human authorization boundary |

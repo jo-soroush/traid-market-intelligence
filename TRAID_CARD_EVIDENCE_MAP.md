@@ -5407,6 +5407,48 @@ Risk if forgotten: downstream derivatives/crowding analysis may lack trustworthy
 State: CLOSED / DELIVERED / VERIFIED — PR #4 squash-merged at `6e84cb8`; both hosted `c01-baseline` checks passed; post-merge validation recorded in the maintenance closure
 ```
 
+## 23. Project-State Drift Remediation Evidence
+
+This record documents the bounded governance/Harness correction authorized
+after the independent baseline audit. It does not start or authorize C04 and
+does not change product, financial, or provider behavior.
+
+```text
+Maintenance Task ID: MAINT-PROJECT-STATE-DRIFT-REMEDIATION
+Failure classification: current-state governance drift and false-green Harness coverage
+Observed behavior: PROJECT_CONTROL stored a prior commit as current Git HEAD; the OI maintenance record was closed while its closure text said validation was pending; the safe resume referenced a completed C03 delivery checkpoint; and the current implementation summary omitted completed C03
+Command / scenario: independent full baseline audit followed by inspection of Project Control, Evidence Map, Harness, Git workflow, checker, tests, CI, and bootstrap
+Actual error/result: repository HEAD was `3c40b5e` while Project Control reported `6e84cb8`; the consistency checker still passed because it accepted an ancestor checkpoint and did not validate the other current-state semantics
+Expected behavior: runtime Git facts are derived from Git; stored SHAs are explicitly historical/checkpoint evidence; current maintenance closure, completed-card summary, safe resume, and authorization state are mutually consistent
+Impact: C04 baseline readiness was blocked by contradictory current operational documentation and a credible recurrence path
+Root cause: post-merge reconciliation modified the same tracked file that recorded the previous commit as live HEAD, creating self-invalidating metadata; checker coverage validated only part of the resulting state
+Diagnosis method: compared runtime Git state with current Project Control text, traced the post-merge commit sequence, inspected checker predicates/tests, and reproduced fixture failures in isolated Git repositories
+Fix / mitigation: replaced live `Git HEAD` prose with an explicitly historical `Git Checkpoint`; added generic runtime checkpoint existence/ancestry, closed-maintenance, completed-summary, safe-resume, OI-state, and current-head checks; aligned Harness/Git workflow semantics; updated isolated fixtures
+Why the fix is correct: Git remains the live owner of branch/HEAD/worktree facts, historical evidence remains preserved, no exact self-referential SHA is required, and the checker fails closed on the diagnosed drift classes
+Permanent fix or workaround: generic checker/test enforcement and ownership clarification; hosted CI continues to execute the regression tests, while direct checker execution remains a local runtime-Git check
+Regression test added: tests/test_harness_consistency.py covers live current-head rejection, ancestor checkpoint acceptance, closed-maintenance pending text, incomplete completed-card summary, and safe-resume references to completed work; existing 27-card/lifecycle/maintenance tests remain active
+Retest result: PASS — focused governance/lifecycle/maintenance/alignment tests 95 passed; full pytest 139 passed with 2 dependency deprecation warnings; Harness consistency passed; Bootstrap passed with 2 environment warnings; secret scan, compilation, and git diff --check passed
+Remaining risk: GitHub branch protection remains unconfigured/not verified; Docker build proof was not rerun in this governance correction; local bootstrap still warns that system pytest is unavailable
+Scope/leakage result: PASS — only governance, Harness, test, and evidence files changed; no C02/C03 product behavior, Hyperliquid implementation, financial semantics, C04 start, or authorization was added
+Closure state: LOCAL VALIDATION COMPLETE — commit/push/PR/merge not authorized or performed
+```
+
+## 24. Generic Safe-Resume Remediation Continuation
+
+This continuation belongs to `MAINT-PROJECT-STATE-DRIFT-REMEDIATION`. It does
+not create a Product Card, start C04, or authorize delivery.
+
+```text
+Finding: Safe Resume validation was hard-coded to C01-C03 and could miss a later completed Card
+Root cause: the validator encoded the current completed set instead of deriving it from canonical Card state
+Fix: actionable resume/continue/reopen targets are compared with the COMPLETE Card IDs parsed from the canonical Project Control Card table; negative language is ignored
+Regression proof: production checker/parser tests reject synthetic completed C04 and C10 resume targets, reject completed C03 delivery resumption, and accept correct C04 Phase 0 wording, historical references, and negative language
+Genericity proof: SAFE_RESUME_COMPLETED_SET_SOURCE = parse_card_table(PROJECT_CONTROL.md) records with state COMPLETE; SAFE_RESUME_HARDCODED_COMPLETED_IDS = NO
+Retest result: PASS — focused Safe Resume tests 51 passed; governance/lifecycle/maintenance/alignment tests 95 passed; full pytest 139 passed with 2 dependency deprecation warnings; Harness consistency passed; Bootstrap passed with 2 environment warnings; secret scan, compilation, and git diff --check passed
+Scope/leakage result: PASS — no product code, C04 implementation, financial semantics, CI expansion, new state source, commit, push, PR, or merge
+Status: IMPLEMENTED LOCALLY / NOT DELIVERED
+```
+
 # 20. Final Evidence Principle
 
 ```text

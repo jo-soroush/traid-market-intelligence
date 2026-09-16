@@ -104,16 +104,16 @@ Canonical Harness Installation: VERIFIED
 Canonical Harness Files: 10 / 10 PRESENT
 Harness Structure: VERIFIED
 Research / Reconnaissance Organization: VERIFIED
-Implementation: COMPLETE — C01 and C02 implementation, validation, and approved delivery verified
+Implementation: COMPLETE — completed Cards are recorded in the canonical Card Status Table below; C01, C02, and C03 implementation, validation, and approved delivery are verified
 Source Code: PRESENT — C01 baseline and C02 canonical domain contracts
 Tests: PRESENT — C01 baseline and C02 domain/Harness tests
 Git Repository: INITIALIZED
 Git Branch: main
-Git HEAD: 6e84cb8 — verified OI contract merge checkpoint before final record-only reconciliation
+Git Checkpoint: 6e84cb8 — verified OI contract merge checkpoint; runtime HEAD is derived from Git at validation time
 Git Upstream: origin/main
 Git Remote: origin — https://github.com/jo-soroush/traid-market-intelligence.git
 Git Safe Checkpoint: VERIFIED — final provenance maintenance reconciliation delivered
-Working Tree: CLEAN — OI reconciliation closure commit complete
+Working Tree: DIRTY_ALLOWED — authorized governance/Harness drift remediation files only
 V1-C01: COMPLETE
 V1-C01 Authorization: START_GRANTED; DELIVERY_GRANTED; DELIVERY_COMPLETED
 V1-C02: COMPLETE
@@ -192,8 +192,8 @@ Expected Areas: PROJECT_CONTROL.md, TRAID_CARD_EVIDENCE_MAP.md, TRAID_CARD_SPECI
 Allowed Paths: PROJECT_CONTROL.md, TRAID_CARD_EVIDENCE_MAP.md, TRAID_CARD_SPECIFICATIONS.md, TRAID_V1_ROADMAP.md, tests/test_maintenance_harness.py
 Required Validation: governance/Harness tests, full pytest, Harness consistency, bootstrap, secret scan, and diff check
 External Git Permissions: COMPLETED — approved commit, push, PR, merge, and verification completed; no force push
-Closure Evidence: PR #4 squash-merged at `6e84cb8`; both hosted `c01-baseline` checks passed; post-merge validation and final reconciliation pending completion
-Safe Resume: OI contract reconciliation is delivered; keep D-OI-001 deferred, Active Card NONE, C01/C02/C03 COMPLETE, C04 NOT_STARTED/NOT_GRANTED, and do not implement C04
+Closure Evidence: PR #4 squash-merged at `6e84cb8`; both hosted `c01-baseline` checks passed; post-merge validation and final reconciliation completed at the verified checkpoint recorded by Git
+Safe Resume: full baseline validation and C04 Phase 0 only after governance remediation is delivered and verified; keep D-OI-001 deferred, Active Card NONE, C01/C02/C03 COMPLETE, C04 NOT_STARTED/NOT_GRANTED, and do not implement C04
 ```
 
 This record is operational maintenance state, not a Roadmap Card and not a
@@ -653,7 +653,7 @@ Evidence Reference:
 Current:
 
 ```text
-TraID repository test state: VERIFIED — C03/full regression: 123 passed, 2 warnings
+TraID repository test state: VERIFIED — last recorded C03 checkpoint: 123 passed, 2 warnings; current counts are derived from tests executed at validation time
 Harness consistency: PASS — C03 COMPLETE, delivery verification, and Active Card NONE validated
 Readiness gate: PASS — V1-C03 dependency/runtime/configuration preflight
 Secret scan: PASS
@@ -691,7 +691,7 @@ Current:
 
 ```text
 CARD_QUALITY_GATE: PASS — C03 evidence and exact Exit Gate proven after approved delivery and post-merge verification
-Focused tests: 20 C03 tests passed; 83 relevant regression tests passed; 123 full tests passed
+Focused tests: last recorded C03 checkpoint: 20 C03 tests passed; 83 relevant regression tests passed; 123 full tests passed
 Evidence updated: YES — C03 implementation, failures, learning, and Exit Gate recorded
 Learning Record: COMPLETE
 Remaining issue: None for C03; C04 still requires separate start authorization
@@ -1038,9 +1038,10 @@ when proof is absent.
 
 ```text
 Safe Resume:
-C01, C02, and C03 are delivered and verified. C03 merged into `main` at
-`133d064` through PR #2; post-merge validation passed. Active Card is NONE.
-Do not start C04 without separate explicit human approval.
+C01, C02, C03, provenance maintenance, and OI contract reconciliation are
+delivered and verified. Active Card is NONE. Do not resume a completed Card or
+maintenance delivery. The next authorized action is a full baseline validation
+and, only after its success and separate explicit approval, C04 Phase 0.
 
 Implementation Card: NONE
 Repository Write Authorization: no Active Card; C04 start NOT_GRANTED
