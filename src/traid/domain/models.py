@@ -14,7 +14,9 @@ DOMAIN_SCHEMA_VERSION = "1.0"
 UTC = timezone.utc
 
 
-def _aware_utc(value: datetime | str) -> datetime:
+def _aware_utc(value: datetime | str | None) -> datetime | None:
+    if value is None:
+        return None
     if isinstance(value, str):
         value = datetime.fromisoformat(value.replace("Z", "+00:00"))
     if not isinstance(value, datetime):
@@ -62,7 +64,7 @@ class CanonicalModel(BaseModel):
         check_fields=False,
     )
     @classmethod
-    def normalize_timestamp(cls, value: datetime) -> datetime:
+    def normalize_timestamp(cls, value: datetime | None) -> datetime | None:
         return _aware_utc(value)
 
     @field_validator("symbol", "source", "source_type", "source_id", "evidence_id", "evidence_type", mode="before", check_fields=False)
@@ -82,12 +84,12 @@ class SourceProvenance(CanonicalModel):
     source: str
     source_type: str
     source_id: str | None = None
-    source_timestamp: datetime
+    source_timestamp: datetime | None = None
     received_timestamp: datetime
 
     @model_validator(mode="after")
     def validate_timestamp_order(self) -> "SourceProvenance":
-        if self.received_timestamp < self.source_timestamp:
+        if self.source_timestamp is not None and self.received_timestamp < self.source_timestamp:
             raise ValueError("received_timestamp cannot precede source_timestamp")
         return self
 

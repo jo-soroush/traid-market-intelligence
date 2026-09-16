@@ -108,12 +108,12 @@ Implementation: COMPLETE — C01 and C02 implementation, validation, and approve
 Source Code: PRESENT — C01 baseline and C02 canonical domain contracts
 Tests: PRESENT — C01 baseline and C02 domain/Harness tests
 Git Repository: INITIALIZED
-Git Branch: main
-Git HEAD: e51449d — final post-merge C03 reconciliation checkpoint; validation passed
+Git Branch: maintenance/provenance-temporal-integrity
+Git HEAD: 6c5425c — verified main base for bounded provenance maintenance
 Git Upstream: origin/main
 Git Remote: origin — https://github.com/jo-soroush/traid-market-intelligence.git
-Git Safe Checkpoint: VERIFIED — e51449d; final C03 reconciliation checkpoint is an ancestor of synchronized local `main`/`origin/main`
-Working Tree: CLEAN — post-merge C03 verification checkpoint
+Git Safe Checkpoint: VERIFIED — 6c5425c; maintenance branch created from synchronized main
+Working Tree: DIRTY_ALLOWED — authorized provenance maintenance files only
 V1-C01: COMPLETE
 V1-C01 Authorization: START_GRANTED; DELIVERY_GRANTED; DELIVERY_COMPLETED
 V1-C02: COMPLETE
@@ -127,7 +127,7 @@ C01, C02, and C03 repository, runtime, validation, approved delivery, and
 post-merge verification evidence are recorded. Active Card is NONE; C04 remains
 unauthorized.
 
-### Current Maintenance Record
+### Previous Maintenance Record
 
 ```text
 Maintenance Task ID: MAINT-CI-PYTHON-PORTABILITY
@@ -152,6 +152,29 @@ new source of truth for Card order or authorization. The Harness checker and
 Bootstrap now validate its branch category, authorization, base ancestry, and
 allowed changed paths. Hosted CI and GitHub branch-protection settings remain
 external evidence and are not inferred from local validation.
+
+### Current Maintenance Record
+
+```text
+Maintenance Task ID: MAINT-PROVENANCE-TEMPORAL-INTEGRITY
+Title: Bounded provenance source-time maintenance
+Status: READY_FOR_HUMAN_REVIEW — bounded implementation and local validation complete; independent maintenance audit and delivery approval remain pending
+Reason: C04 readiness identified that provider asset-context observations may lack a verified source/event timestamp while C02 required one
+Originating Evidence: C04 Phase 0 semantic blocker and approved provenance design review
+Base Commit: 6c5425c — verified clean main checkpoint
+Branch: maintenance/provenance-temporal-integrity
+Authorized Scope: nullable C02 source_timestamp with mandatory received_timestamp, focused provenance tests, regression validation, and maintenance/evidence records
+Prohibited Scope: C04 provider implementation, Hyperliquid integration, C05 freshness, C06 replay, product architecture, financial semantic changes, dependency installation, and Git delivery
+Expected Areas: src/traid/domain/models.py, tests/test_domain_models.py, tests/test_maintenance_harness.py, PROJECT_CONTROL.md, TRAID_CARD_EVIDENCE_MAP.md
+Allowed Paths: src/traid/domain/models.py, tests/test_domain_models.py, tests/test_maintenance_harness.py, PROJECT_CONTROL.md, TRAID_CARD_EVIDENCE_MAP.md
+Required Validation: focused provenance tests, C02/C03 regressions, Harness/lifecycle/maintenance checks, full pytest, bootstrap, secret scan, compilation, diff check, and scope/leakage review
+External Git Permissions: NOT_GRANTED — no commit, push, PR, or merge
+Closure Evidence: PASS — focused provenance/C02 tests 17 passed; C03 contract regression 20 passed; Harness/lifecycle/maintenance regression 74 passed; full pytest 131 passed with 2 dependency warnings; Harness consistency, Bootstrap, secret scan, compilation, diff check, and scope/leakage review passed
+Safe Resume: complete the approved bounded provenance correction only; keep Active Card NONE, C01/C02/C03 COMPLETE, C04 NOT_STARTED/NOT_GRANTED, and do not start C04
+```
+
+This record is operational maintenance state, not a Roadmap Card and not a
+new source of truth for Card order or authorization.
 
 ---
 

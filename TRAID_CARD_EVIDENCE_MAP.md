@@ -5347,6 +5347,44 @@ External delivery: COMPLETE — PR #1 merged at c957bd4; no force push
 Closure state: CLOSED / DELIVERED / VERIFIED
 ```
 
+---
+
+## 21. Post-Delivery Maintenance Evidence — Provenance Temporal Integrity
+
+This record documents the approved bounded C02 provenance maintenance. It does
+not reopen C02, create an Active Card, authorize C04, or implement C05/C06.
+
+```text
+Maintenance Task ID: MAINT-PROVENANCE-TEMPORAL-INTEGRITY
+Failure classification: post-delivery provenance contract gap
+Observed behavior: C02 SourceProvenance required source_timestamp even when a provider can supply only an observation/receipt time
+Command / scenario: C04 Phase 0 semantic review of Hyperliquid asset-context payloads and current C02 model contract
+Actual error/result: provider asset-context source time was unavailable; canonical provenance could not be constructed without mislabeling receipt time
+Expected behavior: preserve actual received_timestamp while representing absent source time explicitly
+Impact: C04 asset-context integration was blocked; no existing C02/C03 product behavior was changed
+Root cause: original C02 contract modeled only complete source-plus-receipt provenance
+Diagnosis method: inspected SourceProvenance, all C02 model consumers, serialization tests, guardrails, and C04 official-source evidence
+Fix / mitigation: widen source_timestamp to datetime | None; retain mandatory received_timestamp; preserve None; reuse existing PROVENANCE_INCOMPLETE downstream policy
+Why the fix is correct: it distinguishes provider event time from TraID observation time without fabricating temporal provenance
+Permanent fix or workaround: bounded C02 contract maintenance; broader freshness/trust behavior remains C05-owned
+Regression test added: focused tests cover missing source time, receipt preservation, malformed/missing timestamps, ordering, null round trip, and canonical model preservation
+Retest result: PASS — focused provenance/C02 tests 17 passed; C03 contract regression 20 passed; Harness/lifecycle/maintenance regression 74 passed; full pytest 131 passed with 2 dependency deprecation warnings; Harness consistency passed; Bootstrap passed with 2 environment warnings; secret scan, compilation, and git diff --check passed
+Remaining risk: consumers must reject or mark incomplete provenance for consequential/event-time/replay use; Hyperliquid open-interest semantics remain UNVERIFIED
+Guardrail impact: source/event time remains distinct from received/observation time; no new reason code or freshness state added
+Rollback: revert bounded maintenance before dependent integration; use versioned corrective migration afterward if dependent work integrates it
+Scope/leakage result: PASS — only the five authorized maintenance paths changed; no C04 provider/Hyperliquid implementation, C05 freshness behavior, or C06 replay behavior was added
+Closure state: READY_FOR_INDEPENDENT_MAINTENANCE_AUDIT — implementation and local validation complete; no delivery authorized
+```
+
+### Maintenance Learning Record
+
+- Source/event time identifies when the provider says the market observation occurred; receipt time identifies when TraID observed it.
+- Copying receipt time into source time would falsify temporal provenance.
+- Optionality alone is insufficient unless `None` remains explicit and downstream consequential use applies `PROVENANCE_INCOMPLETE`.
+- C05 freshness and trust classification are intentionally not implemented.
+- C06 replay must not treat observations without source time as point-in-time valid.
+- This is bounded contract maintenance because it preserves provider neutrality and existing complete records without redesigning C02 ownership.
+
 # 20. Final Evidence Principle
 
 ```text
