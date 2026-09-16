@@ -5404,7 +5404,7 @@ Implementation impact: no C02 model change, no C03 production change, no C04 imp
 Deferred ID: D-OI-001
 Resolution trigger: authoritative Hyperliquid documentation/source/runtime evidence establishing the required financial semantics.
 Risk if forgotten: downstream derivatives/crowding analysis may lack trustworthy OI context.
-State: READY_FOR_INDEPENDENT_CONTRACT_AUDIT
+State: CLOSED / DELIVERED / VERIFIED — PR #4 squash-merged at `6e84cb8`; both hosted `c01-baseline` checks passed; post-merge validation recorded in the maintenance closure
 ```
 
 # 20. Final Evidence Principle
