@@ -47,6 +47,7 @@ Last COMPLETE Card: V1-C03 — Exchange Adapter Contract
 Next Roadmap Card: V1-C04 — Hyperliquid Provider Verification & Adapter
 Next Card Authorized: NO — C04 start NOT_GRANTED
 Implementation Authorization: NONE — no Active Card; C04 start NOT_GRANTED
+Systemic State-Drift Remediation: CLOSED / DELIVERED / VERIFIED
 V1 COMPLETE: NO
 Live Trade Execution: PROHIBITED
 Human Final Authority: YES
@@ -113,7 +114,7 @@ Git Checkpoint: 6e84cb8 — verified OI contract merge checkpoint; runtime HEAD 
 Git Upstream: origin/main
 Git Remote: origin — https://github.com/jo-soroush/traid-market-intelligence.git
 Git Safe Checkpoint: VERIFIED — final provenance maintenance reconciliation delivered
-Working Tree: DIRTY_ALLOWED — authorized governance/Harness drift remediation files only
+Working Tree: CLEAN — systemic state-drift remediation merge complete
 V1-C01: COMPLETE
 V1-C01 Authorization: START_GRANTED; DELIVERY_GRANTED; DELIVERY_COMPLETED
 V1-C02: COMPLETE
@@ -193,7 +194,7 @@ Allowed Paths: PROJECT_CONTROL.md, TRAID_CARD_EVIDENCE_MAP.md, TRAID_CARD_SPECIF
 Required Validation: governance/Harness tests, full pytest, Harness consistency, bootstrap, secret scan, and diff check
 External Git Permissions: COMPLETED — approved commit, push, PR, merge, and verification completed; no force push
 Closure Evidence: PR #4 squash-merged at `6e84cb8`; both hosted `c01-baseline` checks passed; post-merge validation and final reconciliation completed at the verified checkpoint recorded by Git
-Safe Resume: full baseline validation and C04 Phase 0 only after governance remediation is delivered and verified; keep D-OI-001 deferred, Active Card NONE, C01/C02/C03 COMPLETE, C04 NOT_STARTED/NOT_GRANTED, and do not implement C04
+Safe Resume: full baseline validation and C04 Phase 0 only after separate explicit C04 start approval; keep D-OI-001 deferred, Active Card NONE, C01/C02/C03 COMPLETE, C04 NOT_STARTED/NOT_GRANTED, and do not implement C04
 ```
 
 This record is operational maintenance state, not a Roadmap Card and not a

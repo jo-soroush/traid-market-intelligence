@@ -5430,7 +5430,7 @@ Regression test added: tests/test_harness_consistency.py covers live current-hea
 Retest result: PASS — focused governance/lifecycle/maintenance/alignment tests 95 passed; full pytest 139 passed with 2 dependency deprecation warnings; Harness consistency passed; Bootstrap passed with 2 environment warnings; secret scan, compilation, and git diff --check passed
 Remaining risk: GitHub branch protection remains unconfigured/not verified; Docker build proof was not rerun in this governance correction; local bootstrap still warns that system pytest is unavailable
 Scope/leakage result: PASS — only governance, Harness, test, and evidence files changed; no C02/C03 product behavior, Hyperliquid implementation, financial semantics, C04 start, or authorization was added
-Closure state: LOCAL VALIDATION COMPLETE — commit/push/PR/merge not authorized or performed
+Closure state: CLOSED / DELIVERED / VERIFIED — PR #5 squash-merged at `cd310d7`; post-merge validation recorded after reconciliation
 ```
 
 ## 24. Generic Safe-Resume Remediation Continuation
@@ -5446,7 +5446,7 @@ Regression proof: production checker/parser tests reject synthetic completed C04
 Genericity proof: SAFE_RESUME_COMPLETED_SET_SOURCE = parse_card_table(PROJECT_CONTROL.md) records with state COMPLETE; SAFE_RESUME_HARDCODED_COMPLETED_IDS = NO
 Retest result: PASS — focused Safe Resume tests 51 passed; governance/lifecycle/maintenance/alignment tests 95 passed; full pytest 139 passed with 2 dependency deprecation warnings; Harness consistency passed; Bootstrap passed with 2 environment warnings; secret scan, compilation, and git diff --check passed
 Scope/leakage result: PASS — no product code, C04 implementation, financial semantics, CI expansion, new state source, commit, push, PR, or merge
-Status: IMPLEMENTED LOCALLY / NOT DELIVERED
+Status: CLOSED / DELIVERED / VERIFIED — PR #5 squash-merged at `cd310d7`; post-merge validation recorded after reconciliation
 ```
 
 # 20. Final Evidence Principle
