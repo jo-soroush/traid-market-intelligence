@@ -126,6 +126,55 @@ def _maintenance_record(control: str) -> str:
     return match.group(1) if match else ""
 
 
+def _current_repository_section(control: str) -> str:
+    match = re.search(r"^## 4\. Repository / Git Reality\n(.*?)(?=^### Previous Maintenance Record$)", control, re.MULTILINE | re.DOTALL)
+    return match.group(1) if match else ""
+
+
+def current_state_issues(control: str, evidence: str, head: str) -> tuple[str, ...]:
+    """Reject mutable current-state prose that conflicts with runtime/owned state."""
+    issues: list[str] = []
+    current = _current_repository_section(control)
+    if re.search(r"^Git HEAD:\s*[0-9a-f]{7,40}\b", current, re.MULTILINE):
+        issues.append("CURRENT_HEAD_STORED_AS_LIVE_FACT")
+    checkpoint = re.search(r"^Git Checkpoint:\s*([0-9a-f]{7,40})\b", current, re.MULTILINE)
+    if checkpoint:
+        sha = checkpoint.group(1)
+        exists = subprocess.run(["git", "cat-file", "-e", f"{sha}^{{commit}}"], check=False).returncode == 0
+        ancestor = subprocess.run(["git", "merge-base", "--is-ancestor", sha, head], check=False).returncode == 0
+        if not exists:
+            issues.append("GIT_CHECKPOINT_MISSING")
+        elif not ancestor:
+            issues.append("GIT_CHECKPOINT_NOT_ANCESTOR")
+    summary = re.search(r"^Implementation:\s*COMPLETE\s+—\s*(.+)$", current, re.MULTILINE)
+    if summary:
+        complete_ids = {record.card_id.split("-", 1)[1] for record in parse_card_table(control) if record.state == "COMPLETE"}
+        if any(card_id not in summary.group(1) for card_id in sorted(complete_ids)):
+            issues.append("COMPLETED_CARD_SUMMARY_INCOMPLETE")
+    safe_resume = re.search(r"^## 34\. Current Safe Resume Point\n(.*?)(?=^## 35\.)", control, re.MULTILINE | re.DOTALL)
+    if safe_resume:
+        safe_text = safe_resume.group(1)
+        completed_ids = {record.card_id for record in parse_card_table(control) if record.state == "COMPLETE"}
+        actionable = re.compile(r"\b(?:resume|continue|reopen)\s+(?:(?:the|a)\s+)?(?:V1-)?(C\d{2})\b", re.IGNORECASE)
+        for match in actionable.finditer(safe_text):
+            context = safe_text[max(0, match.start() - 32):match.start()]
+            if re.search(r"\b(?:do not|don't|never|must not|cannot)\s*$", context, re.IGNORECASE):
+                continue
+            if f"V1-{match.group(1).upper()}" in completed_ids:
+                issues.append("SAFE_RESUME_POINTS_TO_COMPLETED_WORK")
+                break
+        if re.search(r"\b(?:resume|continue|reopen)\s+(?:the\s+)?maintenance\b", safe_text, re.IGNORECASE) and not re.search(r"\b(?:do not|don't|never|must not|cannot)\s+resume\s+maintenance\b", safe_text, re.IGNORECASE):
+            issues.append("SAFE_RESUME_POINTS_TO_COMPLETED_WORK")
+    maintenance = _maintenance_record(control)
+    status = re.search(r"^Status:\s*(CLOSED / DELIVERED / VERIFIED)\b", maintenance, re.MULTILINE)
+    if status and re.search(r"\b(pending|awaiting|not merged|not verified|incomplete)\b", maintenance, re.IGNORECASE):
+        issues.append("CLOSED_MAINTENANCE_HAS_PENDING_TEXT")
+    oi = re.search(r"^## 22\. OI Contract Reconciliation.*?^```\n(.*?)^```", evidence, re.MULTILINE | re.DOTALL)
+    if oi and "State: CLOSED / DELIVERED / VERIFIED" in oi.group(1) and ("D-008" not in control or "D-OI-001" not in control):
+        issues.append("OI_RECONCILIATION_STATE_INCOMPLETE")
+    return tuple(dict.fromkeys(issues))
+
+
 def maintenance_consistency_issues(
     control: str,
     branch: str,
@@ -270,7 +319,7 @@ def main() -> int:
 
     required_fields = {
         "Git Branch": re.search(r"^Git Branch:\s*.+$", control, re.MULTILINE),
-        "Git HEAD": re.search(r"^Git HEAD:\s*[0-9a-f]+", control, re.MULTILINE),
+        "Git Checkpoint": re.search(r"^Git Checkpoint:\s*[0-9a-f]+", control, re.MULTILINE),
         "Working Tree": re.search(r"^Working Tree:\s*.+$", control, re.MULTILINE),
         "CARD_QUALITY_GATE": re.search(r"^CARD_QUALITY_GATE:\s*(PASS|BLOCKED|NOT_RUN)$", control, re.MULTILINE),
     }
@@ -290,7 +339,7 @@ def main() -> int:
     control_quality = re.search(r"^CARD_QUALITY_GATE: (PASS|BLOCKED|NOT_RUN)", control, re.MULTILINE)
     test_state = re.search(r"^TraID repository test state: (.+)$", control, re.MULTILINE)
     expected_branch = re.search(r"^Git Branch: (.+)$", control, re.MULTILINE)
-    expected_head = re.search(r"^Git HEAD: ([0-9a-f]+)", control, re.MULTILINE)
+    expected_head = re.search(r"^Git Checkpoint: ([0-9a-f]+)", control, re.MULTILINE)
     expected_tree = re.search(r"^Working Tree: (.+)$", control, re.MULTILINE)
     safe_resume = re.search(r"^## 34\. Current Safe Resume Point\n(.*?)(?=^## 35\.)", control, re.MULTILINE | re.DOTALL)
     safe_resume_text = safe_resume.group(1) if safe_resume else ""
@@ -310,7 +359,11 @@ def main() -> int:
     if maintenance_issues:
         print(f"HARNESS_CONSISTENCY: BLOCKED: {', '.join(maintenance_issues)}")
         return 1
-    checkpoint = bool(expected_head and subprocess.run(["git", "merge-base", "--is-ancestor", expected_head.group(1), head], check=False).returncode == 0)
+    current_issues = current_state_issues(control, evidence, head)
+    if current_issues:
+        print(f"HARNESS_CONSISTENCY: BLOCKED: {', '.join(current_issues)}")
+        return 1
+    checkpoint = bool(expected_head and subprocess.run(["git", "cat-file", "-e", f"{expected_head.group(1)}^{{commit}}"], check=False).returncode == 0 and subprocess.run(["git", "merge-base", "--is-ancestor", expected_head.group(1), head], check=False).returncode == 0)
     clean = not subprocess.check_output(["git", "status", "--porcelain"], text=True).strip()
     learning_issues = learning_record_issues(evidence_current) if current_card_id == "V1-C01" else ()
     complete = current_record is not None and current_record.state == "COMPLETE"

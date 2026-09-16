@@ -39,7 +39,7 @@ def _maintenance_fixture(tmp_path: Path, branch: str, *, dirty_path: str | None 
     subprocess.run(["git", "add", "PROJECT_CONTROL.md", "TRAID_CARD_EVIDENCE_MAP.md"], cwd=tmp_path, check=True)
     subprocess.run(["git", "commit", "-qm", "fixture"], cwd=tmp_path, check=True, env=env)
     base = _git(tmp_path, "rev-parse", "--short", "HEAD")
-    control = re.sub(r"^Git HEAD: .+$", f"Git HEAD: {base}", control, count=1, flags=re.MULTILINE)
+    control = re.sub(r"^Git Checkpoint: .+$", f"Git Checkpoint: {base} — verified fixture checkpoint", control, count=1, flags=re.MULTILINE)
     current_record = re.search(r"(^### Current Maintenance Record\n.*?)(?=^---$|^## \d+\.)", control, re.MULTILINE | re.DOTALL)
     assert current_record
     record = current_record.group(1)

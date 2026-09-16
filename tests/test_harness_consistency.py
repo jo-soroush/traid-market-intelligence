@@ -80,7 +80,7 @@ Delivery Verified: NO
 ## 7. Authorization Ledger
 V1-C01: READY_FOR_HUMAN_REVIEW
 Git Branch: test-branch
-Git HEAD: PLACEHOLDER
+Git Checkpoint: PLACEHOLDER
 Working Tree: DIRTY_ALLOWED
 TraID repository test state: VERIFIED
 CARD_QUALITY_GATE: PASS
@@ -118,11 +118,78 @@ def test_actual_checker_normalizes_titles_and_rejects_wrong_card(tmp_path: Path)
 
 def test_actual_checker_detects_stale_recorded_head(tmp_path: Path) -> None:
     tmp_path, control, _ = _fixture(tmp_path)
-    stale = control.replace("Git HEAD:", "Git HEAD: 0000000 #")
+    stale = control.replace("Git Checkpoint:", "Git Checkpoint: 0000000 #")
     (tmp_path / "PROJECT_CONTROL.md").write_text(stale)
     result = _run_checker(tmp_path)
     assert result.returncode != 0
     assert "GIT_HEAD_STATE_MISMATCH" in result.stdout
+
+
+def test_live_current_head_claim_is_rejected() -> None:
+    control = CONTROL.read_text().replace("Git Checkpoint:", "Git HEAD:", 1)
+    issues = consistency.current_state_issues(control, EVIDENCE.read_text(), _git(ROOT, "rev-parse", "HEAD"))
+    assert "CURRENT_HEAD_STORED_AS_LIVE_FACT" in issues
+
+
+def test_ancestor_checkpoint_is_accepted_without_head_equality() -> None:
+    control = CONTROL.read_text()
+    issues = consistency.current_state_issues(control, EVIDENCE.read_text(), _git(ROOT, "rev-parse", "HEAD"))
+    assert "CURRENT_HEAD_STORED_AS_LIVE_FACT" not in issues
+    assert "GIT_CHECKPOINT_NOT_ANCESTOR" not in issues
+
+
+def test_closed_maintenance_pending_text_is_rejected() -> None:
+    control = CONTROL.read_text().replace(
+        "post-merge validation and final reconciliation completed at the verified checkpoint recorded by Git",
+        "post-merge validation pending completion",
+        1,
+    )
+    issues = consistency.current_state_issues(control, EVIDENCE.read_text(), _git(ROOT, "rev-parse", "HEAD"))
+    assert "CLOSED_MAINTENANCE_HAS_PENDING_TEXT" in issues
+
+
+def test_completed_card_summary_must_include_all_completed_cards() -> None:
+    control = CONTROL.read_text().replace("C01, C02, and C03 implementation", "C01 and C02 implementation", 1)
+    issues = consistency.current_state_issues(control, EVIDENCE.read_text(), _git(ROOT, "rev-parse", "HEAD"))
+    assert "COMPLETED_CARD_SUMMARY_INCOMPLETE" in issues
+
+
+def test_safe_resume_must_not_resume_completed_work() -> None:
+    control = CONTROL.read_text().replace(
+        "Do not resume a completed Card or\nmaintenance delivery.",
+        "Resume C03 delivery.",
+        1,
+    )
+    issues = consistency.current_state_issues(control, EVIDENCE.read_text(), _git(ROOT, "rev-parse", "HEAD"))
+    assert "SAFE_RESUME_POINTS_TO_COMPLETED_WORK" in issues
+
+
+@pytest.mark.parametrize("card_id", ["V1-C04", "V1-C10"])
+def test_safe_resume_protection_derives_all_completed_cards(card_id: str) -> None:
+    control = CONTROL.read_text()
+    control = re.sub(
+        rf"^\| {card_id} \|([^|]+)\| NOT_STARTED \| NO \|",
+        rf"| {card_id} |\1| COMPLETE | NO |",
+        control,
+        count=1,
+        flags=re.MULTILINE,
+    )
+    control = re.sub(
+        r"(?s)(^## 34\. Current Safe Resume Point\n).*?(?=^## 35\.)",
+        rf"\1Resume {card_id.removeprefix('V1-')} implementation.\n\n",
+        control,
+        count=1,
+        flags=re.MULTILINE,
+    )
+    issues = consistency.current_state_issues(control, EVIDENCE.read_text(), _git(ROOT, "rev-parse", "HEAD"))
+    assert "SAFE_RESUME_POINTS_TO_COMPLETED_WORK" in issues
+
+
+def test_negative_and_historical_card_references_remain_legal() -> None:
+    control = CONTROL.read_text().replace("Do not resume a completed Card or\nmaintenance delivery.", "Do not resume C03 delivery.", 1)
+    issues = consistency.current_state_issues(control, EVIDENCE.read_text(), _git(ROOT, "rev-parse", "HEAD"))
+    assert "SAFE_RESUME_POINTS_TO_COMPLETED_WORK" not in issues
+    assert "V1-C03" in EVIDENCE.read_text()
 
 
 CARD_TITLES = {f"V1-C{i:02d}": f"Card {i:02d}" for i in range(1, 28)}
