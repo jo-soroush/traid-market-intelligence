@@ -82,6 +82,85 @@ def test_provenance_rejects_received_time_before_source_time() -> None:
         )
 
 
+def test_provenance_explicitly_allows_missing_source_timestamp() -> None:
+    record = SourceProvenance(
+        source="market-feed",
+        source_type="exchange",
+        source_id="feed-1",
+        source_timestamp=None,
+        received_timestamp=RECEIVED_TIME,
+    )
+    assert record.source_timestamp is None
+    assert record.received_timestamp == RECEIVED_TIME
+
+
+def test_missing_source_timestamp_is_not_replaced_by_received_timestamp() -> None:
+    record = SourceProvenance(
+        source="market-feed",
+        source_type="exchange",
+        received_timestamp=RECEIVED_TIME,
+    )
+    assert record.source_timestamp is None
+    assert record.source_timestamp != record.received_timestamp
+
+
+def test_missing_received_timestamp_is_rejected() -> None:
+    with pytest.raises(ValidationError, match="received_timestamp"):
+        SourceProvenance(source="market-feed", source_type="exchange")
+
+
+def test_naive_source_and_received_timestamps_are_rejected() -> None:
+    with pytest.raises(ValidationError, match="timezone-aware"):
+        SourceProvenance(
+            source="market-feed",
+            source_type="exchange",
+            source_timestamp=datetime(2026, 1, 1, 12),
+            received_timestamp=RECEIVED_TIME,
+        )
+    with pytest.raises(ValidationError, match="timezone-aware"):
+        SourceProvenance(
+            source="market-feed",
+            source_type="exchange",
+            received_timestamp=datetime(2026, 1, 1, 12),
+        )
+
+
+def test_malformed_source_timestamp_is_rejected_not_downgraded_to_missing() -> None:
+    with pytest.raises(ValidationError):
+        SourceProvenance(
+            source="market-feed",
+            source_type="exchange",
+            source_timestamp="not-a-timestamp",
+            received_timestamp=RECEIVED_TIME,
+        )
+
+
+def test_incomplete_provenance_round_trips_as_null() -> None:
+    record = SourceProvenance(
+        source="market-feed",
+        source_type="exchange",
+        received_timestamp=RECEIVED_TIME,
+    )
+    rebuilt = SourceProvenance.model_validate_json(record.model_dump_json())
+    assert rebuilt == record
+    assert rebuilt.source_timestamp is None
+
+
+def test_provenance_schema_keeps_received_required_and_source_nullable() -> None:
+    schema = SourceProvenance.model_json_schema()
+    assert "source_timestamp" not in schema["required"]
+    assert "received_timestamp" in schema["required"]
+    assert any(item.get("type") == "null" for item in schema["properties"]["source_timestamp"]["anyOf"])
+
+
+def test_canonical_models_preserve_incomplete_provenance_without_freshness_logic() -> None:
+    incomplete = SourceProvenance(source="market-feed", source_type="exchange", received_timestamp=RECEIVED_TIME)
+    assert FundingSnapshot(symbol="BTC-USD", funding_rate="0.001", timestamp=RECEIVED_TIME, provenance=incomplete)
+    assert OpenInterestSnapshot(symbol="BTC-USD", open_interest="10", timestamp=RECEIVED_TIME, provenance=incomplete)
+    context = MarketContext(symbol="BTC-USD", as_of_timestamp=RECEIVED_TIME, data_quality=DataQualityState.LIVE, provenance=(incomplete,))
+    assert context.provenance[0].source_timestamp is None
+
+
 def test_numeric_and_candle_constraints_reject_invalid_values() -> None:
     with pytest.raises(ValidationError):
         PriceSnapshot(symbol="BTC-USD", price=Decimal("0"), timestamp=SOURCE_TIME, provenance=provenance())
