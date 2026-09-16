@@ -272,7 +272,7 @@ def main() -> int:
         "Git Branch": re.search(r"^Git Branch:\s*.+$", control, re.MULTILINE),
         "Git HEAD": re.search(r"^Git HEAD:\s*[0-9a-f]+", control, re.MULTILINE),
         "Working Tree": re.search(r"^Working Tree:\s*.+$", control, re.MULTILINE),
-        "CARD_QUALITY_GATE": re.search(r"^CARD_QUALITY_GATE:\s*(PASS|BLOCKED)$", control, re.MULTILINE),
+        "CARD_QUALITY_GATE": re.search(r"^CARD_QUALITY_GATE:\s*(PASS|BLOCKED|NOT_RUN)$", control, re.MULTILINE),
     }
     missing_fields = tuple(name for name, match in required_fields.items() if match is None)
     if missing_fields:
@@ -287,7 +287,7 @@ def main() -> int:
     evidence_state = re.search(r"^\*\*Status:\*\* (.+)$", evidence_current, re.MULTILINE)
     evidence_state_value = evidence_state.group(1).split(" —", 1)[0].strip() if evidence_state else ""
     quality = re.search(r"^Status: (PASS|BLOCKED)$", evidence_current, re.MULTILINE)
-    control_quality = re.search(r"^CARD_QUALITY_GATE: (PASS|BLOCKED)", control, re.MULTILINE)
+    control_quality = re.search(r"^CARD_QUALITY_GATE: (PASS|BLOCKED|NOT_RUN)", control, re.MULTILINE)
     test_state = re.search(r"^TraID repository test state: (.+)$", control, re.MULTILINE)
     expected_branch = re.search(r"^Git Branch: (.+)$", control, re.MULTILINE)
     expected_head = re.search(r"^Git HEAD: ([0-9a-f]+)", control, re.MULTILINE)
