@@ -5386,6 +5386,27 @@ Delivery evidence: Branch `maintenance/provenance-temporal-integrity` pushed and
 - C06 replay must not treat observations without source time as point-in-time valid.
 - This is bounded contract maintenance because it preserves provider neutrality and existing complete records without redesigning C02 ownership.
 
+## 22. OI Contract Reconciliation — Deferred Semantic Decision
+
+This governance reconciliation preserves open interest as an architectural
+capability while preventing ambiguous Hyperliquid semantics from becoming a
+trusted canonical value. It does not start C04 or implement C09.
+
+```text
+Finding: C04 required open-interest capability without explicitly defining a verified-unavailable outcome; C09 named OI-derived context without an explicit verified-input condition.
+Evidence basis: official Hyperliquid API/schema and documentation establish the field and per-asset perpetual context, while exact API unit and aggregation meaning remain PARTIALLY_VERIFIED / UNVERIFIED FOR CANONICAL USE.
+Decision: retain OI as a C04 verification target; map only after authoritative semantic verification; otherwise expose capability coverage as explicitly unavailable/unverified with reason and block raw OI from Core.
+C04 consequence: verified trades, order book, candles, funding, and market context may proceed independently where their own semantics and provenance are verified; C04 completion must not require guessing OI.
+C09 consequence: OI change/context is conditional on verified canonical OI; no synthetic zero/default is permitted; other independently verified metrics remain possible.
+Guardrail basis: material units, aggregation, timestamps, and instrument semantics must be explicit and verified; unknown financial semantics fail closed.
+Downstream review: C10-C27 specifications inspected; no concrete contradiction requiring changes outside C04/C09 was found.
+Implementation impact: no C02 model change, no C03 production change, no C04 implementation, no C05/C06/C09 implementation, and no Harness change.
+Deferred ID: D-OI-001
+Resolution trigger: authoritative Hyperliquid documentation/source/runtime evidence establishing the required financial semantics.
+Risk if forgotten: downstream derivatives/crowding analysis may lack trustworthy OI context.
+State: READY_FOR_INDEPENDENT_CONTRACT_AUDIT
+```
+
 # 20. Final Evidence Principle
 
 ```text

@@ -108,12 +108,12 @@ Implementation: COMPLETE — C01 and C02 implementation, validation, and approve
 Source Code: PRESENT — C01 baseline and C02 canonical domain contracts
 Tests: PRESENT — C01 baseline and C02 domain/Harness tests
 Git Repository: INITIALIZED
-Git Branch: main
+Git Branch: maintenance/oi-contract-reconciliation
 Git HEAD: e47d35b — last verified main checkpoint before final record-only commit
 Git Upstream: origin/main
 Git Remote: origin — https://github.com/jo-soroush/traid-market-intelligence.git
 Git Safe Checkpoint: VERIFIED — final provenance maintenance reconciliation delivered
-Working Tree: CLEAN — final reconciliation commit complete
+Working Tree: DIRTY_ALLOWED — authorized OI contract reconciliation files only
 V1-C01: COMPLETE
 V1-C01 Authorization: START_GRANTED; DELIVERY_GRANTED; DELIVERY_COMPLETED
 V1-C02: COMPLETE
@@ -153,7 +153,7 @@ Bootstrap now validate its branch category, authorization, base ancestry, and
 allowed changed paths. Hosted CI and GitHub branch-protection settings remain
 external evidence and are not inferred from local validation.
 
-### Current Maintenance Record
+### Previous Maintenance Record
 
 ```text
 Maintenance Task ID: MAINT-PROVENANCE-TEMPORAL-INTEGRITY
@@ -171,6 +171,29 @@ Required Validation: focused provenance tests, C02/C03 regressions, Harness/life
 External Git Permissions: COMPLETED — approved commit, push, PR, merge, and verification completed; no force push
 Closure Evidence: PR #3 squash-merged at `44b9237`; hosted `c01-baseline` checks passed; post-merge focused regression 111 passed; full pytest 131 passed with 2 dependency warnings; Harness consistency, secret scan, compilation, diff check, and final reconciliation passed
 Safe Resume: maintenance delivery is complete; keep Active Card NONE, C01/C02/C03 COMPLETE, C04 NOT_STARTED/NOT_GRANTED, and do not start C04
+```
+
+This record is operational maintenance state, not a Roadmap Card and not a
+new source of truth for Card order or authorization.
+
+### Current Maintenance Record
+
+```text
+Maintenance Task ID: MAINT-OI-CONTRACT-RECONCILIATION
+Title: Bounded Hyperliquid Open Interest contract reconciliation
+Status: IN_PROGRESS — audited governance reconciliation and delivery authorized
+Reason: C04 required an explicit verified-unavailable outcome for unresolved Hyperliquid OI semantics
+Originating Evidence: final OI contract audit; D-OI-001 and D-008
+Base Commit: d226adc — verified synchronized main checkpoint
+Branch: maintenance/oi-contract-reconciliation
+Authorized Scope: C04/C09 contract wording, Roadmap wording, Project Control decision/deferred records, and Evidence Map reconciliation
+Prohibited Scope: C04 implementation, Hyperliquid provider code, raw OI mapping, C05/C06/C09 implementation, C02/C03 production changes, and force push/history rewrite
+Expected Areas: PROJECT_CONTROL.md, TRAID_CARD_EVIDENCE_MAP.md, TRAID_CARD_SPECIFICATIONS.md, TRAID_V1_ROADMAP.md, tests/test_maintenance_harness.py
+Allowed Paths: PROJECT_CONTROL.md, TRAID_CARD_EVIDENCE_MAP.md, TRAID_CARD_SPECIFICATIONS.md, TRAID_V1_ROADMAP.md, tests/test_maintenance_harness.py
+Required Validation: governance/Harness tests, full pytest, Harness consistency, bootstrap, secret scan, and diff check
+External Git Permissions: AUTHORIZED — approved commit, push, PR, merge, and verification for this exact four-file reconciliation
+Closure Evidence: Pending — stop at READY_FOR_INDEPENDENT_CONTRACT_AUDIT until delivery is verified
+Safe Resume: complete only this OI contract reconciliation; keep Active Card NONE, C01/C02/C03 COMPLETE, C04 NOT_STARTED/NOT_GRANTED, and do not implement C04
 ```
 
 This record is operational maintenance state, not a Roadmap Card and not a
@@ -816,7 +839,13 @@ Risk if Forgotten:
 Current:
 
 ```text
-No deferred implementation items recorded here.
+Deferred ID: D-OI-001
+Originating Card: V1-C04 readiness / semantic verification
+Idea: Resolve Hyperliquid raw open-interest unit and aggregation semantics for canonical mapping
+Reason Deferred: Official evidence establishes the field exists and is likely size-related, but does not fully establish exact API unit and one-sided versus combined aggregation meaning
+Target Card / Future Version: V1-C04 contract decision; no implementation authorization created
+Dependency: authoritative Hyperliquid documentation/source/runtime evidence establishing unit and aggregation semantics
+Risk if Forgotten: downstream derivatives/crowding analysis may lack trustworthy open-interest context
 ```
 
 Deferred work is not authorized work.
@@ -852,6 +881,10 @@ Status: ACTIVE
 
 D-007
 Decision: final V1 governance surface is ten canonical Harness files including one TraID Card-execution Skill.
+Status: ACTIVE
+
+D-008
+Decision: Hyperliquid open interest remains a required C04 verification target; verified semantics may map to canonical OI, while unverified semantics must remain explicitly unavailable/unverified and cannot enter Core as a trusted value. C09 OI metrics are conditional on verified canonical OI.
 Status: ACTIVE
 ```
 
