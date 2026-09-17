@@ -245,8 +245,8 @@ def test_safe_resume_must_not_resume_completed_work() -> None:
 def test_safe_resume_protection_derives_all_completed_cards(card_id: str) -> None:
     control = CONTROL.read_text()
     control = re.sub(
-        rf"^\| {card_id} \|([^|]+)\| NOT_STARTED \| NO \|",
-        rf"| {card_id} |\1| COMPLETE | NO |",
+        rf"^\| {card_id} \|([^|]+)\| (?:NOT_STARTED \| NO|IN_PROGRESS \| YES|BLOCKED \| YES|READY_FOR_HUMAN_REVIEW \| YES) \|",
+        rf"| {card_id} |\1| COMPLETE | YES |",
         control,
         count=1,
         flags=re.MULTILINE,
