@@ -214,17 +214,29 @@ def test_closed_maintenance_pending_text_is_rejected() -> None:
 
 
 def test_completed_card_summary_must_include_all_completed_cards() -> None:
-    control = CONTROL.read_text().replace("C01, C02, and C03 implementation", "C01 and C02 implementation", 1)
+    control = CONTROL.read_text().replace(
+        "C01, C02, C03, and C04 implementation",
+        "C01 and C02 implementation",
+        1,
+    )
     issues = consistency.current_state_issues(control, EVIDENCE.read_text(), _git(ROOT, "rev-parse", "HEAD"))
     assert "COMPLETED_CARD_SUMMARY_INCOMPLETE" in issues
 
 
 def test_safe_resume_must_not_resume_completed_work() -> None:
-    control = CONTROL.read_text().replace(
-        "Do not resume a completed Card or maintenance delivery.",
+    control = CONTROL.read_text()
+    safe_resume = re.search(
+        r"(^## 34\. Current Safe Resume Point\n)(.*?)(?=^## 35\.)",
+        control,
+        re.MULTILINE | re.DOTALL,
+    )
+    assert safe_resume
+    updated = safe_resume.group(2).replace(
+        "Do not resume a completed Card or\nmaintenance delivery.",
         "Resume C03 delivery.",
         1,
     )
+    control = control[:safe_resume.start(2)] + updated + control[safe_resume.end(2):]
     issues = consistency.current_state_issues(control, EVIDENCE.read_text(), _git(ROOT, "rev-parse", "HEAD"))
     assert "SAFE_RESUME_POINTS_TO_COMPLETED_WORK" in issues
 
