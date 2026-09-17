@@ -1642,160 +1642,192 @@ Human approval required before next Card: YES
 
 ## V1-C05 — Data Quality, Freshness & Provenance
 
-**Status:** NOT_STARTED
+**Status:** READY_FOR_HUMAN_REVIEW
 
-**Start Authorization:** NOT_GRANTED
+**Start Authorization:** GRANTED — explicit human authorization for C05 Phase 1 implementation
 
-**Next Card Authorization:** NOT_GRANTED
+**Delivery Authorization:** NOT_GRANTED — commit, push, PR, merge, and delivery are not authorized
+
+**Branch:** `card/v1-c05-data-quality-freshness-provenance`
+
+**Start Commit:** `6a58b919a9c7ded68d54d7788d71a39490ab7f53`
+
+**Safe Checkpoint:** authorized dirty C05 worktree after lifecycle transition; no commit authorized
 
 ### Contract / Risk Map
-- Coverage status, freshness, explicit gaps, and provenance behavior: Pending
-- Missing/stale/partial/unavailable source handling: Pending
-- Repository/current-state reconciliation: Pending
-- Contract Map: Pending
-- Risk Map: Pending
-- Ownership map: Pending
-- Dependency proof: Pending
-- Future-Card leakage check: Pending
-- `ROADMAP_ALIGNMENT_GATE`: NOT_RUN
+- Coverage status, freshness, explicit gaps, and provenance behavior: Implemented by `traid.quality`
+- Missing/stale/partial/unavailable source handling: deterministic state and limitation results
+- Repository/current-state reconciliation: PASS — C04 complete, C05 active, C06 not started
+- Contract Map: C02 `SourceProvenance` → C03 `CapabilityCoverage` → C05 evaluator/result
+- Risk Map: no provider leakage, no source-time fabrication, no OI promotion, no replay/analytics
+- Ownership map: C02 owns canonical provenance; C03 owns capability availability; C05 owns quality facts
+- Dependency proof: PASS — V1-C04 COMPLETE and delivery verified at start commit
+- Future-Card leakage check: PASS — no C06 replay, C07–C10 analytics, Strategy, Risk, AI, trading, or wallet code
+- `CONTENT_ALIGNMENT_GATE`: PASS
+- `ROADMAP_ALIGNMENT_GATE`: PASS
 
 ### Implementation / Inspection
-- Files / symbols inspected: Pending
-- Files / symbols changed: Pending
-- Verified behavior: Pending
-- Architecture before → after: Pending
-- What remained unchanged: Pending
-- Known limitations / deferrals: Pending
+- Files / symbols inspected: C02 models, C03 contract, C04 provider, and C02–C04 tests
+- Files / symbols changed: `src/traid/quality/*`, `tests/test_quality.py`, `PROJECT_CONTROL.md`, this Evidence Map
+- Verified behavior: deterministic freshness, source/receipt distinction, provenance limitation, coverage availability, gap/recovery visibility, and fail-closed malformed/future input
+- Architecture before → after: C02 provenance/C03 availability existed; C05 adds a pure evaluator and immutable assessment without changing upstream models
+- What remained unchanged: C02 models, C03 contract, C04 mappings, OI unavailable boundary, API/runtime, financial formulas, and Git delivery
+- Known limitations / deferrals: thresholds are TraID policy defaults rather than provider cadence claims; C06 owns replay/backfill
 
 ### Source / Provenance
-- Decision ID: Pending
-- Classification: Pending
-- Source project/repository: Pending
-- Commit/tag/branch: Pending
-- Exact source file/module/symbol: Pending
-- License: Pending
-- Runtime/semantic verification: Pending
-- TraID adaptation/rejection: Pending
-- Source evidence: Pending
+- Decision ID: C05-DQ-001
+- Classification: BUILD — provider-neutral deterministic evaluator using existing C02/C03 contracts
+- Source project/repository: Not applicable — no external implementation adapted
+- Commit/tag/branch: Not applicable
+- Exact source file/module/symbol: Not applicable
+- License: Not applicable
+- Runtime/semantic verification: local deterministic tests and project validation
+- TraID adaptation/rejection: no external architecture imported; existing C02/C03 types reused
+- Source evidence: repository-owned `SourceProvenance` and `CapabilityCoverage`
 
 ### Tests / Evaluation
-- Focused tests: Pending
-- Relevant regression tests: Pending
-- Card-specific evaluation / acceptance: Pending
-- Actual commands/runners: Pending
-- Actual results: Pending
-- Warnings: Pending
-- Environment/configuration: Pending
+- Focused tests: `tests/test_quality.py` — 46 passing
+- Relevant regression tests: C02–C04 focused regression — 52 passing
+- Card-specific evaluation / acceptance: PASS — trust-model remediation and exact Phase-1 Exit Gate proven
+- Actual commands/runners: `.venv/bin/pytest -q tests/test_quality.py`; focused C02–C04 pytest command
+- Actual results: 46 C05 focused, 52 C02–C04 regression, 98 combined C02–C05, and 211 full-suite PASS
+- Warnings: full suite retains 2 dependency deprecation warnings
+- Environment/configuration: Python 3.13 project virtualenv; no new dependency or environment variable
 
 ### Financial / Data / AI / Risk / Security Evidence
-- Financial invariants: Pending
-- Data Quality / Provenance: Pending
-- AI boundary / fail-closed behavior: Pending
-- Risk Gate / bypass behavior: Pending
-- Anti-lookahead / replay integrity: Pending
-- Security / secrets / untrusted-input checks: Pending
-- Not-applicable items and justification: Pending
+- Financial invariants: PASS — no formulas or OI semantics changed; missing is not converted to zero
+- Data Quality / Provenance: PASS — explicit state, basis, ages, reasons, policy version, continuity, and recovery
+- AI boundary / fail-closed behavior: NOT_APPLICABLE — no AI code
+- Risk Gate / bypass behavior: NOT_APPLICABLE — no Strategy/Risk code
+- Anti-lookahead / replay integrity: PASS — no replay/backfill and no future timestamp acceptance
+- Security / secrets / untrusted-input checks: PASS — secret scan passed; no credentials or network capability added
+- Not-applicable items and justification: AI/Risk/trading/runtime-provider concerns are outside this pure local evaluator
 
 ### Failures / Diagnosis / Recovery
-- Failures observed: Pending
-- Root cause: Pending
-- Diagnosis: Pending
-- Fix/recovery: Pending
-- Regression proof: Pending
-- Remaining risk: Pending
+- Failures observed: initial Harness fixture regressions; independent audit found direct trusted-state false-green, naive evaluation_time acceptance, and validation-count category drift; all resolved and retested
+- Root cause: current-state documentation had duplicate declarations; the public result model lacked cross-field trust/time validators; current evidence combined C05 and C02–C04 counts under the wrong labels
+- Diagnosis: focused Harness tests and direct checker reason codes
+- Fix/recovery: added model-level trust invariants, UTC-aware evaluation_time validation, adversarial constructor/deserialization tests, and corrected current count categories while preserving historical counts
+- Regression proof: full 211-test suite, 97 Harness/lifecycle/maintenance tests, and direct Harness check pass
+- Remaining risk: thresholds require later calibration evidence; no Phase-1 blocker remains
 
 ### Git / Repository
-- Branch: Pending
-- Start commit: Pending
-- Checkpoint commit: Pending
-- Push: Pending
-- Draft PR: Pending
-- Merge: Pending
-- `git diff` review: Pending
-- `git status` review: Pending
-- Secrets/generated artifacts/unrelated changes: Pending
+- Branch: `card/v1-c05-data-quality-freshness-provenance`
+- Start commit: `6a58b919a9c7ded68d54d7788d71a39490ab7f53`
+- Checkpoint commit: Not applicable — no commit authorized in Phase 1
+- Push: NOT_PERFORMED / NOT_AUTHORIZED
+- Draft PR: NOT_PERFORMED / NOT_AUTHORIZED
+- Merge: NOT_PERFORMED / NOT_AUTHORIZED
+- `git diff` review: PASS — diff check and scope review passed
+- `git status` review: PASS — authorized dirty C05 worktree; no delivery action
+- Secrets/generated artifacts/unrelated changes: PASS — no secrets, generated artifacts, or unrelated tracked changes
 
 ### Learning Record
 
-What we built: Pending
-
-Why we built it: Pending
-
-Engineering problem: Pending
-
-AI / Data / Financial concept: Pending
-
-How it works: Pending
-
-Architecture before: Pending
-
-Architecture after: Pending
-
-Important files and ownership: Pending
-
-Source / provenance: Pending
-
-Tests / evaluations and actual results: Pending
-
-Financial / data / security invariants: Pending
-
-Problem(s) discovered: Pending
-
-How we diagnosed / solved them: Pending
-
-Professional engineering lesson: Pending
-
-Student takeaway: Pending
-
-Exit Gate proof: Pending
-
-What this enables next: Pending
+What We Wanted To Build: A deterministic provider-neutral contract that prevents stale, malformed, missing, gapped, or unavailable data from silently becoming trusted evidence.
+Why It Matters: Later consumers need visible, inspectable quality facts rather than optimistic truthiness or silent defaults.
+System Before This Card: C02 supplied canonical models and provenance; C03 supplied capability availability; C04 supplied provider data and explicitly unavailable Hyperliquid OI semantics, but no shared quality evaluator existed.
+Design Decision: Add a pure immutable C05 policy/evaluator over existing C02 provenance and C03 coverage contracts.
+Alternatives Considered: Mutating every C02 model with quality fields; embedding freshness in providers; using wall-clock globals; adding persistence or a service.
+Why We Chose This Approach: It preserves ownership boundaries, makes evaluation time explicit, and gives downstream code typed facts without provider or runtime coupling.
+What We Implemented: Versioned freshness thresholds, deterministic assessment, source/receipt age separation, provenance quality, coverage availability, continuity, recovery, reasons, trusted-for-current-use exposure, model-level trust invariants, and timezone-aware evaluation-time validation.
+What We Built: `traid.quality.models` and `traid.quality.evaluator` plus deterministic tests.
+Why We Built It: To make degraded data distinguishable from current, supported, complete data.
+Engineering problem: Freshness, provenance, coverage, continuity, and recovery limitations had no single deterministic public contract.
+AI / Data / Financial concept: Data quality is not a probability; source-event time, receipt time, provider availability, and continuity evidence remain distinct.
+How it works: A caller supplies capability, validated provenance, C03 coverage, explicit evaluation time, policy, continuity, recovery, and canonical-validity status; the evaluator returns an immutable assessment or rejects unsafe input.
+Architecture before: C02 canonical models → C03 adapter boundary → C04 provider mappings, with provider health separate from freshness.
+Architecture after: C02 provenance + C03 coverage → C05 policy/evaluator → immutable quality assessment for later consumers; C04 and upstream ownership remain unchanged.
+Important files and ownership: `src/traid/quality/models.py` and `evaluator.py` own C05 quality; C02 still owns `SourceProvenance`; C03 still owns `CapabilityCoverage`; `tests/test_quality.py` owns focused proof.
+Source / provenance: No external code was reused; source timestamps are used only when present, receipt timestamps remain independent, and missing source time is marked limited rather than fabricated.
+Tests / evaluations and actual results: 46 C05 tests, 52 C02–C04 focused regressions, 98 combined C02–C05 tests, and 211 full tests passed with 2 dependency warnings; Harness, bootstrap, secret scan, compilation, import/health, pip check, and diff check passed.
+Financial / data / security invariants: No OI promotion, no zero/default fallback, no network/trading/wallet capability, no secret material, no future timestamp acceptance, and no replay/backfill.
+Problems We Hit: Existing lifecycle fixtures assumed a not-started C05 row; the independent audit then found that direct QualityAssessment construction could represent contradictory trusted states and that naive evaluation_time was accepted.
+Root Cause: The public model lacked cross-field trust/time validators, while tests primarily exercised evaluator-generated objects; evidence also mislabeled combined test counts.
+How We Solved It: Added necessary model-level trust invariants, UTC normalization/rejection for evaluation_time, direct constructor and JSON-path tests, and corrected current count categories while preserving historical evidence.
+Why The Fix Is Correct: Evaluator outputs and all public validation paths now reject unsafe trusted combinations and naive times without duplicating freshness policy; C06/OI boundaries remain unchanged.
+What We Rejected: Provider-specific freshness logic, hidden wall clocks, source-time substitution, arbitrary OI conversion, replay/backfill, analytics, AI, trading, and broad C02 model changes.
+Problem(s) discovered: C02 makes future source timestamps impossible at a valid public boundary because received time cannot precede source time; C05 therefore rejects impossible temporal input rather than introducing a skew exception.
+How we diagnosed / solved them: Inspected canonical C02 validators, C03 coverage, C04 mappings, ran focused tests, and used deterministic fixtures with explicit evaluation times.
+Known Limitations: Policy thresholds are TraID defaults and require later calibration/evidence; C05 does not prove event continuity or repair history; unavailable OI remains unavailable/unverified.
+Professional engineering lesson: Evaluator correctness is insufficient when a public result model can represent states the evaluator would never produce; both boundaries must enforce the contract.
+Student takeaway: A fresh receipt is not proof of a fresh source event, and a connected stream is not proof of gap-free continuity.
+Exit Gate proof: Complete for Phase 1; trust-model invariants, timezone validation, quality/provenance/coverage/gap/recovery behavior, full regression, Harness, security, runtime, and evidence reconciliation pass.
+What this enables next: Later Cards can inspect deterministic quality facts before using data; this does not authorize C06 or any later Card.
 
 ### Exit Gate Proof
-- Exact Card Exit Gate: Pending — re-read from `TRAID_CARD_SPECIFICATIONS.md`
-- Requirement-to-evidence mapping: Pending
-- Unproven requirements: Pending
-- Exact Exit Gate fully proven: NO
+- Exact Card Exit Gate: PASS — re-read from `TRAID_CARD_SPECIFICATIONS.md`; deterministic quality/provenance/coverage contract is proven
+- Requirement-to-evidence mapping: focused implementation and test evidence below
+- Unproven requirements: None
+- Exact Exit Gate fully proven: YES — Phase 1 evidence complete; delivery remains ungranted
+
+### Validation Checkpoints
+
+| Checkpoint | State transition / bounded change | Validation | Current |
+|---|---|---|---|
+| C05-001 | main clean C04 baseline → authorized C05 branch/lifecycle transition | Git state and dependency inspection | COMPLETE |
+| C05-002 | added deterministic quality policy/evaluator and focused tests | historical actual: 22 C05 tests; 52 C02–C04 regressions; 74 combined | COMPLETE |
+| C05-003 | canonical current-state and evidence reconciliation | historical full suite: 187 passed, 2 warnings | COMPLETE |
+| C05-004 | root-cause trust-model remediation and count reconciliation | 46 C05 tests; 98 combined C02–C05; 211 full tests; Harness PASS | YES |
+
+### Exit Gate Evidence Matrix
+
+| C05 Exit-Gate requirement | Implementation evidence | Test/evidence | Current Status |
+|---|---|---|---|
+| Deterministic LIVE/DELAYED/STALE/UNAVAILABLE states | `assess_quality` and reused `DataQualityState` | focused quality tests | PASS |
+| Explicit/versioned freshness thresholds | `QualityPolicy`, `FreshnessThreshold`, `c05-policy-1` | per-capability boundary tests | PASS |
+| Source/receipt distinction | independent `source_age` and `receipt_age` | source/receipt tests | PASS |
+| Provenance visibility and limitations | `ProvenanceQuality`, basis, reasons | provenance tests | PASS |
+| Coverage/availability behavior | C03 `CapabilityCoverage` reused | supported/limited/unavailable tests | PASS |
+| Gap/continuity visibility | `ContinuityStatus` and explicit reasons | gap/continuity tests | PASS |
+| Recovery labeling without replay claim | `RecoveryStatus` and no-replay reasons | recovery tests | PASS |
+| Malformed/impossible behavior fails closed | typed boundary and temporal checks | invalid input tests | PASS |
+| Stale stream remains stale without new evidence | pure evaluation at later time | stale reevaluation test | PASS |
+| Downstream trust facts visible | immutable assessment and `trusted_for_current_use` | serialization/exposure tests | PASS |
+| Hyperliquid OI remains unavailable/unverified | no OI threshold; C04 coverage preserved | OI regression test | PASS |
+| No silent default/zero substitution | no fallback path in C05 | focused and scope inspection | PASS |
+| No C06+ leakage | no persistence, replay, analytics, Strategy/Risk, AI, or trading | scope review | PASS |
+| Required full/Harness/security validation | full pytest, Harness, bootstrap, secret scan, compilation, import/health, pip check, diff check | actual validation results recorded below | PASS |
 
 ### CARD_QUALITY_GATE
 
-Status: BLOCKED
+Status: PASS
 
 Card: V1-C05
 
-Focused tests: Pending
+Focused tests: PASS — 46 C05 tests
 
-Relevant regression tests: Pending
+Relevant regression tests: PASS — 52 C02–C04 focused tests; 98 combined C02–C05
 
-Card evaluation / acceptance: Pending
+Card evaluation / acceptance: PASS — trust-model remediation and exact C05 Phase-1 Exit Gate proven
 
-Financial invariant tests: Pending
+Financial invariant tests: PASS / NOT_APPLICABLE — no financial formulas changed; OI remains unavailable
 
-Data-quality / provenance tests: Pending
+Data-quality / provenance tests: PASS — focused C05 suite
 
-AI / Risk tests: Pending
+AI / Risk tests: NOT_APPLICABLE — no AI, Strategy, or Risk code
 
-Security checks: Pending
+Security checks: PASS — secret scan and scope review
 
-Exit Gate proof: Pending
+Exit Gate proof: PASS — public trust-model invariants, timezone validation, and all mandatory Phase-1 rows proven
 
-Evidence updated: YES — initial empty evidence contract only; no implementation claim
+Evidence updated: YES — current C05 implementation, failure history, learning, and final validation recorded
 
-Project Control updated: Pending
+Project Control updated: YES — C05 active, delivery ungranted, C06 unauthorized
 
-git diff reviewed: Pending
+git diff reviewed: PASS — only authorized C05 implementation, test, governance, and evidence paths changed
 
-git status reviewed: Pending
+git status reviewed: PASS — authorized dirty C05 worktree; no commit/push/PR/merge
 
-Unrelated changes: Pending
+Unrelated changes: NONE FOUND
 
-Secrets / generated artifacts check: Pending
+Secrets / generated artifacts check: PASS — no secrets or generated artifacts in scope
 
-Known limitations: Pending
+Known limitations: threshold calibration, continuity proof, no replay/backfill, and OI semantic deferral
 
-Remaining issues: Card not started; no implementation evidence
+Remaining issues: None for Phase 1; human delivery approval remains required
 
-Recommended status: NOT_STARTED
+Recommended status: READY_FOR_HUMAN_REVIEW
 
 Human approval required before next Card: YES
 
