@@ -1424,16 +1424,20 @@ Human approval required before next Card: YES
 
 ## V1-C04 — Hyperliquid Provider Verification & Adapter
 
-**Status:** READY_FOR_HUMAN_REVIEW
+**Status:** COMPLETE
 
 **Start Authorization:** GRANTED — explicit V1-C04 Phase 1 authorization
 
-**Next Card Authorization:** NOT_GRANTED
+**Next Card Authorization:** NOT_GRANTED — C05 remains unauthorized
+
+**Delivery Approval:** GRANTED — explicit V1-C04 final delivery authorization
+
+**Delivery Verified:** YES — PR #6, squash merge `50165e3`, remote verification, and post-merge validation complete
 
 ### Contract / Risk Map
 - Hyperliquid source/category coverage, limitations, and availability evidence: PASS — official docs, bounded public BTC REST/WebSocket observations, and explicit limitations recorded
 - No whole-market or complete-coverage claim: PASS — adapter is BTC/request scoped and does not claim whole-market coverage
-- Repository/current-state reconciliation: PASS — clean verified main baseline `4e5da73`; C01/C02/C03 complete; provenance and OI maintenance closed/delivered/verified
+- Repository/current-state reconciliation: PASS — clean verified main baseline `50165e3`; C01/C02/C03/C04 complete; provenance and OI maintenance closed/delivered/verified
 - Contract Map: PASS — Hyperliquid adapter implements protected C03 hooks and returns C02 canonical models
 - Risk Map: PASS — provider leakage, timestamp fabrication, OI ambiguity, credentials, retry, and future-Card risks bounded
 - Ownership map: PASS — provider code remains under `src/traid/providers/`; Core models and C03 facade unchanged
@@ -1461,10 +1465,10 @@ Human approval required before next Card: YES
 
 ### Tests / Evaluation
 - Focused tests: PASS — 15 deterministic provider mapping, OI, REST failure, reconnect, resubscription, cancellation, and WebSocket tests
-- Relevant regression tests: PASS — historical technical validation checkpoint recorded below; latest governance/remediation checkpoint is recorded below
+- Relevant regression tests: PASS — latest post-merge validation checkpoint is recorded below
 - Card-specific evaluation / acceptance: PASS — REST mappings, OI fail-closed behavior, WebSocket canonicalization, bounded reconnect, resubscription, failure matrix, and live BTC message proof
 - Actual commands/runners: `.venv/bin/pytest -q tests/test_hyperliquid_provider.py`; `.venv/bin/pytest -q`; `.venv/bin/python scripts/harness_consistency_check.py`; `scripts/session_bootstrap.sh`; `bash scripts/check_secrets.sh`; `.venv/bin/python -m compileall -q src tests`; `.venv/bin/python` public BTC REST and WebSocket probes; `git diff --check`
-- Actual results: historical technical checkpoint recorded below; latest governance/remediation checkpoint recorded below; Harness consistency PASS; public REST trades/book/candles/funding/context PASS; public WebSocket subscription acknowledgement and canonical BTC trade data message PASS at validation timestamp `2026-09-17T08:26:22Z`; secret scan PASS; compilation PASS; diff check PASS
+- Actual results: latest post-merge checkpoint recorded below; Harness consistency PASS; public REST trades/book/candles/funding/context PASS; public WebSocket subscription acknowledgement and canonical BTC trade data message PASS at validation timestamp `2026-09-17T08:26:22Z`; secret scan PASS; compilation PASS; diff check PASS
 - Warnings: bootstrap warns system `pytest` is unavailable and working tree is intentionally dirty during authorized Phase 1
 - Environment/configuration: Python 3.13 virtual environment; direct runtime dependency `websockets>=14,<16`; no credentials or account operations
 
@@ -1486,14 +1490,16 @@ Human approval required before next Card: YES
 - Remaining risk: provider OI unit/aggregation remains unverified; missed WebSocket messages are not replayed or silently treated as continuous
 
 ### Git / Repository
-- Branch: `card/v1-c04-hyperliquid-provider`
+- Delivery branch: `card/v1-c04-hyperliquid-provider`
 - Start commit: `4e5da73`
-- Checkpoint commit: Pending
-- Push: Pending
-- Draft PR: Pending
-- Merge: Pending
+- Source delivery commit: `c762f34`
+- Push: PASS — remote Card branch verified at `c762f34`
+- Pull Request: PASS — PR #6, https://github.com/jo-soroush/traid-market-intelligence/pull/6
+- Hosted CI: PASS — required `test` checks passed
+- Merge: PASS — squash merge `50165e3` on `main`
+- Post-merge branch: `main`; local and `origin/main` synchronized
+- Post-merge working tree: CLEAN
 - `git diff` review: PASS — bounded C04 provider, test, dependency, and state/evidence changes only
-- `git status` review: PASS — authorized dirty Phase 1 worktree; no generated tracked artifacts
 - Secrets/generated artifacts/unrelated changes: PASS — secret scan passed; no unrelated paths identified
 
 ### Learning Record
@@ -1611,9 +1617,9 @@ Security checks: PASS
 
 Exit Gate proof: PASS
 
-Evidence updated: YES — implementation, remediation, failure history, live proof, and Exit Gate evidence recorded
+Evidence updated: YES — implementation, remediation, failure history, live proof, Exit Gate, and approved delivery evidence recorded
 
-Project Control updated: YES — C04 active and delivery not authorized
+Project Control updated: YES — C04 COMPLETE and Active Card NONE
 
 git diff reviewed: PASS
 
