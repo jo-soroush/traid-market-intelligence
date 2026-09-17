@@ -15,9 +15,11 @@ from traid.exchange.errors import (
     AdapterErrorCode,
     AdapterContractError,
     AdapterUnavailableError,
+    AdapterRateLimitError,
     InvalidCapabilityError,
     InvalidOutputError,
     UnsupportedCapabilityError,
+    ProviderDataError,
     normalize_adapter_error,
 )
 
@@ -28,6 +30,7 @@ __all__ = [
     "AdapterHealth",
     "AdapterHealthState",
     "AdapterUnavailableError",
+    "AdapterRateLimitError",
     "Capability",
     "CapabilityAvailability",
     "CapabilityCoverage",
@@ -35,6 +38,7 @@ __all__ = [
     "UnsupportedCapabilityError",
     "InvalidCapabilityError",
     "InvalidOutputError",
+    "ProviderDataError",
     "invoke_capability",
     "normalize_adapter_error",
     "require_capability",

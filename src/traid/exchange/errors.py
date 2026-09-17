@@ -16,6 +16,8 @@ class AdapterErrorCode(StrEnum):
     PROVIDER_FAILURE = "PROVIDER_FAILURE"
     UNAVAILABLE = "UNAVAILABLE"
     UNSUPPORTED_CAPABILITY = "UNSUPPORTED_CAPABILITY"
+    RATE_LIMITED = "RATE_LIMITED"
+    PROVIDER_DATA = "PROVIDER_DATA"
 
 
 class AdapterError(Exception):
@@ -51,6 +53,16 @@ class AdapterUnavailableError(AdapterError):
 class UnsupportedCapabilityError(AdapterError):
     def __init__(self, capability: Capability) -> None:
         super().__init__(AdapterErrorCode.UNSUPPORTED_CAPABILITY, f"unsupported capability: {capability.value}", capability)
+
+
+class AdapterRateLimitError(AdapterError):
+    def __init__(self, message: str = "provider rate limit reached", capability: Capability | None = None) -> None:
+        super().__init__(AdapterErrorCode.RATE_LIMITED, message, capability)
+
+
+class ProviderDataError(AdapterError):
+    def __init__(self, message: str, capability: Capability | None = None) -> None:
+        super().__init__(AdapterErrorCode.PROVIDER_DATA, message, capability)
 
 
 def normalize_adapter_error(capability: Capability, error: BaseException) -> AdapterError:

@@ -12,7 +12,7 @@ from pathlib import Path
 from traid.harness.lifecycle import LifecycleFacts, evaluate_state_consistency
 
 
-C01_LEARNING_RECORD_FIELDS = (
+CANONICAL_LEARNING_RECORD_FIELDS = (
     "What We Wanted To Build", "Why It Matters", "System Before This Card",
     "Design Decision", "Alternatives Considered", "Why We Chose This Approach",
     "What We Implemented", "What We Built", "Why We Built It", "Engineering problem",
@@ -24,6 +24,9 @@ C01_LEARNING_RECORD_FIELDS = (
     "Known Limitations", "Professional engineering lesson", "Student takeaway",
     "Exit Gate proof", "What this enables next",
 )
+# Backward-compatible name for existing Harness tests and callers.
+C01_LEARNING_RECORD_FIELDS = CANONICAL_LEARNING_RECORD_FIELDS
+LEARNING_PLACEHOLDERS = frozenset({"", "pending", "not verified", "tbd", "todo", "not run"})
 CARD_STATES = {"NOT_STARTED", "IN_PROGRESS", "BLOCKED", "READY_FOR_HUMAN_REVIEW", "COMPLETE", "DEFERRED"}
 ACTIVE_STATES = {"IN_PROGRESS", "BLOCKED", "READY_FOR_HUMAN_REVIEW"}
 CARD_ROW = re.compile(r"^\|\s*(V1-C\d{2})\s*\|\s*([^|]+?)\s*\|\s*(\w+)\s*\|\s*(YES|NO)\s*\|", re.MULTILINE)
@@ -80,18 +83,86 @@ class ResolvedState:
     errors: tuple[str, ...]
 
 
-def learning_record_issues(evidence_c01: str) -> tuple[str, ...]:
-    learning = re.search(r"^### Learning Record\n(.*?)(?=^### Exit Gate Proof$)", evidence_c01, re.MULTILINE | re.DOTALL)
+def learning_record_issues(evidence_section: str) -> tuple[str, ...]:
+    """Validate the canonical Learning Record for any completed/review-ready Card."""
+
+    learning = re.search(r"^### Learning Record\n(.*?)(?=^### Exit Gate Proof$)", evidence_section, re.MULTILINE | re.DOTALL)
     if not learning:
         return ("LEARNING_RECORD_SECTION_MISSING",)
     body = learning.group(1)
     issues: list[str] = []
-    for field in C01_LEARNING_RECORD_FIELDS:
+    for field in CANONICAL_LEARNING_RECORD_FIELDS:
         match = re.search(rf"^{re.escape(field)}:\s*(.*)$", body, re.MULTILINE)
         if not match:
             issues.append(f"LEARNING_FIELD_MISSING:{field}")
-        elif not match.group(1).strip():
+        elif match.group(1).strip().lower() in LEARNING_PLACEHOLDERS:
             issues.append(f"LEARNING_FIELD_EMPTY:{field}")
+    return tuple(issues)
+
+
+def card_evidence_section(evidence: str, card_id: str) -> str:
+    match = re.search(rf"^## {re.escape(card_id)} .*?(?=^## V1-C\d{{2}} |\Z)", evidence, re.MULTILINE | re.DOTALL)
+    return match.group(0) if match else ""
+
+
+def current_evidence_issues(evidence_section: str) -> tuple[str, ...]:
+    """Validate the optional structured current Exit-Gate matrix.
+
+    Historical prose may contain failure words. Only the explicitly structured
+    current matrix is interpreted as a live status source.
+    """
+
+    matrix = re.search(r"^### Exit Gate Evidence Matrix\n(.*?)(?=^### CARD_QUALITY_GATE$)", evidence_section, re.MULTILINE | re.DOTALL)
+    if not matrix:
+        return ()
+    rows = re.findall(r"^\|\s*[^|]+\|\s*[^|]+\|\s*[^|]+\|\s*([^|]+?)\s*\|\s*$", matrix.group(1), re.MULTILINE)
+    if not rows:
+        return ("CURRENT_EVIDENCE_MATRIX_EMPTY",)
+    unresolved = []
+    for value in rows:
+        status = value.strip().split(" —", 1)[0].strip().upper()
+        if status in {"CURRENT STATUS", "---"}:
+            continue
+        if status not in {"PASS", "NOT_APPLICABLE"}:
+            unresolved.append(status)
+    return ("CURRENT_EVIDENCE_UNRESOLVED:" + ",".join(unresolved),) if unresolved else ()
+
+
+def validation_checkpoint_issues(evidence_section: str) -> tuple[str, ...]:
+    """Validate optional structured validation checkpoints without parsing prose counts."""
+
+    checkpoints = re.search(
+        r"^### Validation Checkpoints\n(.*?)(?=^### |\Z)",
+        evidence_section,
+        re.MULTILINE | re.DOTALL,
+    )
+    if not checkpoints:
+        return ()
+    rows = re.findall(
+        r"^\|\s*[^|]+\|\s*[^|]+\|\s*[^|]+\|\s*([^|]+?)\s*\|\s*$",
+        checkpoints.group(1),
+        re.MULTILINE,
+    )
+    rows = [row.strip().upper() for row in rows if row.strip().upper() not in {"CURRENT", "---"}]
+    if not rows:
+        return ("VALIDATION_CHECKPOINTS_EMPTY",)
+    current = [row for row in rows if row == "YES"]
+    if len(current) != 1:
+        return ("VALIDATION_CHECKPOINT_CURRENT_DECLARATION_INVALID",)
+    return ()
+
+
+def card_documentation_issues(evidence: str, record: "CardRecord") -> tuple[str, ...]:
+    """Apply documentation requirements only to review-ready/completed Cards."""
+
+    if record.state not in {"READY_FOR_HUMAN_REVIEW", "COMPLETE"}:
+        return ()
+    section = card_evidence_section(evidence, record.card_id)
+    if not section:
+        return (f"CARD_EVIDENCE_SECTION_MISSING:{record.card_id}",)
+    issues = [f"{record.card_id}:{issue}" for issue in learning_record_issues(section)]
+    issues.extend(f"{record.card_id}:{issue}" for issue in current_evidence_issues(section))
+    issues.extend(f"{record.card_id}:{issue}" for issue in validation_checkpoint_issues(section))
     return tuple(issues)
 
 
@@ -266,6 +337,20 @@ def resolve_card_state(control: str) -> ResolvedState:
     auth_lines = {match.group(1): match.group(2) for match in re.finditer(r"^(V1-C\d{2}) Authorization:\s*(.+)$", control, re.MULTILINE)}
     active_block = re.search(r"^## 6\. Active Card Record\n(.*?)(?=^## 7\.)", control, re.MULTILINE | re.DOTALL)
     active_block_text = active_block.group(1) if active_block else ""
+    active_record_state_values = _line_values(r"^State:\s*(.+)$", active_block_text)
+    current_record_block = re.search(
+        r"^Current active-Card record:\s*\n\s*```text\n(.*?)(?=^```)",
+        control,
+        re.MULTILINE | re.DOTALL,
+    )
+    if current_record_block:
+        active_record_state_values = _line_values(r"^State:\s*(.+)$", current_record_block.group(1))
+    if active_card != "NONE" and active_record_state_values:
+        active_record_states = {
+            value.split(" —", 1)[0].strip() for value in active_record_state_values
+        }
+        if len(active_record_states) != 1 or next(iter(active_record_states)) != active_state:
+            errors.append("ACTIVE_CARD_RECORD_STATE_MISMATCH")
     start_values = _line_values(r"^Human Start Approval:\s*(.+)$", active_block_text)
     active_start = bool(active_record and active_record.start_approved)
     if active_record and start_values:
@@ -365,7 +450,11 @@ def main() -> int:
         return 1
     checkpoint = bool(expected_head and subprocess.run(["git", "cat-file", "-e", f"{expected_head.group(1)}^{{commit}}"], check=False).returncode == 0 and subprocess.run(["git", "merge-base", "--is-ancestor", expected_head.group(1), head], check=False).returncode == 0)
     clean = not subprocess.check_output(["git", "status", "--porcelain"], text=True).strip()
-    learning_issues = learning_record_issues(evidence_current) if current_card_id == "V1-C01" else ()
+    documentation_issues = tuple(
+        issue for record in state.cards for issue in card_documentation_issues(evidence, record)
+    )
+    learning_issues = [issue for issue in documentation_issues if ":LEARNING_" in issue or "CARD_EVIDENCE_SECTION_MISSING" in issue]
+    evidence_issues = [issue for issue in documentation_issues if issue not in learning_issues]
     complete = current_record is not None and current_record.state == "COMPLETE"
     facts = LifecycleFacts(
         card_id=current_card_id, card_state=current_record.state if current_record else "", active_card=active_card,
@@ -387,10 +476,10 @@ def main() -> int:
         declared_next_card=state.declared_next_card, derived_next_card=state.derived_next_card,
     )
     result = evaluate_state_consistency(facts)
-    if result.passed and not learning_issues:
+    if result.passed and not documentation_issues:
         print("HARNESS_CONSISTENCY: PASS")
         return 0
-    reasons = list(result.reason_codes) + list(learning_issues)
+    reasons = list(result.reason_codes) + list(documentation_issues)
     print(f"HARNESS_CONSISTENCY: BLOCKED: {', '.join(dict.fromkeys(reasons))}")
     return 1
 
