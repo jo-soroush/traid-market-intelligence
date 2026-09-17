@@ -40,13 +40,13 @@ Never invent a convenient state.
 ```text
 Project: TraID
 Target: V1
-Project Phase: IN_PROGRESS / C05_READY_FOR_HUMAN_REVIEW
-Active Card: V1-C05 — Data Quality, Freshness & Provenance
-Active Card State: READY_FOR_HUMAN_REVIEW
-Last COMPLETE Card: V1-C04 — Hyperliquid Provider Verification & Adapter
+Project Phase: INTEGRATED / C05_COMPLETE
+Active Card: NONE
+Active Card State: NONE
+Last COMPLETE Card: V1-C05 — Data Quality, Freshness & Provenance
 Next Roadmap Card: V1-C06 — Historical Data & Replay Foundation
 Next Card Authorized: NO — C06 start NOT_GRANTED
-Implementation Authorization: READY_FOR_HUMAN_REVIEW — trust-model remediation validated; delivery remains ungranted
+Implementation Authorization: COMPLETE — C05 delivery approved, merged, and verified
 Systemic State-Drift Remediation: CLOSED / DELIVERED / VERIFIED
 V1 COMPLETE: NO
 Live Trade Execution: PROHIBITED
@@ -105,16 +105,16 @@ Canonical Harness Installation: VERIFIED
 Canonical Harness Files: 10 / 10 PRESENT
 Harness Structure: VERIFIED
 Research / Reconnaissance Organization: VERIFIED
-Implementation: COMPLETE — completed Cards are recorded in the canonical Card Status Table below; C01, C02, C03, and C04 implementation, validation, and approved delivery are verified
-Source Code: PRESENT — C01 baseline, C02 canonical domain contracts, C03 boundary, and C04 provider adapter
-Tests: PRESENT — C01 through C04 focused, regression, and Harness tests
+Implementation: COMPLETE — completed Cards are recorded in the canonical Card Status Table below; C01, C02, C03, and C04 implementation, validation, and approved delivery are verified; C05 implementation, validation, and approved delivery are verified
+Source Code: PRESENT — C01 baseline, C02 canonical domain contracts, C03 boundary, C04 provider adapter, and C05 quality layer
+Tests: PRESENT — C01 through C05 focused, regression, and Harness tests
 Git Repository: INITIALIZED
-Git Branch: card/v1-c05-data-quality-freshness-provenance
-Git Checkpoint: 6a58b91 — verified clean C04 completion baseline; C05 lifecycle transition is an authorized dirty worktree checkpoint
+Git Branch: main
+Git Checkpoint: efc8ef6 — verified C05 squash merge and post-merge validation baseline
 Git Upstream: origin/main
 Git Remote: origin — https://github.com/jo-soroush/traid-market-intelligence.git
 Git Safe Checkpoint: VERIFIED — final provenance maintenance reconciliation delivered
-Working Tree: DIRTY_ALLOWED — authorized C05 worktree; implementation in progress; no commit authorized
+Working Tree: CLEAN — verified after C05 post-merge validation
 V1-C01: COMPLETE
 V1-C01 Authorization: START_GRANTED; DELIVERY_GRANTED; DELIVERY_COMPLETED
 V1-C02: COMPLETE
@@ -123,14 +123,16 @@ V1-C03: COMPLETE
 V1-C03 Authorization: START_GRANTED; DELIVERY_GRANTED; DELIVERY_COMPLETED
 V1-C04: COMPLETE
 V1-C04 Authorization: START_GRANTED; DELIVERY_GRANTED; DELIVERY_COMPLETED
+V1-C05: COMPLETE
+V1-C05 Authorization: START_GRANTED; DELIVERY_GRANTED; DELIVERY_COMPLETED
 ```
 
 Filesystem verification is not implementation evidence. Runtime, test, and
 Git delivery claims require their own executed evidence.
 
-C01, C02, C03, and C04 repository, runtime, validation, approved delivery, and
-post-merge verification evidence are recorded. C05 is the only active Card;
-C06 remains unauthorized.
+C01, C02, C03, C04, and C05 repository, runtime, validation, approved delivery,
+and post-merge verification evidence are recorded. No Card is active; C06
+remains unauthorized.
 
 ### Previous Maintenance Record
 
@@ -288,19 +290,19 @@ Human Delivery Approval: GRANTED — explicit V1-C03 final delivery authorizatio
 Delivery Verified: YES — PR #2, squash merge `133d064`, remote verification, and post-merge validation complete
 ```
 
-Current active-Card record:
+Current delivered-Card record:
 
 ```text
 Card ID: V1-C05
 Title: Data Quality, Freshness & Provenance
-State: READY_FOR_HUMAN_REVIEW
+State: COMPLETE
 Branch: card/v1-c05-data-quality-freshness-provenance
 Start Commit: 6a58b91
-Safe Checkpoint: authorized dirty worktree after lifecycle transition; no commit authorized
+Safe Checkpoint: efc8ef612f956a29d9219bec5e9aae1dc594d035 — verified squash merge and post-merge validation
 Engineering Goal: Prevent stale, malformed, missing, gapped, or unavailable data from silently becoming trusted evidence
 Learning Goal: Make data quality, freshness, provenance, coverage, gaps, and recovery first-class deterministic contracts
 Authorized Scope: provider-neutral quality policy/evaluator, explicit freshness/provenance/coverage/gap/recovery results, deterministic tests, and C05 evidence/learning updates
-Out of Scope: historical replay/backfill, analytics, Strategy, Risk Gate, AI, trading, wallet/account operations, OI semantic resolution, and Git delivery
+Out of Scope: historical replay/backfill, analytics, Strategy, Risk Gate, AI, trading, wallet/account operations, and OI semantic resolution
 Dependencies: V1-C04 COMPLETE and delivery verified
 Source/Provenance Obligations: preserve truthful source/received timestamps; do not fabricate source freshness or continuity
 Financial/Data Guardrails: LIVE/DELAYED/STALE/UNAVAILABLE explicit; missing != zero; unavailable OI remains unavailable/unverified
@@ -309,10 +311,11 @@ Focused Validation: PASS — 46 focused C05 tests; 211 full tests with 2 depende
 Exit Gate: PASS — trust-model invariants, timezone semantics, deterministic quality behavior, and scope boundaries proven
 ROADMAP_ALIGNMENT_GATE: PASS
 CARD_QUALITY_GATE: PASS
-Blockers: None for Phase 1 review; delivery approval remains intentionally absent
+Blockers: None
 Known Limitations: thresholds are TraID policy defaults, not provider cadence claims; C06 retains replay/backfill ownership
 Human Start Approval: GRANTED — explicit V1-C05 Phase 1 authorization
-Human Delivery Approval: NOT_GRANTED
+Human Delivery Approval: GRANTED — explicit V1-C05 Phase-2 delivery authorization
+Delivery Verified: YES — PR #7, squash merge `efc8ef6`, remote verification, and post-merge validation complete
 ```
 
 ---
@@ -345,22 +348,22 @@ Human Delivery Approval: GRANTED — explicit V1-C04 final delivery authorizatio
 Delivery Verified: YES — PR #6, squash merge `50165e3`, remote verification, and post-merge validation complete
 ```
 
-Current active-Card delivery authorization:
+Current C05 delivery record:
 
 ```text
-Human Delivery Approval: NOT_GRANTED
-Delivery Verified: NO — C05 has not been delivered
+Human Delivery Approval: GRANTED — explicit V1-C05 Phase-2 delivery authorization
+Delivery Verified: YES — PR #7, squash merge `efc8ef6`, remote verification, and post-merge validation complete
 ```
 
 ## 7. Authorization Ledger
 
 ```text
 Card Start: GRANTED — V1-C05 Phase 1 implementation
-Delivery Approval: NOT_GRANTED — C05 delivery is not authorized
-Next Card: NOT_GRANTED — C06 remains unauthorized while C05 is active
+Delivery Approval: GRANTED / COMPLETED — V1-C05 delivery verified
+Next Card: NOT_GRANTED — C06 remains unauthorized after C05 completion
 V1-C03 Authorization: START_GRANTED; DELIVERY_GRANTED; DELIVERY_COMPLETED
 V1-C04 Authorization: START_GRANTED; DELIVERY_GRANTED; DELIVERY_COMPLETED
-V1-C05 Authorization: START_GRANTED; DELIVERY_NOT_GRANTED
+V1-C05 Authorization: START_GRANTED; DELIVERY_GRANTED; DELIVERY_COMPLETED
 Architecture Change: NOT_GRANTED
 Material Scope Change: NOT_GRANTED
 Significant Technology Addition: NOT_GRANTED
@@ -386,7 +389,7 @@ Routine reversible implementation is allowed only inside an explicitly approved 
 ```text
 Approved V1 Cards: 27
 Completed Cards: V1-C01, V1-C02, V1-C03, V1-C04
-Active Card: V1-C05 — Data Quality, Freshness & Provenance
+Active Card: NONE
 Next Roadmap Card: V1-C06 — available only after separate C06 start approval
 Later Cards: NOT AUTHORIZED
 ```
@@ -722,8 +725,8 @@ Evidence Reference:
 Current:
 
 ```text
-TraID repository test state: VERIFIED — 211 passed, 2 dependency warnings; current counts are derived from the C05 trust-model remediation validation
-Harness consistency: PASS — C05 READY_FOR_HUMAN_REVIEW, delivery ungranted, and Active Card V1-C05 validated
+TraID repository test state: VERIFIED — 211 passed, 2 dependency warnings; post-merge C05 validation on main
+Harness consistency: PASS — C05 COMPLETE, delivery verified, and Active Card NONE validated
 Readiness gate: PASS — V1-C04 dependency/runtime/configuration preflight
 Secret scan: PASS
 Python compilation: PASS
@@ -759,11 +762,11 @@ Recommended State:
 Current:
 
 ```text
-CARD_QUALITY_GATE: PASS — C05 trust-model remediation and exact Phase-1 Exit Gate proven; delivery remains ungranted
+CARD_QUALITY_GATE: PASS — C05 trust-model remediation, exact Exit Gate, approved delivery, and post-merge verification proven
 Focused tests: 46 C05 tests passed; 52 C02–C04 regression tests passed; 98 C02–C05 combined; 211 full tests passed with 2 dependency warnings
 Evidence updated: YES — C05 implementation, failure diagnosis, learning, and Exit Gate recorded
 Learning Record: COMPLETE
-Remaining issue: None for C05 Phase 1; human delivery approval is required before any Git delivery
+Remaining issue: None for C05; C06 remains separately unauthorized
 ```
 
 ---
@@ -786,10 +789,10 @@ Key Demonstrated Lesson:
 Current:
 
 ```text
-Latest Evidence Update: C02 DELIVERY — committed, merged, and verified
-Evidence Card: V1-C02
-Evidence Status: COMPLETE — approved C02 Git delivery and post-merge verification recorded
-Critical Missing Proof: none for C02; later Cards remain unauthorized
+Latest Evidence Update: C05 DELIVERY — committed, pushed, PR #7 merged, and post-merge verified
+Evidence Card: V1-C05
+Evidence Status: COMPLETE — approved C05 Git delivery, hosted CI, merge, and post-merge verification recorded
+Critical Missing Proof: none for C05; C06 remains unauthorized
 Learning Record Status: COMPLETE — explicit 30-field record recorded in Evidence Map
 Key Demonstrated Lesson: executable Harness checks must agree with safe repository conventions
 ```
@@ -840,15 +843,15 @@ Post-Merge Verification:
 Current:
 
 ```text
-Branch: main; Card branch: card/v1-c04-hyperliquid-provider
-Commits: c762f34 (C04 source); 50165e3 (C04 squash merge); prior Card commits recorded above
-Push: C04 Card branch and origin/main VERIFIED
-PR: #6 — https://github.com/jo-soroush/traid-market-intelligence/pull/6
+Branch: main; Card branch: card/v1-c05-data-quality-freshness-provenance
+Commits: 88985be (C05 source); efc8ef6 (C05 squash merge); prior Card commits recorded above
+Push: C05 Card branch and origin/main VERIFIED
+PR: #7 — https://github.com/jo-soroush/traid-market-intelligence/pull/7
 PR State: MERGED — hosted CI PASS
-Human Review: APPROVED — C04 delivery approval granted
+Human Review: APPROVED — C05 delivery approval granted
 Merge Approval: GRANTED
-Merge: VERIFIED — `50165e3` squash merge on main
-Post-Merge Verification: PASS — main contains C04; remote and working tree verified
+Merge: VERIFIED — `efc8ef6` squash merge on main
+Post-Merge Verification: PASS — main contains C05; remote and working tree verified
 ```
 
 The block above records the verified C04 delivery and current integrated
@@ -991,7 +994,7 @@ Exact source decisions belong in Card evidence/source mapping.
 | V1-C02 | Canonical Domain Models | COMPLETE | YES | PASS | COMPLETE |
 | V1-C03 | Exchange Adapter Contract | COMPLETE | YES | PASS | COMPLETE |
 | V1-C04 | Hyperliquid Provider Verification & Adapter | COMPLETE | YES | PASS | COMPLETE |
-| V1-C05 | Data Quality, Freshness & Provenance | READY_FOR_HUMAN_REVIEW | YES | PASS | COMPLETE |
+| V1-C05 | Data Quality, Freshness & Provenance | COMPLETE | YES | PASS | COMPLETE |
 | V1-C06 | Historical Data & Replay Foundation | NOT_STARTED | NO | NOT_RUN | PENDING |
 | V1-C07 | Order Book & Liquidity Analytics | NOT_STARTED | NO | NOT_RUN | PENDING |
 | V1-C08 | Trade Flow & CVD | NOT_STARTED | NO | NOT_RUN | PENDING |
@@ -1107,17 +1110,16 @@ when proof is absent.
 
 ```text
 Safe Resume:
-C01, C02, C03, C04, provenance maintenance, and OI contract reconciliation are
-delivered and verified. C05 Phase 1 is active after explicit human start
-approval; continue only within the bounded C05 contract and stop before Git
-delivery. C06 remains unauthorized.
+C01, C02, C03, C04, C05, provenance maintenance, and OI contract reconciliation
+are delivered and verified. No Card is active; C06 remains unauthorized and
+requires separate explicit start approval.
 Do not resume a completed Card or
 maintenance delivery.
-Active Card is V1-C05 — Data Quality, Freshness & Provenance
+Active Card is NONE
 Next Roadmap Card: V1-C06
 
-Implementation Card: V1-C05 — Data Quality, Freshness & Provenance
-Repository Write Authorization: C05 Phase 1 implementation authorized; Git delivery NOT_GRANTED
+Implementation Card: NONE
+Repository Write Authorization: no active Card; C06 start NOT_GRANTED
 Next Roadmap Card: V1-C06
 V1-C01 Authorization: START_GRANTED; DELIVERY_GRANTED; DELIVERY_COMPLETED
 V1-C02 Authorization: START_GRANTED; DELIVERY_GRANTED; DELIVERY_COMPLETED
@@ -1127,11 +1129,10 @@ V1-C03 Authorization: START_GRANTED; DELIVERY_GRANTED; DELIVERY_COMPLETED
 Current resume point:
 
 ```text
-C04 delivery is complete and verified.
-→ C05 Phase 1 is active under explicit start approval
-→ Active Card V1-C05 — Data Quality, Freshness & Provenance
+C05 delivery is complete and verified.
+→ Active Card NONE
 → C06 remains NOT_STARTED / NOT_GRANTED
-→ stop before commit, push, PR, merge, or delivery
+→ stop until separate explicit C06 start approval
 ```
 
 ---
