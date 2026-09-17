@@ -40,13 +40,13 @@ Never invent a convenient state.
 ```text
 Project: TraID
 Target: V1
-Project Phase: POST_IMPLEMENTATION / C03_COMPLETE
-Active Card: NONE
-Active Card State: NONE
+Project Phase: IMPLEMENTATION / C04_READY_FOR_HUMAN_REVIEW
+Active Card: V1-C04 — Hyperliquid Provider Verification & Adapter
+Active Card State: READY_FOR_HUMAN_REVIEW
 Last COMPLETE Card: V1-C03 — Exchange Adapter Contract
-Next Roadmap Card: V1-C04 — Hyperliquid Provider Verification & Adapter
-Next Card Authorized: NO — C04 start NOT_GRANTED
-Implementation Authorization: NONE — no Active Card; C04 start NOT_GRANTED
+Next Roadmap Card: V1-C05 — Data Quality, Freshness & Provenance
+Next Card Authorized: NO — C05 start NOT_GRANTED
+Implementation Authorization: GRANTED — explicit V1-C04 Phase 1 start approval
 Systemic State-Drift Remediation: CLOSED / DELIVERED / VERIFIED
 V1 COMPLETE: NO
 Live Trade Execution: PROHIBITED
@@ -109,12 +109,12 @@ Implementation: COMPLETE — completed Cards are recorded in the canonical Card 
 Source Code: PRESENT — C01 baseline and C02 canonical domain contracts
 Tests: PRESENT — C01 baseline and C02 domain/Harness tests
 Git Repository: INITIALIZED
-Git Branch: main
+Git Branch: card/v1-c04-hyperliquid-provider
 Git Checkpoint: 6e84cb8 — verified OI contract merge checkpoint; runtime HEAD is derived from Git at validation time
 Git Upstream: origin/main
 Git Remote: origin — https://github.com/jo-soroush/traid-market-intelligence.git
 Git Safe Checkpoint: VERIFIED — final provenance maintenance reconciliation delivered
-Working Tree: CLEAN — systemic state-drift remediation merge complete
+Working Tree: DIRTY_ALLOWED — authorized C04 Phase 1 implementation awaiting human review
 V1-C01: COMPLETE
 V1-C01 Authorization: START_GRANTED; DELIVERY_GRANTED; DELIVERY_COMPLETED
 V1-C02: COMPLETE
@@ -125,8 +125,8 @@ Filesystem verification is not implementation evidence. Runtime, test, and
 Git delivery claims require their own executed evidence.
 
 C01, C02, and C03 repository, runtime, validation, approved delivery, and
-post-merge verification evidence are recorded. Active Card is NONE; C04 remains
-unauthorized.
+post-merge verification evidence are recorded. C04 is the active authorized
+Card in Phase 1; delivery remains unauthorized.
 
 ### Previous Maintenance Record
 
@@ -286,13 +286,42 @@ Delivery Verified: YES — PR #2, squash merge `133d064`, remote verification, a
 
 ---
 
+Current active-Card record:
+
+```text
+Card ID: V1-C04
+Title: Hyperliquid Provider Verification & Adapter
+State: READY_FOR_HUMAN_REVIEW
+Branch: card/v1-c04-hyperliquid-provider
+Start Commit: 4e5da73
+Safe Checkpoint: 4e5da73 — verified clean main baseline
+Engineering Goal: Verify Hyperliquid semantics and connect real BTC REST/WebSocket data through C03
+Learning Goal: Provider semantic verification, bounded transport, canonical normalization, and fail-closed data handling
+Authorized Scope: public read-only Hyperliquid adapter, verified BTC mappings, bounded WebSocket transport, provenance, coverage, tests, and evidence
+Out of Scope: trading, wallet/account operations, credentials, AI, Strategy, Risk Gate, C05+, and delivery
+Dependencies: V1-C03 COMPLETE and delivery verified
+Source/Provenance Obligations: official Hyperliquid evidence, truthful source/received timestamps, explicit limitations
+Financial/Data Guardrails: unresolved OI remains unavailable/unverified; no synthetic zero or mark-price conversion
+Security Requirements: public market data only; no account mutation or trading capability
+Focused Validation: PASS — 15 focused provider tests; latest full-suite checkpoint recorded in TRAID_CARD_EVIDENCE_MAP.md
+Exit Gate: PASS — REST/WebSocket mappings, bounded reconnect, resubscription, failure matrix, OI fail-closed, and live BTC WebSocket data proof
+ROADMAP_ALIGNMENT_GATE: PASS
+CARD_QUALITY_GATE: PASS
+Blockers: None for C04 Exit Gate; OI remains explicitly unavailable/unverified
+Known Limitations: OI unit/aggregation semantics remain unverified; missed WebSocket continuity is not claimed
+Human Start Approval: GRANTED — explicit V1-C04 Phase 1 authorization
+Human Delivery Approval: NOT_GRANTED
+Delivery Verified: NO — C04 delivery not authorized or performed
+```
+
 ## 7. Authorization Ledger
 
 ```text
-Card Start: GRANTED — V1-C03; V1-C02 delivery completed
+Card Start: GRANTED — V1-C04; V1-C03 delivery completed
 Delivery Approval: GRANTED — V1-C03 delivery completed and verified
-Next Card: NOT_GRANTED — C04 remains unauthorized
+Next Card: NOT_GRANTED — C04 is active; C05 remains unauthorized
 V1-C03 Authorization: START_GRANTED; DELIVERY_GRANTED; DELIVERY_COMPLETED
+V1-C04 Authorization: START_GRANTED; DELIVERY_NOT_GRANTED
 Architecture Change: NOT_GRANTED
 Material Scope Change: NOT_GRANTED
 Significant Technology Addition: NOT_GRANTED
@@ -318,8 +347,8 @@ Routine reversible implementation is allowed only inside an explicitly approved 
 ```text
 Approved V1 Cards: 27
 Completed Cards: V1-C01, V1-C02, V1-C03
-Active Card: NONE
-Next Roadmap Card: V1-C04 — available only after separate C04 start approval
+Active Card: V1-C04 — Hyperliquid Provider Verification & Adapter
+Next Roadmap Card: V1-C05 — available only after separate C05 start approval
 Later Cards: NOT AUTHORIZED
 ```
 
@@ -922,7 +951,7 @@ Exact source decisions belong in Card evidence/source mapping.
 | V1-C01 | Repository Baseline & Engineering Harness | COMPLETE | YES | PASS | COMPLETE |
 | V1-C02 | Canonical Domain Models | COMPLETE | YES | PASS | COMPLETE |
 | V1-C03 | Exchange Adapter Contract | COMPLETE | YES | PASS | COMPLETE |
-| V1-C04 | Hyperliquid Provider Verification & Adapter | NOT_STARTED | NO | NOT_RUN | PENDING |
+| V1-C04 | Hyperliquid Provider Verification & Adapter | READY_FOR_HUMAN_REVIEW | YES | PASS | READY_FOR_HUMAN_REVIEW |
 | V1-C05 | Data Quality, Freshness & Provenance | NOT_STARTED | NO | NOT_RUN | PENDING |
 | V1-C06 | Historical Data & Replay Foundation | NOT_STARTED | NO | NOT_RUN | PENDING |
 | V1-C07 | Order Book & Liquidity Analytics | NOT_STARTED | NO | NOT_RUN | PENDING |
@@ -1040,13 +1069,14 @@ when proof is absent.
 ```text
 Safe Resume:
 C01, C02, C03, provenance maintenance, and OI contract reconciliation are
-delivered and verified. Active Card is NONE. Do not resume a completed Card or
-maintenance delivery. The next authorized action is a full baseline validation
-and, only after its success and separate explicit approval, C04 Phase 0.
+delivered and verified. C04 Phase 1 implementation and validation are complete
+under explicit human start approval; C04 is READY_FOR_HUMAN_REVIEW and delivery
+is not authorized. Do not resume a completed Card or maintenance delivery.
+Continue only within the bounded C04 human-review/delivery-approval workflow.
 
-Implementation Card: NONE
-Repository Write Authorization: no Active Card; C04 start NOT_GRANTED
-Next Roadmap Card: V1-C04
+Implementation Card: V1-C04
+Repository Write Authorization: C04 Phase 1 start GRANTED; delivery NOT_GRANTED
+Next Roadmap Card: V1-C05
 V1-C01 Authorization: START_GRANTED; DELIVERY_GRANTED; DELIVERY_COMPLETED
 V1-C02 Authorization: START_GRANTED; DELIVERY_GRANTED; DELIVERY_COMPLETED
 V1-C03 Authorization: START_GRANTED; DELIVERY_GRANTED; DELIVERY_COMPLETED
@@ -1056,9 +1086,9 @@ Current resume point:
 
 ```text
 C03 delivery is complete and verified.
-→ Active Card NONE
-→ stop
-→ obtain separate explicit approval before starting C04
+→ C04 Phase 1 implementation and validation reached READY_FOR_HUMAN_REVIEW
+→ stop for human delivery review
+→ delivery remains unauthorized until separate approval
 ```
 
 ---

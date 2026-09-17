@@ -48,6 +48,71 @@ def test_all_30_learning_fields_are_required_and_nonempty() -> None:
     assert consistency.learning_record_issues(not_applicable) == ()
 
 
+def test_current_c04_learning_record_uses_canonical_schema_and_matrix() -> None:
+    section = EVIDENCE.read_text().split("## V1-C04 —", 1)[1].split("\n## V1-C05 —", 1)[0]
+    section = "## V1-C04 —" + section
+    record = consistency.CardRecord("V1-C04", "Hyperliquid Provider Verification & Adapter", "READY_FOR_HUMAN_REVIEW", True)
+    assert consistency.card_documentation_issues(section, record) == ()
+
+
+def test_ready_card_missing_learning_field_is_rejected() -> None:
+    section = "## V1-C10 — Card 10\n### Learning Record\n" + "\n".join(
+        f"{field}: verified" for field in consistency.CANONICAL_LEARNING_RECORD_FIELDS if field != "Known Limitations"
+    ) + "\n### Exit Gate Proof\n### Exit Gate Evidence Matrix\n| Requirement | Implementation evidence | Test/runtime evidence | Current Status |\n|---|---|---|---|\n| x | x | x | PASS |\n### CARD_QUALITY_GATE\nStatus: PASS\n"
+    record = consistency.CardRecord("V1-C10", "Card 10", "READY_FOR_HUMAN_REVIEW", True)
+    assert any("LEARNING_FIELD_MISSING:Known Limitations" in issue for issue in consistency.card_documentation_issues(section, record))
+
+
+def test_complete_future_card_missing_learning_field_is_rejected() -> None:
+    section = "## V1-C27 — Card 27\n### Learning Record\nWhat We Built: verified\n### Exit Gate Proof\n"
+    record = consistency.CardRecord("V1-C27", "Card 27", "COMPLETE", True)
+    assert consistency.card_documentation_issues(section, record)
+
+
+def test_not_started_card_pending_learning_is_allowed() -> None:
+    record = consistency.CardRecord("V1-C05", "Data Quality", "NOT_STARTED", False)
+    assert consistency.card_documentation_issues("## V1-C05 — Data Quality\n### Learning Record\nPending", record) == ()
+
+
+def test_current_evidence_matrix_rejects_unresolved_status_but_allows_history() -> None:
+    complete_fields = "\n".join(f"{field}: verified" for field in consistency.CANONICAL_LEARNING_RECORD_FIELDS)
+    section = """## V1-C10 — Card 10
+### Learning Record
+""" + complete_fields + """
+### Exit Gate Proof
+Historical note: reconnect was incomplete before remediation.
+### Exit Gate Evidence Matrix
+| Requirement | Implementation evidence | Test/runtime evidence | Current Status |
+|---|---|---|---|
+| reconnect | implementation | test | IN_PROGRESS |
+### CARD_QUALITY_GATE
+Status: PASS
+"""
+    record = consistency.CardRecord("V1-C10", "Card 10", "READY_FOR_HUMAN_REVIEW", True)
+    assert any("CURRENT_EVIDENCE_UNRESOLVED" in issue for issue in consistency.card_documentation_issues(section, record))
+    section = section.replace("IN_PROGRESS", "PASS")
+    assert consistency.card_documentation_issues(section, record) == ()
+
+
+def test_validation_checkpoint_requires_one_current_checkpoint() -> None:
+    section = """## V1-C10 — Card 10
+### Learning Record
+""" + "\n".join(f"{field}: verified" for field in consistency.CANONICAL_LEARNING_RECORD_FIELDS) + """
+### Exit Gate Proof
+### Validation Checkpoints
+| Checkpoint | Test Count | Status | Current |
+|---|---:|---|---|
+| historical | 154 | PASS | NO |
+| latest | 159 | PASS | YES |
+### CARD_QUALITY_GATE
+Status: PASS
+"""
+    record = consistency.CardRecord("V1-C10", "Card 10", "READY_FOR_HUMAN_REVIEW", True)
+    assert consistency.card_documentation_issues(section, record) == ()
+    stale = section.replace("| historical | 154 | PASS | NO |", "| historical | 154 | PASS | YES |")
+    assert any("VALIDATION_CHECKPOINT_CURRENT_DECLARATION_INVALID" in issue for issue in consistency.card_documentation_issues(stale, record))
+
+
 def _git(cwd: Path, *args: str) -> str:
     return subprocess.check_output(["git", *args], cwd=cwd, text=True).strip()
 
@@ -156,7 +221,7 @@ def test_completed_card_summary_must_include_all_completed_cards() -> None:
 
 def test_safe_resume_must_not_resume_completed_work() -> None:
     control = CONTROL.read_text().replace(
-        "Do not resume a completed Card or\nmaintenance delivery.",
+        "Do not resume a completed Card or maintenance delivery.",
         "Resume C03 delivery.",
         1,
     )
@@ -164,7 +229,7 @@ def test_safe_resume_must_not_resume_completed_work() -> None:
     assert "SAFE_RESUME_POINTS_TO_COMPLETED_WORK" in issues
 
 
-@pytest.mark.parametrize("card_id", ["V1-C04", "V1-C10"])
+@pytest.mark.parametrize("card_id", ["V1-C05", "V1-C10"])
 def test_safe_resume_protection_derives_all_completed_cards(card_id: str) -> None:
     control = CONTROL.read_text()
     control = re.sub(
@@ -186,7 +251,7 @@ def test_safe_resume_protection_derives_all_completed_cards(card_id: str) -> Non
 
 
 def test_negative_and_historical_card_references_remain_legal() -> None:
-    control = CONTROL.read_text().replace("Do not resume a completed Card or\nmaintenance delivery.", "Do not resume C03 delivery.", 1)
+    control = CONTROL.read_text().replace("Do not resume a completed Card or maintenance delivery.", "Do not resume C03 delivery.", 1)
     issues = consistency.current_state_issues(control, EVIDENCE.read_text(), _git(ROOT, "rev-parse", "HEAD"))
     assert "SAFE_RESUME_POINTS_TO_COMPLETED_WORK" not in issues
     assert "V1-C03" in EVIDENCE.read_text()
@@ -228,6 +293,38 @@ def test_generic_resolver_recognizes_all_cards_and_order(card_id: str) -> None:
     index = int(card_id[-2:])
     expected_next = f"V1-C{index + 1:02d}" if index < 27 else "NONE"
     assert result.derived_next_card == expected_next
+
+
+@pytest.mark.parametrize("card_id", ["V1-C04", "V1-C10"])
+def test_active_record_state_must_match_card_table(card_id: str) -> None:
+    control = _state_fixture(card_id, "READY_FOR_HUMAN_REVIEW")
+    control = control.replace(
+        "## 6. Active Card Record\n",
+        "## 6. Active Card Record\nState: IN_PROGRESS\n",
+    )
+    result = consistency.resolve_card_state(control)
+    assert "ACTIVE_CARD_RECORD_STATE_MISMATCH" in result.errors
+
+
+def test_matching_active_record_state_is_accepted() -> None:
+    control = _state_fixture("V1-C04", "READY_FOR_HUMAN_REVIEW").replace(
+        "## 6. Active Card Record\n",
+        "## 6. Active Card Record\nState: READY_FOR_HUMAN_REVIEW\n",
+    )
+    assert not consistency.resolve_card_state(control).errors
+
+
+def test_c27_matching_in_progress_active_record_state_is_accepted() -> None:
+    control = _state_fixture("V1-C27", "IN_PROGRESS").replace(
+        "## 6. Active Card Record\n",
+        "## 6. Active Card Record\nState: IN_PROGRESS\n",
+    )
+    assert not consistency.resolve_card_state(control).errors
+
+
+def test_historical_state_prose_does_not_trigger_current_state_check() -> None:
+    control = _state_fixture("V1-C04", "READY_FOR_HUMAN_REVIEW") + "\nC04 previously entered IN_PROGRESS.\n"
+    assert not consistency.resolve_card_state(control).errors
 
 
 def test_active_c02_ready_normalizes_titled_identity() -> None:
