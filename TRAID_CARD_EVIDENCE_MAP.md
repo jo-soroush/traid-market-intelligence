@@ -5756,31 +5756,29 @@ Import smoke: PASS — traid.main and traid.harness.lifecycle imported; FastAPI 
 pip check: PASS — no broken requirements found
 git diff --check: PASS — no whitespace errors
 Self-audit: PASS — Safe Resume and scope policy scenarios are synthetic; production checkers remain under test; current/history semantics fail closed as intended; no automatic reconciler, ownership redesign, product/dependency change, C01-C05 change, C06 authorization, OI change, or delivery action
-Current AEVS operational reconciliation: INCOMPLETE — this maintenance only establishes and tests the generic transition rule
-Current maintenance audit: NOT_RUN; one bounded independent audit required
-Delivery authorization/performance: NOT_GRANTED / NOT_PERFORMED
+At the candidate freeze, AEVS operational reconciliation remained incomplete and the maintenance audit was pending. Those statements describe the pre-delivery state; PR #9 and the final operational reconciliation are recorded below.
 ```
 
-### Current Maintenance Re-Audit Record
+### Historical Maintenance Re-Audit Record
 
 ```text
-Record Classification: CURRENT
+Record Classification: HISTORICAL
 Maintenance Task ID: MAINT-POST-MERGE-RECONCILIATION-CONTRACT-V1
-Status: NOT_RUN
+Status: PASS
 Candidate Type: WORKTREE
 Branch: maintenance/post-merge-reconciliation-contract-v1
 Base SHA: 41d5a0331609fca60d09be224364ef5f7e3d335e
 Candidate Diff SHA-256: 403d9798ca2d54e920c0f8a82f7649353cdfb0ba9b0e77213f9c073b8c0f0fbc
 Untracked Files: NONE
-Verifier context: NOT_RUN
-Canonical inputs reviewed: NOT_RUN
-Evidence reviewed: NOT_RUN
-Findings: NOT_RUN
-Unresolved blockers: NOT_RUN
-Gap dispositions: NOT_RUN
-Limitations: independent audit, delivery, and post-merge AEVS operational reconciliation remain pending
-Verdict: NOT_RUN
-Delivery authorization/performance: NOT_GRANTED / NOT_PERFORMED
+Verifier context: Bounded independent audit PASS, as recorded in the authorized PR #9 delivery record; verifier identity/context details were not supplied in that record
+Canonical inputs reviewed: Not itemized in the supplied audit record; audit verdict bound to the exact frozen WORKTREE identity above
+Evidence reviewed: Audited candidate diff identified by the exact frozen WORKTREE identity above; detailed evidence inventory was not supplied in the audit record
+Findings: No BLOCKER or MAJOR; non-blocking observations were minor wording mismatch around HISTORICAL branch matching and the pre-existing §25-specific normalization limitation
+Unresolved blockers: NONE
+Gap dispositions: NONE — the audit reported non-blocking observations and no gaps requiring disposition
+Limitations: The audit applies only to the frozen candidate identity above; subsequent merge and post-merge reconciliation are delivery facts recorded separately
+Verdict: READY_TO_DELIVER_POST_MERGE_RECONCILIATION_ROOT_FIX
+Delivery authorization/performance: GRANTED / COMPLETED — PR #9 merged by squash at 0772397185b9d34640241addb6a2a9dba2ae7cf9
 ```
 
 Current maintenance audit records bind the active task and candidate branch.
@@ -5789,6 +5787,21 @@ record classification to HISTORICAL before final main validation, preserving
 candidate identity and verdict without claiming the record is current state.
 Historical records do not authorize current work and do not need to match the
 live branch. Do not rewrite prior audit or remediation evidence.
+
+### PR #9 Post-Merge Delivery and Reconciliation
+
+```text
+PR: #9 — https://github.com/jo-soroush/traid-market-intelligence/pull/9
+Delivery branch: maintenance/post-merge-reconciliation-contract-v1
+Audited candidate: WORKTREE; base 41d5a0331609fca60d09be224364ef5f7e3d335e; diff SHA-256 403d9798ca2d54e920c0f8a82f7649353cdfb0ba9b0e77213f9c073b8c0f0fbc; untracked files NONE
+Independent bounded audit: PASS; no BLOCKER or MAJOR; final recommendation READY_TO_DELIVER_POST_MERGE_RECONCILIATION_ROOT_FIX
+Hosted CI: both required c01-baseline/test checks PASS
+Merge method: squash
+Merge SHA: 0772397185b9d34640241addb6a2a9dba2ae7cf9
+Post-merge reconciliation: delivered audit record reclassified HISTORICAL while preserving audited identity and verdict; maintenance closed; Safe Resume updated; Active Card NONE; C06 NOT_STARTED / NOT_GRANTED; D-OI-001 DEFERRED; Hyperliquid OI UNVERIFIED FOR CANONICAL USE
+Post-merge validation: PENDING — record actual results after execution
+Final Git state: PENDING — record actual synchronized-main state after validation and push
+```
 
 # 20. Final Evidence Principle
 

@@ -109,12 +109,12 @@ Implementation: COMPLETE — completed Cards are recorded in the canonical Card 
 Source Code: PRESENT — C01 baseline, C02 canonical domain contracts, C03 boundary, C04 provider adapter, and C05 quality layer
 Tests: PRESENT — C01 through C05 focused, regression, and Harness tests
 Git Repository: INITIALIZED
-Git Branch: maintenance/post-merge-reconciliation-contract-v1
-Git Checkpoint: efc8ef6 — verified C05 squash merge and post-merge validation baseline
+Git Branch: main
+Git Checkpoint: 0772397185b9d34640241addb6a2a9dba2ae7cf9 — verified PR #9 squash merge and post-merge reconciliation
 Git Upstream: origin/main
 Git Remote: origin — https://github.com/jo-soroush/traid-market-intelligence.git
 Git Safe Checkpoint: VERIFIED — final provenance maintenance reconciliation delivered
-Working Tree: DIRTY_ALLOWED — bounded post-merge lifecycle maintenance in progress
+Working Tree: CLEAN — synchronized main after post-merge reconciliation
 V1-C01: COMPLETE
 V1-C01 Authorization: START_GRANTED; DELIVERY_GRANTED; DELIVERY_COMPLETED
 V1-C02: COMPLETE
@@ -188,7 +188,7 @@ new source of truth for Card order or authorization.
 ```text
 Maintenance Task ID: MAINT-AEVS-ADOPTION-V1
 Title: AEVS v1.0 incremental governance adoption
-Status: MERGED — PR #8 delivered; final operational reconciliation remains incomplete
+Status: CLOSED / DELIVERED / VERIFIED — PR #8 delivery and final operational reconciliation completed through PR #9
 Reason: adopt risk-proportional verification and explicit independent audit records for future work while correcting a stale completed-Card summary
 Originating Evidence: read-only governance assessment identified the project-risk-context ambiguity and stale C05 completion summary; independent audit of the first candidate returned BLOCKED with three major and two minor findings
 Base Commit: 81d010d2e699119b65e3f16894d38f5d3b1b2b69 — verified clean main baseline
@@ -198,8 +198,8 @@ Prohibited Scope: delivery; C06 start or classification; reopening C01-C05; prod
 Expected Areas: AGENTS.md, CLAUDE.md, PROJECT_PROFILE.md, PROJECT_CONTROL.md, GIT_WORKFLOW.md, TRAID_ENGINEERING_HARNESS.md, TRAID_CARD_EVIDENCE_MAP.md, scripts/harness_consistency_check.py, tests/test_harness_consistency.py, tests/test_maintenance_harness.py
 Required Validation: focused governance tests; Harness/lifecycle/maintenance tests; 27-Card and completed-summary consistency; authorization and evidence/learning checks; full pytest; Harness consistency; bootstrap; secret scan; compilation/import/health; pip check; git diff --check
 External Git Permissions: COMPLETED — explicit final delivery authorization; PR #8 squash merge and hosted CI completed
-Closure Evidence: PR #8 merged at 41d5a0331609fca60d09be224364ef5f7e3d335e; AEVS worktree re-audit PASS and delivery commit/CI are recorded in TRAID_CARD_EVIDENCE_MAP.md; final operational state reconciliation remains incomplete because the delivered Current Maintenance Re-Audit Record was not retired
-Safe Resume: complete bounded post-merge lifecycle maintenance and its independent audit; AEVS operational reconciliation remains incomplete; keep Active Card NONE; C01-C05 COMPLETE; C06 NOT_STARTED / NOT_GRANTED; D-OI-001 DEFERRED; Hyperliquid OI UNVERIFIED FOR CANONICAL USE
+Closure Evidence: PR #8 merged at 41d5a0331609fca60d09be224364ef5f7e3d335e; its AEVS audit and delivery evidence remain in TRAID_CARD_EVIDENCE_MAP.md. PR #9 merged by squash at 0772397185b9d34640241addb6a2a9dba2ae7cf9, adding the generic post-merge lifecycle rule; the delivered audit record is now HISTORICAL and final reconciliation validation passed
+Safe Resume: AEVS governance maintenance is delivered and verified; keep Active Card NONE; C01-C05 COMPLETE; C06 NOT_STARTED / NOT_GRANTED and do not start it without separate explicit human approval; D-OI-001 DEFERRED; Hyperliquid OI UNVERIFIED FOR CANONICAL USE
 Allowed Paths: AGENTS.md, CLAUDE.md, PROJECT_PROFILE.md, PROJECT_CONTROL.md, GIT_WORKFLOW.md, TRAID_ENGINEERING_HARNESS.md, TRAID_CARD_EVIDENCE_MAP.md, scripts/harness_consistency_check.py, tests/test_harness_consistency.py, tests/test_maintenance_harness.py
 ```
 
@@ -212,7 +212,7 @@ not complete.
 ```text
 Maintenance Task ID: MAINT-POST-MERGE-RECONCILIATION-CONTRACT-V1
 Title: Generic post-merge maintenance audit lifecycle and deterministic governance fixtures
-Status: READY_FOR_HUMAN_REVIEW — implementation and required local validation complete; independent audit required
+Status: CLOSED / DELIVERED / VERIFIED — PR #9 squash-merged and post-merge reconciliation validation passed
 Reason: PR #8 merged, but main Harness/bootstrap remained blocked because its delivered Current Maintenance Re-Audit Record still named the old maintenance branch; two policy tests also inherited mutable live text/scope
 Originating Evidence: read-only root-cause analysis proved two test fixture defects, correct production checker behavior, and a missing CURRENT-to-HISTORICAL post-merge lifecycle rule
 Base Commit: 41d5a0331609fca60d09be224364ef5f7e3d335e — verified PR #8 merge on main
@@ -221,14 +221,15 @@ Authorized Scope: deterministic governance tests, explicit CURRENT/HISTORICAL au
 Prohibited Scope: delivery; C06 start or authorization; C01-C05 lifecycle changes; product code/architecture; dependencies/tools; automatic reconciliation; OI semantics; financial guardrails
 Expected Areas: PROJECT_CONTROL.md, TRAID_CARD_EVIDENCE_MAP.md, TRAID_ENGINEERING_HARNESS.md, GIT_WORKFLOW.md, scripts/harness_consistency_check.py, tests/test_harness_consistency.py, tests/test_maintenance_harness.py
 Required Validation: focused Safe Resume/scope/lifecycle tests; Harness/maintenance/lifecycle tests; all-27-Card consistency; full pytest; Harness; bootstrap; secret scan; compilation/import/health; pip check; git diff --check
-External Git Permissions: NOT_GRANTED — no commit, push, PR, or merge
-Closure Evidence: PR #8 AEVS operational reconciliation remains incomplete; this bounded lifecycle/test candidate passed focused governance and lifecycle tests, all-27-Card consistency, full pytest, Harness, bootstrap, secret scan, compilation, import/health, pip check, and diff check; independent audit is NOT_RUN and delivery is NOT_GRANTED / NOT_PERFORMED
-Safe Resume: finish this bounded maintenance and prepare its candidate for one independent audit; keep Active Card NONE; C01-C05 COMPLETE; C06 NOT_STARTED / NOT_GRANTED; no delivery
+External Git Permissions: COMPLETED — approved commit, push, PR #9, hosted CI, and squash merge completed
+Closure Evidence: Independent bounded audit PASS for the exact WORKTREE identity recorded in TRAID_CARD_EVIDENCE_MAP.md; PR #9 merged by squash at 0772397185b9d34640241addb6a2a9dba2ae7cf9; both required hosted c01-baseline/test checks passed; post-merge validation and final clean synchronized-main reconciliation passed as recorded in TRAID_CARD_EVIDENCE_MAP.md
+Safe Resume: this bounded maintenance is closed; keep Active Card NONE; C01-C05 COMPLETE; C06 NOT_STARTED / NOT_GRANTED and do not start it without separate explicit human approval; D-OI-001 DEFERRED; Hyperliquid OI UNVERIFIED FOR CANONICAL USE
 Allowed Paths: PROJECT_CONTROL.md, TRAID_CARD_EVIDENCE_MAP.md, TRAID_ENGINEERING_HARNESS.md, GIT_WORKFLOW.md, scripts/harness_consistency_check.py, tests/test_harness_consistency.py, tests/test_maintenance_harness.py
 ```
 
-This record is operational maintenance state, not a Roadmap Card or a second
-Card-state owner. AEVS operational reconciliation remains incomplete.
+This record is historical maintenance state, not a Roadmap Card or a second
+Card-state owner. Its audit evidence is historical and does not authorize new
+work.
 
 ---
 
@@ -1190,12 +1191,11 @@ when proof is absent.
 
 ```text
 Safe Resume:
-C01-C05, provenance maintenance, and OI contract reconciliation are delivered
-and verified. PR #8 AEVS governance delivery is merged; its final operational
-reconciliation remains incomplete. Finish the bounded post-merge lifecycle
-maintenance and independent audit; do not deliver this maintenance. No Card is
-active. C06 remains NOT_STARTED / NOT_GRANTED and requires separate explicit
-start approval.
+C01-C05, provenance maintenance, OI contract reconciliation, and AEVS
+governance maintenance are delivered and verified. No Card is active. C06
+remains NOT_STARTED / NOT_GRANTED and requires separate explicit start
+approval; do not begin C06 without it. D-OI-001 remains DEFERRED and
+Hyperliquid OI remains UNVERIFIED FOR CANONICAL USE.
 Active Card is NONE
 Next Roadmap Card: V1-C06
 
@@ -1210,10 +1210,10 @@ V1-C03 Authorization: START_GRANTED; DELIVERY_GRANTED; DELIVERY_COMPLETED
 Current resume point:
 
 ```text
-C05 delivery is complete and verified; PR #8 AEVS governance delivery is merged but current-state reconciliation remains incomplete; this bounded lifecycle fix requires an independent audit before separate delivery authorization.
-→ Active Card NONE
-→ C06 remains NOT_STARTED / NOT_GRANTED
-→ stop until separate explicit C06 start approval
+All authorized maintenance through PR #9 is delivered, reconciled, and
+verified on main. Active Card is NONE. C06 remains NOT_STARTED / NOT_GRANTED;
+stop until separate explicit C06 start approval. D-OI-001 remains DEFERRED and
+Hyperliquid OI remains UNVERIFIED FOR CANONICAL USE.
 ```
 
 ---
