@@ -5635,9 +5635,11 @@ Delivery actions: no commit, push, PR, merge, or hosted CI occurred
 Applicability: the test remediation materially changes the candidate, so this PASS does not cover the new worktree
 ```
 
-### Current Maintenance Re-Audit Record
+### Historical Maintenance Re-Audit Record
 
 ```text
+Record Classification: HISTORICAL
+Maintenance Task ID: MAINT-AEVS-ADOPTION-V1
 Status: PASS
 Candidate Type: WORKTREE
 Branch: maintenance/aevs-adoption-v1
@@ -5732,6 +5734,61 @@ Self-audit is not independent audit. The previous audit was `BLOCKED`; the
 remediated candidate requires bounded independent re-audit. The verifier must
 review the frozen candidate read-only before an authorized evidence-only role
 records the observed result.
+
+### Post-Merge Reconciliation Root Fix
+
+```text
+Origin: PR #8 AEVS adoption merged at 41d5a0331609fca60d09be224364ef5f7e3d335e; final AEVS operational reconciliation remains incomplete because its delivered audit record was still classified current and bound to the old maintenance branch
+Read-only root cause: test_safe_resume_must_not_resume_completed_work mutated live Safe Resume prose; test_authorized_maintenance_branch_with_in_scope_dirty_file_passes inherited Allowed Paths from the live maintenance record; production checkers were correct; no ownership redesign or automatic reconciler was justified
+Test correction: Safe Resume and maintenance scope policy scenarios now build explicit synthetic control records and call production checker functions; live repository consistency checks remain live; the fixture explicitly declares task, branch, base, authorization, allowed paths, and dirty path. Neighbor scan found the same live-prose mutation in test_negative_and_historical_card_references_remain_legal; it now uses synthetic Safe Resume state too, with its historical Evidence assertion retained
+Lifecycle correction: a CURRENT maintenance audit record binds a task and matching active maintenance branch; after successful merge the required manual post-merge reconciliation classifies it HISTORICAL before final main validation; history preserves identity/verdict, does not match live branch, and cannot authorize current maintenance; stale CURRENT records still fail closed
+Checker/test changes: added CURRENT/HISTORICAL classification and task binding, current branch validation, historical delivery semantics, current audit requirement at delivery stages, and deterministic positive/negative regression tests; no automatic reconciler introduced
+Development test failures: first targeted run 9 passed / 3 failed because the synthetic dirty-tree fixture also changed PROJECT_CONTROL without explicitly allowing that fixture path, and lifecycle validation incorrectly required a current record from the history-only classification layer; second run 11 passed / 1 failed for the same historical-layer boundary; fixture now lists its actual dirty paths and delivery-stage authorization owns the missing-current-record check
+Files changed: PROJECT_CONTROL.md, TRAID_CARD_EVIDENCE_MAP.md, TRAID_ENGINEERING_HARNESS.md, GIT_WORKFLOW.md, scripts/harness_consistency_check.py, tests/test_harness_consistency.py, tests/test_maintenance_harness.py
+Focused policy/lifecycle tests: PASS — 157 passed across Harness consistency, maintenance, and lifecycle modules; the 12 targeted root-fix regressions passed
+All-27-Card consistency: PASS — 27 passed
+Full pytest: PASS — 275 passed, 2 dependency deprecation warnings
+Harness consistency: PASS — production checker reports consistent current maintenance candidate
+Session bootstrap: PASS_WITH_1_WARNINGS — 20 pass, 1 expected dirty-worktree warning, 0 fail
+Secret scan: PASS — no obvious tracked secret or credential pattern
+Python compilation: PASS — compileall for src, scripts, and tests completed without errors
+Import smoke: PASS — traid.main and traid.harness.lifecycle imported; FastAPI /health returned HTTP 200 with status=ok, service=traid, version=0.1.0, environment=development
+pip check: PASS — no broken requirements found
+git diff --check: PASS — no whitespace errors
+Self-audit: PASS — Safe Resume and scope policy scenarios are synthetic; production checkers remain under test; current/history semantics fail closed as intended; no automatic reconciler, ownership redesign, product/dependency change, C01-C05 change, C06 authorization, OI change, or delivery action
+Current AEVS operational reconciliation: INCOMPLETE — this maintenance only establishes and tests the generic transition rule
+Current maintenance audit: NOT_RUN; one bounded independent audit required
+Delivery authorization/performance: NOT_GRANTED / NOT_PERFORMED
+```
+
+### Current Maintenance Re-Audit Record
+
+```text
+Record Classification: CURRENT
+Maintenance Task ID: MAINT-POST-MERGE-RECONCILIATION-CONTRACT-V1
+Status: NOT_RUN
+Candidate Type: WORKTREE
+Branch: maintenance/post-merge-reconciliation-contract-v1
+Base SHA: 41d5a0331609fca60d09be224364ef5f7e3d335e
+Candidate Diff SHA-256: 403d9798ca2d54e920c0f8a82f7649353cdfb0ba9b0e77213f9c073b8c0f0fbc
+Untracked Files: NONE
+Verifier context: NOT_RUN
+Canonical inputs reviewed: NOT_RUN
+Evidence reviewed: NOT_RUN
+Findings: NOT_RUN
+Unresolved blockers: NOT_RUN
+Gap dispositions: NOT_RUN
+Limitations: independent audit, delivery, and post-merge AEVS operational reconciliation remain pending
+Verdict: NOT_RUN
+Delivery authorization/performance: NOT_GRANTED / NOT_PERFORMED
+```
+
+Current maintenance audit records bind the active task and candidate branch.
+After successful delivery, the required post-merge reconciliation changes the
+record classification to HISTORICAL before final main validation, preserving
+candidate identity and verdict without claiming the record is current state.
+Historical records do not authorize current work and do not need to match the
+live branch. Do not rewrite prior audit or remediation evidence.
 
 # 20. Final Evidence Principle
 

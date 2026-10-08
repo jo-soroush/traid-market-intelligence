@@ -2240,6 +2240,17 @@ creating endless reconciliation commits. The checker queries Git for live facts,
 validates checkpoint existence/ancestry, and rejects contradictory current
 maintenance, completion-summary, safe-resume, or authorization state.
 
+For maintenance audit evidence, the Evidence Map explicitly classifies each
+record as `CURRENT` or `HISTORICAL` and binds it to a maintenance task ID.
+Before merge, the current record must match the authorized maintenance task and
+live maintenance branch. After successful merge, required post-merge
+reconciliation retires that record as `HISTORICAL` before final main-state
+validation while preserving the candidate identity and verdict. Historical
+evidence does not describe current operational state, must not match the live
+branch, and cannot authorize current maintenance. A stale `CURRENT` record on
+`main` remains a fail-closed inconsistency. This is a manual evidence/state
+transition under the existing delivery procedure, not an automatic reconciler.
+
 ## 68. Executable Support Matrix
 
 | Capability | Documented policy | Machine enforced | Tested | Current status |
@@ -2253,7 +2264,7 @@ maintenance, completion-summary, safe-resume, or authorization state.
 | Evidence/failure records | YES | PARTIAL | YES | required Card evidence fields, not all prose contracts |
 | Secret scanning | YES | YES | YES | repository scanner and hosted workflow step |
 | External action approval | YES | NO | NOT_APPLICABLE | human authorization boundary |
-| Post-delivery recovery | YES | NO | NO | procedure documented; implementation gap remains |
+| Post-delivery recovery | YES | PARTIAL | YES | maintenance audit-record lifecycle and branch binding are enforced; broader recovery automation is not provided |
 
 This matrix is a support statement, not a completion claim for future Cards.
 

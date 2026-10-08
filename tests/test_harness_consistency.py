@@ -517,6 +517,8 @@ def _candidate_fixture(tmp_path: Path) -> tuple[Path, str]:
     (tmp_path / "TRAID_CARD_EVIDENCE_MAP.md").write_text("""## 25. AEVS Maintenance
 Historical audit: BLOCKED
 ### Current Maintenance Re-Audit Record
+Record Classification: CURRENT
+Maintenance Task ID: TEST-MAINTENANCE
 Status: NOT_RUN
 Candidate Type: WORKTREE
 Branch: maintenance/audit-fixture
@@ -569,10 +571,12 @@ def test_current_maintenance_record_binds_actual_candidate(tmp_path: Path) -> No
     evidence = evidence_path.read_text().replace("Base SHA: pending", f"Base SHA: {base}").replace(
         "Candidate Diff SHA-256: pending", f"Candidate Diff SHA-256: {frozen['Candidate Diff SHA-256']}")
     evidence_path.write_text(evidence)
-    assert consistency.current_maintenance_candidate_issues(evidence, "maintenance/audit-fixture", repo) == ()
+    assert consistency.current_maintenance_candidate_issues(evidence, "maintenance/audit-fixture", repo, "TEST-MAINTENANCE") == ()
+    assert "MAINTENANCE_CANDIDATE_BRANCH_MISMATCH" in consistency.current_maintenance_candidate_issues(
+        evidence, "main", repo, "TEST-MAINTENANCE")
     (repo / "AGENTS.md").write_text("changed governance behavior\n")
     assert any("AUDITED_CANDIDATE_CHANGED" in issue for issue in consistency.current_maintenance_candidate_issues(
-        evidence, "maintenance/audit-fixture", repo))
+        evidence, "maintenance/audit-fixture", repo, "TEST-MAINTENANCE"))
 
 
 def test_current_maintenance_manifest_rejects_vague_or_wrong_untracked_list(tmp_path: Path) -> None:
@@ -581,9 +585,9 @@ def test_current_maintenance_manifest_rejects_vague_or_wrong_untracked_list(tmp_
     evidence = (repo / "TRAID_CARD_EVIDENCE_MAP.md").read_text().replace("Base SHA: pending", f"Base SHA: {base}").replace(
         "Candidate Diff SHA-256: pending", f"Candidate Diff SHA-256: {frozen['Candidate Diff SHA-256']}")
     assert "MAINTENANCE_CANDIDATE_UNTRACKED_INVALID" in consistency.current_maintenance_candidate_issues(
-        evidence.replace("Untracked Files: CLAUDE.md", "Untracked Files: TBD"), "maintenance/audit-fixture", repo)
+        evidence.replace("Untracked Files: CLAUDE.md", "Untracked Files: TBD"), "maintenance/audit-fixture", repo, "TEST-MAINTENANCE")
     assert "MAINTENANCE_CANDIDATE_UNTRACKED_MISMATCH" in consistency.current_maintenance_candidate_issues(
-        evidence.replace("Untracked Files: CLAUDE.md", "Untracked Files: NONE"), "maintenance/audit-fixture", repo)
+        evidence.replace("Untracked Files: CLAUDE.md", "Untracked Files: NONE"), "maintenance/audit-fixture", repo, "TEST-MAINTENANCE")
 
 
 def test_staging_identical_untracked_content_does_not_change_technical_identity(tmp_path: Path) -> None:
@@ -655,9 +659,11 @@ def _maintenance_audit_scenario(
     limitations: str = "NONE",
 ) -> tuple[str, str]:
     """Build explicit policy inputs without inheriting the live maintenance state."""
-    control = f"### Current Maintenance Record\nStatus: {stage}\n---\n"
+    control = f"### Current Maintenance Record\nMaintenance Task ID: TEST-MAINTENANCE\nStatus: {stage}\n---\n"
     evidence = "\n".join((
         "### Current Maintenance Re-Audit Record",
+        "Record Classification: CURRENT",
+        "Maintenance Task ID: TEST-MAINTENANCE",
         f"Status: {audit_status}",
         "Verifier context: independent review of the frozen fixture candidate",
         "Canonical inputs reviewed: specification, Exit Gate, invariants, and risk record",
@@ -698,6 +704,56 @@ def test_maintenance_pass_with_gaps_requires_disposition_and_limitations() -> No
         audit_status="PASS_WITH_GAPS", gaps=accepted_gap, limitations="hosted validation remains pending",
     )
     assert consistency.maintenance_delivery_audit_issues(control, valid) == ()
+
+
+def _maintenance_record_lifecycle_scenario(classification: str, branch: str, stage: str = "IN_PROGRESS") -> tuple[str, str]:
+    control = f"### Current Maintenance Record\nMaintenance Task ID: TEST-MAINTENANCE\nStatus: {stage}\n---\n"
+    evidence = "\n".join((
+        f"### {classification.title()} Maintenance Re-Audit Record",
+        f"Record Classification: {classification.upper()}",
+        "Maintenance Task ID: TEST-MAINTENANCE",
+        f"Branch: {branch}",
+        "Status: PASS",
+        "Candidate Type: WORKTREE",
+        "Base SHA: " + "a" * 40,
+        "Candidate Diff SHA-256: " + "b" * 64,
+        "Untracked Files: NONE",
+        "Verifier context: bounded independent scenario review",
+        "Canonical inputs reviewed: contract, invariants, and risk record",
+        "Evidence reviewed: candidate diff and validation evidence",
+        "Findings: NONE",
+        "Unresolved blockers: NONE",
+        "Gap dispositions: NONE",
+        "Limitations: NONE",
+        "Verdict: ready for human delivery review",
+        "",
+    ))
+    return control, evidence
+
+
+def test_current_audit_record_must_follow_active_maintenance_branch() -> None:
+    control, current = _maintenance_record_lifecycle_scenario("CURRENT", "maintenance/test-fix")
+    assert consistency.maintenance_audit_record_lifecycle_issues(control, current, "maintenance/test-fix") == ()
+    assert "MAINTENANCE_CANDIDATE_BRANCH_MISMATCH" in consistency.maintenance_audit_record_lifecycle_issues(
+        control, current, "main")
+    closed_control = control.replace("Status: IN_PROGRESS", "Status: CLOSED / DELIVERED / VERIFIED")
+    assert "MAINTENANCE_AUDIT_RECORD_NOT_RETIRED_AFTER_DELIVERY" in consistency.maintenance_audit_record_lifecycle_issues(
+        closed_control, current, "main")
+
+
+def test_historical_audit_record_is_valid_on_main_but_cannot_authorize_current_maintenance() -> None:
+    control, historical = _maintenance_record_lifecycle_scenario("HISTORICAL", "maintenance/test-fix", "READY_TO_DELIVER")
+    assert consistency.maintenance_audit_record_lifecycle_issues(control, historical, "main") == ()
+    assert "MAINTENANCE_CURRENT_AUDIT_RECORD_MISSING" in consistency.maintenance_delivery_audit_issues(control, historical)
+
+
+def test_historical_record_for_delivered_work_is_valid_on_main() -> None:
+    control, historical = _maintenance_record_lifecycle_scenario("HISTORICAL", "maintenance/test-fix", "CLOSED / DELIVERED / VERIFIED")
+    assert consistency.maintenance_audit_record_lifecycle_issues(control, historical, "main") == ()
+    assert consistency.current_maintenance_candidate_issues(historical, "main", ROOT, "TEST-MAINTENANCE") == ()
+    assert consistency.maintenance_delivery_audit_issues(control, historical) == ()
+    merged_control = control.replace("CLOSED / DELIVERED / VERIFIED", "MERGED")
+    assert consistency.maintenance_delivery_audit_issues(merged_control, historical) == ()
 
 
 def test_maintenance_audit_policy_scenarios_do_not_read_live_evidence(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -741,48 +797,48 @@ def test_aevs_does_not_create_a_second_validation_checkpoint_owner() -> None:
     ) == ()
 
 
+def _synthetic_safe_resume_control(completed: tuple[str, ...], safe_resume: str) -> str:
+    rows = []
+    for number in range(1, 28):
+        card_id = f"V1-C{number:02d}"
+        state = "COMPLETE" if card_id in completed else "NOT_STARTED"
+        approved = "YES" if state == "COMPLETE" else "NO"
+        rows.append(f"| {card_id} | Synthetic Card {number} | {state} | {approved} |")
+    summary = ", ".join(completed) if completed else "NONE"
+    return "\n".join((
+        "## 4. Repository / Git Reality", "", *rows, "",
+        "## 8. Roadmap Position", f"Completed Cards: {summary}", "",
+        "## 34. Current Safe Resume Point", safe_resume, "", "## 35. Next section", "",
+    ))
+
+
 def test_safe_resume_must_not_resume_completed_work() -> None:
-    control = CONTROL.read_text()
-    safe_resume = re.search(
-        r"(^## 34\. Current Safe Resume Point\n)(.*?)(?=^## 35\.)",
-        control,
-        re.MULTILINE | re.DOTALL,
-    )
-    assert safe_resume
-    updated = safe_resume.group(2).replace(
-        "Do not resume a completed Card or\nmaintenance delivery.",
-        "Resume C03 delivery.",
-        1,
-    )
-    control = control[:safe_resume.start(2)] + updated + control[safe_resume.end(2):]
-    issues = consistency.current_state_issues(control, EVIDENCE.read_text(), _git(ROOT, "rev-parse", "HEAD"))
+    control = _synthetic_safe_resume_control(("V1-C03",), "Resume C03 delivery.")
+    issues = consistency.current_state_issues(control, "", "a" * 40)
     assert "SAFE_RESUME_POINTS_TO_COMPLETED_WORK" in issues
 
 
 @pytest.mark.parametrize("card_id", ["V1-C05", "V1-C10"])
 def test_safe_resume_protection_derives_all_completed_cards(card_id: str) -> None:
-    control = CONTROL.read_text()
-    control = re.sub(
-        rf"^\| {card_id} \|([^|]+)\| (?:NOT_STARTED \| NO|IN_PROGRESS \| YES|BLOCKED \| YES|READY_FOR_HUMAN_REVIEW \| YES) \|",
-        rf"| {card_id} |\1| COMPLETE | YES |",
-        control,
-        count=1,
-        flags=re.MULTILINE,
-    )
-    control = re.sub(
-        r"(?s)(^## 34\. Current Safe Resume Point\n).*?(?=^## 35\.)",
-        rf"\1Resume {card_id.removeprefix('V1-')} implementation.\n\n",
-        control,
-        count=1,
-        flags=re.MULTILINE,
-    )
-    issues = consistency.current_state_issues(control, EVIDENCE.read_text(), _git(ROOT, "rev-parse", "HEAD"))
+    control = _synthetic_safe_resume_control((card_id,), f"Resume {card_id.removeprefix('V1-')} implementation.")
+    issues = consistency.current_state_issues(control, "", "a" * 40)
     assert "SAFE_RESUME_POINTS_TO_COMPLETED_WORK" in issues
 
 
+def test_safe_resume_valid_and_policy_scenarios_ignore_live_control_wording(monkeypatch: pytest.MonkeyPatch) -> None:
+    def reject_live_read(self: Path, *args: object, **kwargs: object) -> str:
+        raise AssertionError(f"synthetic Safe Resume scenario read live repository text: {self}")
+
+    monkeypatch.setattr(Path, "read_text", reject_live_read)
+    invalid = _synthetic_safe_resume_control(("V1-C03",), "Resume C03 delivery.")
+    valid = _synthetic_safe_resume_control(("V1-C03",), "Wait for separate authorization; do not resume completed work.")
+    assert "SAFE_RESUME_POINTS_TO_COMPLETED_WORK" in consistency.current_state_issues(invalid, "", "a" * 40)
+    assert "SAFE_RESUME_POINTS_TO_COMPLETED_WORK" not in consistency.current_state_issues(valid, "", "a" * 40)
+
+
 def test_negative_and_historical_card_references_remain_legal() -> None:
-    control = CONTROL.read_text().replace("Do not resume a completed Card or maintenance delivery.", "Do not resume C03 delivery.", 1)
-    issues = consistency.current_state_issues(control, EVIDENCE.read_text(), _git(ROOT, "rev-parse", "HEAD"))
+    control = _synthetic_safe_resume_control(("V1-C03",), "Do not resume C03 delivery.")
+    issues = consistency.current_state_issues(control, EVIDENCE.read_text(), "a" * 40)
     assert "SAFE_RESUME_POINTS_TO_COMPLETED_WORK" not in issues
     assert "V1-C03" in EVIDENCE.read_text()
 
