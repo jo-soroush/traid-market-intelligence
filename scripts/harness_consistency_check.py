@@ -69,6 +69,10 @@ MAINTENANCE_STATUSES = {
     "POST_MERGE_VERIFIED",
     "CLOSED / DELIVERED / VERIFIED",
 }
+MAINTENANCE_AUDIT_REQUIRED_STAGES = {
+    "READY_FOR_HUMAN_REVIEW", "READY_TO_DELIVER", "PUSHED", "CI_VERIFIED", "MERGED", "POST_MERGE_VERIFIED",
+}
+MAINTENANCE_POST_MERGE_STAGES = {"MERGED", "POST_MERGE_VERIFIED", "CLOSED / DELIVERED / VERIFIED"}
 MAINTENANCE_FIELDS = (
     "Maintenance Task ID",
     "Title",
@@ -600,15 +604,67 @@ def active_card_candidate_issues(evidence: str, record: CardRecord | None, repo:
     return ()
 
 
-def current_maintenance_candidate_issues(evidence: str, branch: str, repo: Path) -> tuple[str, ...]:
-    """Check the current frozen maintenance identity when a re-audit record exists."""
-    match = re.search(r"^### Current Maintenance Re-Audit Record\n(.*?)(?=^# |^## |^### |\Z)", evidence, re.MULTILINE | re.DOTALL)
-    if not match:
+def _maintenance_audit_records(evidence: str) -> tuple[tuple[str, str], ...]:
+    """Return explicitly classified maintenance audit records and their bodies."""
+    pattern = re.compile(r"^### (Current|Historical) Maintenance Re-Audit Record\n(.*?)(?=^# |^## |^### |\Z)", re.MULTILINE | re.DOTALL)
+    return tuple((match.group(1).upper(), match.group(2)) for match in pattern.finditer(evidence))
+
+
+def maintenance_audit_record_lifecycle_issues(control: str, evidence: str, branch: str) -> tuple[str, ...]:
+    """Enforce CURRENT/HISTORICAL classification without binding history to live Git."""
+    maintenance = _maintenance_record(control)
+    task = re.search(r"^Maintenance Task ID:[ \t]*([^\n]+)$", maintenance, re.MULTILINE)
+    task_id = task.group(1).strip() if task else ""
+    status_match = re.search(r"^Status:[ \t]*([^\n]+)$", maintenance, re.MULTILINE)
+    maintenance_status = status_match.group(1).split(" —", 1)[0].strip() if status_match else ""
+    records = _maintenance_audit_records(evidence)
+    current = [body for classification, body in records if classification == "CURRENT"]
+    issues: list[str] = []
+    if len(current) > 1:
+        issues.append("MAINTENANCE_MULTIPLE_CURRENT_AUDIT_RECORDS")
+    for classification, body in records:
+        declared = re.search(r"^Record Classification:[ \t]*([^\n]+)$", body, re.MULTILINE)
+        if not declared or declared.group(1).strip() != classification:
+            issues.append("MAINTENANCE_AUDIT_RECORD_CLASSIFICATION_INVALID")
+            continue
+        record_task = re.search(r"^Maintenance Task ID:[ \t]*([^\n]+)$", body, re.MULTILINE)
+        if not record_task or not record_task.group(1).strip():
+            issues.append("MAINTENANCE_AUDIT_TASK_ID_MISSING")
+            continue
+        if classification == "CURRENT":
+            if maintenance_status in MAINTENANCE_POST_MERGE_STAGES:
+                issues.append("MAINTENANCE_AUDIT_RECORD_NOT_RETIRED_AFTER_DELIVERY")
+            record_branch = re.search(r"^Branch:[ \t]*([^\n]+)$", body, re.MULTILINE)
+            if record_branch and record_branch.group(1).strip() != branch:
+                issues.append("MAINTENANCE_CANDIDATE_BRANCH_MISMATCH")
+            if task_id and record_task.group(1).strip() != task_id:
+                issues.append("MAINTENANCE_AUDIT_TASK_ID_MISMATCH")
+    return tuple(dict.fromkeys(issues))
+
+
+def current_maintenance_candidate_issues(
+    evidence: str,
+    branch: str,
+    repo: Path,
+    maintenance_task_id: str | None = None,
+) -> tuple[str, ...]:
+    """Check that the active maintenance's current audit record binds this worktree."""
+    records = _maintenance_audit_records(evidence)
+    current_records = [body for classification, body in records if classification == "CURRENT"]
+    if len(current_records) > 1:
+        return ("MAINTENANCE_MULTIPLE_CURRENT_AUDIT_RECORDS",)
+    if not current_records:
         return ()
+    body = current_records[0]
+    classification = re.search(r"^Record Classification:[ \t]*([^\n]+)$", body, re.MULTILINE)
+    if not classification or classification.group(1).strip() != "CURRENT":
+        return ("MAINTENANCE_AUDIT_RECORD_CLASSIFICATION_INVALID",)
     values = {key: value.strip() for key, value in re.findall(
-        r"^(Candidate Type|Branch|Base SHA|Candidate Diff SHA-256|Untracked Files):[ \t]*([^\n]*)$",
-        match.group(1), re.MULTILINE,
+        r"^(Maintenance Task ID|Candidate Type|Branch|Base SHA|Candidate Diff SHA-256|Untracked Files):[ \t]*([^\n]*)$",
+        body, re.MULTILINE,
     )}
+    if maintenance_task_id and values.get("Maintenance Task ID") != maintenance_task_id:
+        return ("MAINTENANCE_AUDIT_TASK_ID_MISMATCH",)
     issues: list[str] = []
     if values.get("Candidate Type") != "WORKTREE":
         issues.append("MAINTENANCE_CANDIDATE_TYPE_INVALID")
@@ -624,7 +680,7 @@ def current_maintenance_candidate_issues(evidence: str, branch: str, repo: Path)
         return tuple(issues)
     actual = worktree_candidate_identity(repo, values["Base SHA"])
     issues.extend(candidate_applicability_issues(values, actual))
-    audit_status = re.search(r"^Status:[ \t]*([^\n]+)$", match.group(1), re.MULTILINE)
+    audit_status = re.search(r"^Status:[ \t]*([^\n]+)$", body, re.MULTILINE)
     if values["Untracked Files"] != actual["Untracked Files"] and audit_status and audit_status.group(1) == "NOT_RUN":
         issues.append("MAINTENANCE_CANDIDATE_UNTRACKED_MISMATCH")
     elif values["Untracked Files"] != actual["Untracked Files"]:
@@ -640,12 +696,33 @@ def maintenance_delivery_audit_issues(control: str, evidence: str) -> tuple[str,
     record = _maintenance_record(control)
     status_match = re.search(r"^Status:[ \t]*([^\n]+)$", record, re.MULTILINE)
     maintenance_status = status_match.group(1).split(" —", 1)[0].strip() if status_match else ""
-    audit = re.search(r"^### Current Maintenance Re-Audit Record\n(.*?)(?=^# |^## |^### |\Z)", evidence, re.MULTILINE | re.DOTALL)
-    if not audit:
-        return ()
+    task_match = re.search(r"^Maintenance Task ID:[ \t]*([^\n]+)$", record, re.MULTILINE)
+    task_id = task_match.group(1).strip() if task_match else ""
+    records = _maintenance_audit_records(evidence)
+    current_records = [body for classification, body in records if classification == "CURRENT"]
+    if len(current_records) > 1:
+        return ("MAINTENANCE_MULTIPLE_CURRENT_AUDIT_RECORDS",)
+    audit_body = current_records[0] if current_records else ""
+    matching_task = lambda body: bool(task_id and re.search(
+        rf"^Maintenance Task ID:[ \t]*{re.escape(task_id)}[ \t]*$", body, re.MULTILINE
+    ))
+    historical_post_merge = False
+    if not audit_body or not matching_task(audit_body):
+        historical = [body for classification, body in records if classification == "HISTORICAL" and matching_task(body)]
+        if maintenance_status in MAINTENANCE_POST_MERGE_STAGES and len(historical) == 1:
+            audit_body = historical[0]
+            historical_post_merge = True
+        elif maintenance_status in MAINTENANCE_AUDIT_REQUIRED_STAGES:
+            return ("MAINTENANCE_CURRENT_AUDIT_RECORD_MISSING",)
+        else:
+            return ()
+    classification = re.search(r"^Record Classification:[ \t]*([^\n]+)$", audit_body, re.MULTILINE)
+    expected_classification = "HISTORICAL" if historical_post_merge else "CURRENT"
+    if not classification or classification.group(1).strip() != expected_classification:
+        return ("MAINTENANCE_AUDIT_RECORD_CLASSIFICATION_INVALID",)
     values = {key: value.strip() for key, value in re.findall(
         r"^(Status|Verifier context|Canonical inputs reviewed|Evidence reviewed|Findings|Unresolved blockers|Gap dispositions|Limitations|Verdict):[ \t]*([^\n]*)$",
-        audit.group(1), re.MULTILINE,
+        audit_body, re.MULTILINE,
     )}
     if maintenance_status in {"IN_PROGRESS", "READY_FOR_HUMAN_REVIEW"}:
         return () if values.get("Status") in INDEPENDENT_AUDIT_STATES else ("MAINTENANCE_AUDIT_STATUS_INVALID",)
@@ -868,7 +945,11 @@ def main() -> int:
         if line
     )
     maintenance_issues = maintenance_consistency_issues(control, branch, head, changed_paths)
-    maintenance_issues += current_maintenance_candidate_issues(evidence, branch, Path.cwd())
+    maintenance_record = _maintenance_record(control)
+    task_match = re.search(r"^Maintenance Task ID:[ \t]*([^\n]+)$", maintenance_record, re.MULTILINE)
+    maintenance_task_id = task_match.group(1).strip() if task_match else None
+    maintenance_issues += maintenance_audit_record_lifecycle_issues(control, evidence, branch)
+    maintenance_issues += current_maintenance_candidate_issues(evidence, branch, Path.cwd(), maintenance_task_id)
     maintenance_issues += maintenance_delivery_audit_issues(control, evidence)
     if maintenance_issues:
         print(f"HARNESS_CONSISTENCY: BLOCKED: {', '.join(maintenance_issues)}")

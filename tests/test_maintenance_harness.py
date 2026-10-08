@@ -21,19 +21,49 @@ def _run_checker(cwd: Path) -> subprocess.CompletedProcess[str]:
     return subprocess.run([sys.executable, str(CHECKER)], cwd=cwd, text=True, capture_output=True, env=env)
 
 
-def _maintenance_fixture(tmp_path: Path, branch: str, *, dirty_path: str | None = None) -> Path:
+def _maintenance_fixture(
+    tmp_path: Path,
+    branch: str,
+    *,
+    dirty_path: str | None = None,
+    allowed_paths: tuple[str, ...] = (
+        "PROJECT_CONTROL.md", "TRAID_CARD_EVIDENCE_MAP.md", "TRAID_ENGINEERING_HARNESS.md",
+        "GIT_WORKFLOW.md", "scripts/harness_consistency_check.py", "tests/test_harness_consistency.py",
+        "tests/test_maintenance_harness.py",
+    ),
+) -> Path:
     subprocess.run(["git", "init", "-q", "-b", branch], cwd=tmp_path, check=True)
+    # Live files provide unrelated Card/evidence scaffolding only. Replace the
+    # entire maintenance authorization so policy tests use explicit scenarios.
     control = (ROOT / "PROJECT_CONTROL.md").read_text()
     evidence = (ROOT / "TRAID_CARD_EVIDENCE_MAP.md").read_text()
-    evidence = re.sub(r"^### Current Maintenance Re-Audit Record\n.*?(?=^# 20\.)", "", evidence, flags=re.MULTILINE | re.DOTALL)
+    evidence = re.sub(r"^### (?:Current|Historical) Maintenance Re-Audit Record\n.*?(?=^# 20\.)", "", evidence, flags=re.MULTILINE | re.DOTALL)
     control = re.sub(r"^Git Branch: .+$", f"Git Branch: {branch}", control, count=1, flags=re.MULTILINE)
-    control = re.sub(
-        r"(^### Current Maintenance Record\n.*?^Branch: )[^\r\n]+$",
-        rf"\g<1>{branch}",
-        control,
-        count=1,
-        flags=re.MULTILINE | re.DOTALL,
+    maintenance = "\n".join((
+        "### Current Maintenance Record", "", "```text",
+        "Maintenance Task ID: TEST-MAINTENANCE-FIXTURE",
+        "Title: Synthetic maintenance scope scenario",
+        "Status: IN_PROGRESS — explicit fixture scenario",
+        "Reason: exercise production maintenance scope validation",
+        "Originating Evidence: isolated deterministic governance test",
+        "Base Commit: pending — fixture base is filled after initial commit",
+        f"Branch: {branch}",
+        "Maintenance Start Authorization: GRANTED — synthetic test fixture only",
+        "Authorized Scope: synthetic maintenance checker scenario",
+        "Prohibited Scope: unrelated files and Card lifecycle changes",
+        "Expected Areas: PROJECT_CONTROL.md, TRAID_CARD_EVIDENCE_MAP.md",
+        "Required Validation: production checker invocation",
+        "External Git Permissions: NOT_GRANTED",
+        "Closure Evidence: fixture only; no delivery",
+        "Safe Resume: continue the isolated test scenario only",
+        f"Allowed Paths: {', '.join(allowed_paths)}",
+        "```", "",
+    ))
+    control, count = re.subn(
+        r"^### Current Maintenance Record\n.*?(?=^---$)", maintenance, control,
+        count=1, flags=re.MULTILINE | re.DOTALL,
     )
+    assert count == 1
     working_tree = "DIRTY_ALLOWED" if dirty_path else "CLEAN"
     control = re.sub(r"^Working Tree: .+$", f"Working Tree: {working_tree}", control, count=1, flags=re.MULTILINE)
     (tmp_path / "PROJECT_CONTROL.md").write_text(control)
@@ -62,7 +92,13 @@ def _maintenance_fixture(tmp_path: Path, branch: str, *, dirty_path: str | None 
 
 
 def test_authorized_maintenance_branch_with_in_scope_dirty_file_passes(tmp_path: Path) -> None:
-    fixture = _maintenance_fixture(tmp_path, "maintenance/future-repository-fix", dirty_path="tests/test_maintenance_harness.py")
+    dirty_path = "tests/test_maintenance_harness.py"
+    fixture = _maintenance_fixture(
+        tmp_path,
+        "maintenance/future-repository-fix",
+        dirty_path=dirty_path,
+        allowed_paths=("PROJECT_CONTROL.md", dirty_path),
+    )
     result = _run_checker(fixture)
     assert result.returncode == 0, result.stdout + result.stderr
 
@@ -101,6 +137,27 @@ def test_out_of_scope_dirty_file_blocks(tmp_path: Path) -> None:
     result = _run_checker(fixture)
     assert result.returncode != 0
     assert "MAINTENANCE_OUT_OF_SCOPE:src/traid/unapproved.py" in result.stdout
+
+
+def test_maintenance_scope_scenario_ignores_live_allowed_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    original_read_text = Path.read_text
+
+    def altered_live_control(path: Path, *args: object, **kwargs: object) -> str:
+        content = original_read_text(path, *args, **kwargs)
+        if path.resolve() == (ROOT / "PROJECT_CONTROL.md").resolve():
+            return re.sub(r"^Allowed Paths:.*$", "Allowed Paths: unrelated/live/path.py", content, flags=re.MULTILINE)
+        return content
+
+    monkeypatch.setattr(Path, "read_text", altered_live_control)
+    dirty_path = "tests/test_maintenance_harness.py"
+    fixture = _maintenance_fixture(
+        tmp_path,
+        "maintenance/live-scope-isolation",
+        dirty_path=dirty_path,
+        allowed_paths=("PROJECT_CONTROL.md", dirty_path),
+    )
+    result = _run_checker(fixture)
+    assert result.returncode == 0, result.stdout + result.stderr
 
 
 def test_maintenance_cannot_activate_a_card_or_authorize_next_card(tmp_path: Path) -> None:

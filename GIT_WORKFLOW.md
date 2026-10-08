@@ -544,6 +544,17 @@ Evidence delivery history is accurate
 Project Control is reconciled
 ```
 
+Before final validation on `main`, required post-merge reconciliation MUST
+retire the delivered maintenance's `Current Maintenance Re-Audit Record` from
+current-state semantics by classifying it as `HISTORICAL`. Preserve its exact
+candidate identity, audit verdict, and findings. This classification records
+that the candidate was delivered; it does not complete unrelated operational
+reconciliation or authorize new work. A historical record is not required to
+match the live branch and cannot authorize another maintenance task. A record
+classified `CURRENT` continues to bind the active maintenance task and MUST
+match its authorized task and live maintenance branch; stale current records
+fail closed on `main` until reconciled. No automatic reconciler is implied.
+
 The final reconciliation must not record its own commit as a mutable
 `Current HEAD` value. Runtime branch, HEAD, remote, and worktree facts are
 derived from Git when validated. Project Control may retain an explicitly
