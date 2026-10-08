@@ -904,7 +904,7 @@ These states are distinct and require their own evidence:
 IMPLEMENTED              approved files changed; no validation claim
 LOCALLY_VALIDATED        required local checks passed
 READY_FOR_HUMAN_REVIEW   Phase 1 evidence and CARD_QUALITY_GATE are complete; STOP
-READY_TO_DELIVER         human review accepted; delivery approval still required
+READY_TO_DELIVER         human review and applicable independent audit accepted; delivery approval still required
 PUSHED                   approved commit exists on the intended remote branch
 CI_VERIFIED              applicable hosted workflow/job passed for that commit
 MERGED                   target branch contains the approved integration commit

@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 import re
+import hashlib
+import os
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -27,10 +29,35 @@ CANONICAL_LEARNING_RECORD_FIELDS = (
 # Backward-compatible name for existing Harness tests and callers.
 C01_LEARNING_RECORD_FIELDS = CANONICAL_LEARNING_RECORD_FIELDS
 LEARNING_PLACEHOLDERS = frozenset({"", "pending", "not verified", "tbd", "todo", "not run"})
+EMPTY_RATIONALES = LEARNING_PLACEHOLDERS | {"n/a", "na", "none", "not applicable", "-"}
 CARD_STATES = {"NOT_STARTED", "IN_PROGRESS", "BLOCKED", "READY_FOR_HUMAN_REVIEW", "COMPLETE", "DEFERRED"}
 ACTIVE_STATES = {"IN_PROGRESS", "BLOCKED", "READY_FOR_HUMAN_REVIEW"}
 CARD_ROW = re.compile(r"^\|\s*(V1-C\d{2})\s*\|\s*([^|]+?)\s*\|\s*(\w+)\s*\|\s*(YES|NO)\s*\|", re.MULTILINE)
 CARD_ID = re.compile(r"^(V1-C\d{2})(?:\s+—\s+(.+))?$")
+AEVS_ADOPTION_START_CARD_NUMBER = 6
+VERIFICATION_TECHNIQUES = (
+    "deterministic invariant testing",
+    "property-based testing",
+    "failure injection",
+    "fuzzing",
+    "mutation testing",
+    "differential testing",
+    "adversarial testing",
+    "chaos testing",
+    "formal methods",
+)
+TECHNIQUE_DECISIONS = {"REQUIRED", "CONDITIONAL", "NOT_APPLICABLE"}
+INDEPENDENT_AUDIT_STATES = {"NOT_RUN", "PASS", "PASS_WITH_GAPS", "BLOCKED"}
+CONDITIONAL_RESOLUTIONS = {"NOT_TRIGGERED", "TRIGGERED_EXECUTED", "REVISED_WITH_AUTHORIZATION"}
+FULL_GIT_SHA = re.compile(r"[0-9a-f]{40}")
+SHA256 = re.compile(r"[0-9a-f]{64}")
+AUDIT_RECONCILIATION_FIELDS = frozenset({
+    "Status", "Candidate Type", "Branch", "Base SHA", "Candidate Commit SHA",
+    "Candidate Diff SHA-256", "Untracked Files", "Verifier context",
+    "Canonical inputs reviewed", "Evidence reviewed", "Findings",
+    "Unresolved blockers", "Gap dispositions", "Limitations", "Verdict",
+    "Delivery authorization/performance",
+})
 MAINTENANCE_BRANCH = re.compile(r"^(maintenance|hotfix)/[^/\s]+(?:[-/][^\s]+)*$")
 MAINTENANCE_STATUSES = {
     "IN_PROGRESS",
@@ -154,15 +181,27 @@ def validation_checkpoint_issues(evidence_section: str) -> tuple[str, ...]:
 
 def card_documentation_issues(evidence: str, record: "CardRecord") -> tuple[str, ...]:
     """Apply documentation requirements only to review-ready/completed Cards."""
-
-    if record.state not in {"READY_FOR_HUMAN_REVIEW", "COMPLETE"}:
-        return ()
     section = card_evidence_section(evidence, record.card_id)
+    quality_block = re.search(r"^### CARD_QUALITY_GATE\n(.*?)(?=^### |\Z)", section, re.MULTILINE | re.DOTALL)
+    quality_pass = bool(quality_block and re.search(r"^Status: PASS[ \t]*$", quality_block.group(1), re.MULTILINE))
+    future = int(record.card_id[-2:]) >= AEVS_ADOPTION_START_CARD_NUMBER
+    if record.state not in {"READY_FOR_HUMAN_REVIEW", "COMPLETE"} and not (future and quality_pass):
+        return ()
     if not section:
         return (f"CARD_EVIDENCE_SECTION_MISSING:{record.card_id}",)
-    issues = [f"{record.card_id}:{issue}" for issue in learning_record_issues(section)]
-    issues.extend(f"{record.card_id}:{issue}" for issue in current_evidence_issues(section))
-    issues.extend(f"{record.card_id}:{issue}" for issue in validation_checkpoint_issues(section))
+    issues: list[str] = []
+    if record.state in {"READY_FOR_HUMAN_REVIEW", "COMPLETE"}:
+        issues.extend(f"{record.card_id}:{issue}" for issue in learning_record_issues(section))
+        issues.extend(f"{record.card_id}:{issue}" for issue in current_evidence_issues(section))
+        issues.extend(f"{record.card_id}:{issue}" for issue in validation_checkpoint_issues(section))
+    if future:
+        closure = re.search(r"^### Verification Technique Closure\n(.*?)(?=^### |\Z)", section, re.MULTILINE | re.DOTALL)
+        if not closure:
+            issues.append(f"{record.card_id}:AEVS_TECHNIQUE_CLOSURE_MISSING")
+        else:
+            issues.extend(f"{record.card_id}:{issue}" for issue in technique_issues(closure.group(1), require_closure=True))
+    if record.state in {"READY_FOR_HUMAN_REVIEW", "COMPLETE"}:
+        issues.extend(independent_audit_issues(section, record))
     return tuple(issues)
 
 
@@ -217,11 +256,18 @@ def current_state_issues(control: str, evidence: str, head: str) -> tuple[str, .
             issues.append("GIT_CHECKPOINT_MISSING")
         elif not ancestor:
             issues.append("GIT_CHECKPOINT_NOT_ANCESTOR")
-    summary = re.search(r"^Implementation:\s*COMPLETE\s+—\s*(.+)$", current, re.MULTILINE)
-    if summary:
-        complete_ids = {record.card_id.split("-", 1)[1] for record in parse_card_table(control) if record.state == "COMPLETE"}
-        if any(card_id not in summary.group(1) for card_id in sorted(complete_ids)):
-            issues.append("COMPLETED_CARD_SUMMARY_INCOMPLETE")
+    expected = {record.card_id for record in parse_card_table(control) if record.state == "COMPLETE"}
+    implementation_summary = re.search(r"^Implementation:\s*COMPLETE\s+—\s*(.+)$", current, re.MULTILINE)
+    summaries: list[tuple[str, str | None]] = []
+    if implementation_summary or re.search(r"^Implementation:\s*COMPLETE\b", current, re.MULTILINE):
+        summaries.append(("IMPLEMENTATION", implementation_summary.group(1) if implementation_summary else None))
+    roadmap_position = re.search(r"^## 8\. Roadmap Position\n(.*?)(?=^## 9\.|\Z)", control, re.MULTILINE | re.DOTALL)
+    summaries.append(("ROADMAP_POSITION", (match.group(1) if roadmap_position and (match := re.search(r"^Completed Cards:\s*(.+)$", roadmap_position.group(1), re.MULTILINE)) else None)))
+    for label, declared_text in summaries:
+        if declared_text is None:
+            issues.append(f"COMPLETED_CARD_SUMMARY_MISSING:{label}")
+        elif set(re.findall(r"\bV1-C\d{2}\b", declared_text)) != expected:
+            issues.append(f"COMPLETED_CARD_SUMMARY_MISMATCH:{label}")
     safe_resume = re.search(r"^## 34\. Current Safe Resume Point\n(.*?)(?=^## 35\.)", control, re.MULTILINE | re.DOTALL)
     if safe_resume:
         safe_text = safe_resume.group(1)
@@ -244,6 +290,387 @@ def current_state_issues(control: str, evidence: str, head: str) -> tuple[str, .
     if oi and "State: CLOSED / DELIVERED / VERIFIED" in oi.group(1) and ("D-008" not in control or "D-OI-001" not in control):
         issues.append("OI_RECONCILIATION_STATE_INCOMPLETE")
     return tuple(dict.fromkeys(issues))
+
+
+def _substantive(value: str) -> bool:
+    return value.strip().casefold() not in EMPTY_RATIONALES
+
+
+def _valid_untracked_manifest(value: str) -> bool:
+    if value == "NONE":
+        return True
+    if value.casefold() in EMPTY_RATIONALES | {"latest", "head", "current candidate", "current branch"}:
+        return False
+    return bool(value) and all(
+        re.fullmatch(r"[A-Za-z0-9_./-]+", path.strip())
+        and not path.strip().startswith("/")
+        and ".." not in Path(path.strip()).parts
+        for path in value.split(",")
+    )
+
+
+def technique_issues(body: str, *, require_closure: bool) -> tuple[str, ...]:
+    """Check declaration at Phase 0 and execution/trigger closure at the quality gate."""
+    issues: list[str] = []
+    for technique in VERIFICATION_TECHNIQUES:
+        start = re.search(rf"^[ \t]*{re.escape(technique)}:[ \t]*([^\n]*)$", body, re.MULTILINE | re.IGNORECASE)
+        if not start:
+            issues.append(f"AEVS_TECHNIQUE_DECISION_MISSING:{technique}")
+            continue
+        next_technique = re.search(
+            r"^[ \t]*(?:" + "|".join(re.escape(item) for item in VERIFICATION_TECHNIQUES) + r"):[ \t]*",
+            body[start.end():], re.MULTILINE | re.IGNORECASE,
+        )
+        detail = body[start.end():start.end() + next_technique.start()] if next_technique else body[start.end():]
+        line = re.fullmatch(r"(REQUIRED|CONDITIONAL|NOT_APPLICABLE)[ \t]+—[ \t]*(.*)", start.group(1).strip())
+        if not line:
+            issues.append(f"AEVS_TECHNIQUE_DECISION_INVALID:{technique}")
+            continue
+        decision, rationale = line.groups()
+        if not _substantive(rationale):
+            issues.append(f"AEVS_TECHNIQUE_RATIONALE_MISSING:{technique}")
+        values = {match.group(1): match.group(2).strip() for match in re.finditer(
+            r"^[ \t]*(Trigger|Resolution|Resolution reason|Execution|Evidence|Authorization reference):[ \t]*([^\n]*)$",
+            detail, re.MULTILINE,
+        )}
+        if decision == "CONDITIONAL":
+            if not _substantive(values.get("Trigger", "")):
+                issues.append(f"AEVS_TECHNIQUE_TRIGGER_MISSING:{technique}")
+            if require_closure:
+                resolution = values.get("Resolution", "")
+                if resolution not in CONDITIONAL_RESOLUTIONS:
+                    issues.append(f"AEVS_TECHNIQUE_RESOLUTION_MISSING_OR_INVALID:{technique}")
+                elif resolution == "NOT_TRIGGERED" and not _substantive(values.get("Resolution reason", "")):
+                    issues.append(f"AEVS_TECHNIQUE_NOT_TRIGGERED_REASON_MISSING:{technique}")
+                elif resolution == "TRIGGERED_EXECUTED" and not _substantive(values.get("Evidence", "")):
+                    issues.append(f"AEVS_TECHNIQUE_EXECUTION_EVIDENCE_MISSING:{technique}")
+                elif resolution == "REVISED_WITH_AUTHORIZATION" and (
+                    not _substantive(values.get("Resolution reason", "")) or
+                    not _substantive(values.get("Authorization reference", ""))
+                ):
+                    issues.append(f"AEVS_TECHNIQUE_REVISION_AUTHORIZATION_MISSING:{technique}")
+        elif decision == "REQUIRED" and require_closure:
+            if values.get("Execution") != "EXECUTED" or not _substantive(values.get("Evidence", "")):
+                issues.append(f"AEVS_TECHNIQUE_REQUIRED_EXECUTION_MISSING:{technique}")
+    return tuple(issues)
+
+
+def active_contract_map_issues(control: str, active_card: str) -> tuple[str, ...]:
+    """Validate future active work's Phase 0 AEVS risk map."""
+    if active_card == "NONE" or int(active_card[-2:]) < AEVS_ADOPTION_START_CARD_NUMBER:
+        return ()
+    match = re.search(
+        r"^Current active-Card Contract/Risk Map:\s*\n\s*```text\n(.*?)^```",
+        control,
+        re.MULTILINE | re.DOTALL,
+    )
+    if not match:
+        return ("AEVS_CONTRACT_RISK_MAP_MISSING",)
+    body = match.group(1)
+    issues: list[str] = []
+    level = re.search(r"^Card Verification Level:\s*(\S+)\s*$", body, re.MULTILINE)
+    if not level or level.group(1) not in {"LEVEL_1", "LEVEL_2", "LEVEL_3", "LEVEL_4"}:
+        issues.append("AEVS_VERIFICATION_LEVEL_MISSING_OR_INVALID")
+    rationale = re.search(r"^Risk rationale:[ \t]*(\S.*)$", body, re.MULTILINE)
+    if not rationale or rationale.group(1).strip().lower() in LEARNING_PLACEHOLDERS:
+        issues.append("AEVS_RISK_RATIONALE_MISSING")
+    invariants = re.search(r"^Invariants affected:[ \t]*(\S.*)$", body, re.MULTILINE)
+    if not invariants:
+        issues.append("AEVS_AFFECTED_INVARIANTS_MISSING")
+    elif invariants.group(1).strip().upper().startswith("NONE"):
+        reason = re.fullmatch(r"NONE[ \t]+—[ \t]*(.*)", invariants.group(1).strip(), re.IGNORECASE)
+        if not reason or not _substantive(reason.group(1)):
+            issues.append("AEVS_AFFECTED_INVARIANTS_REASON_MISSING")
+    elif not _substantive(invariants.group(1)):
+        issues.append("AEVS_AFFECTED_INVARIANTS_MISSING")
+    if not re.search(r"^Verification-technique applicability:\s*$", body, re.MULTILINE):
+        issues.append("AEVS_TECHNIQUE_APPLICABILITY_MISSING")
+    issues.extend(technique_issues(body, require_closure=False))
+    return tuple(issues)
+
+
+def technique_alignment_issues(control: str, evidence_section: str, active_card: str) -> tuple[str, ...]:
+    """Closure cannot silently revise a Phase 0 decision or trigger."""
+    if active_card == "NONE" or int(active_card[-2:]) < AEVS_ADOPTION_START_CARD_NUMBER:
+        return ()
+    contract = re.search(r"^Current active-Card Contract/Risk Map:\s*\n\s*```text\n(.*?)^```", control, re.MULTILINE | re.DOTALL)
+    closure = re.search(r"^### Verification Technique Closure\n(.*?)(?=^### |\Z)", evidence_section, re.MULTILINE | re.DOTALL)
+    if not contract or not closure:
+        return ()  # Dedicated validators own missing records.
+    issues: list[str] = []
+    technique_pattern = r"^[ \t]*(?:" + "|".join(re.escape(item) for item in VERIFICATION_TECHNIQUES) + r"):[ \t]*"
+    for technique in VERIFICATION_TECHNIQUES:
+        pattern = rf"^[ \t]*{re.escape(technique)}:[ \t]*(REQUIRED|CONDITIONAL|NOT_APPLICABLE)[ \t]+—[ \t]*"
+        declared = re.search(pattern, contract.group(1), re.MULTILINE | re.IGNORECASE)
+        closed = re.search(pattern, closure.group(1), re.MULTILINE | re.IGNORECASE)
+        if declared and closed and declared.group(1) != closed.group(1):
+            issues.append(f"{active_card}:AEVS_TECHNIQUE_DECISION_DRIFT:{technique}")
+        if declared and closed and declared.group(1) == closed.group(1) == "CONDITIONAL":
+            triggers: list[str] = []
+            for source, marker in ((contract.group(1), declared), (closure.group(1), closed)):
+                tail = source[marker.end():]
+                next_technique = re.search(technique_pattern, tail, re.MULTILINE | re.IGNORECASE)
+                detail = tail[:next_technique.start()] if next_technique else tail
+                trigger = re.search(r"^[ \t]*Trigger:[ \t]*([^\n]*)$", detail, re.MULTILINE)
+                triggers.append(trigger.group(1).strip() if trigger else "")
+            if all(triggers) and triggers[0] != triggers[1]:
+                issues.append(f"{active_card}:AEVS_TECHNIQUE_TRIGGER_DRIFT:{technique}")
+    return tuple(issues)
+
+
+def independent_audit_issues(evidence_section: str, record: "CardRecord") -> tuple[str, ...]:
+    """Allow pre-audit review, but require a bound, resolved audit at completion."""
+    if record.state not in {"READY_FOR_HUMAN_REVIEW", "COMPLETE"} or int(record.card_id[-2:]) < AEVS_ADOPTION_START_CARD_NUMBER:
+        return ()
+    match = re.search(r"^### Independent Audit\n(.*?)(?=^### |\Z)", evidence_section, re.MULTILINE | re.DOTALL)
+    if not match:
+        return (f"{record.card_id}:INDEPENDENT_AUDIT_RECORD_MISSING",)
+    body = match.group(1)
+    issues: list[str] = []
+    values = {match.group(1): match.group(2).strip() for match in re.finditer(
+        r"^[ \t-]*(Status|Candidate Type|Branch|Base SHA|Candidate Commit SHA|Candidate Diff SHA-256|Untracked Files|Verifier context|Canonical inputs reviewed|Evidence reviewed|Findings|Unresolved blockers|Gap dispositions|Limitations|Verdict):[ \t]*([^\n]*)$",
+        body, re.MULTILINE,
+    )}
+    status = values.get("Status", "")
+    if status not in INDEPENDENT_AUDIT_STATES:
+        issues.append(f"{record.card_id}:INDEPENDENT_AUDIT_STATUS_INVALID")
+    elif record.state == "COMPLETE" and status in {"NOT_RUN", "BLOCKED"}:
+        issues.append(f"{record.card_id}:INDEPENDENT_AUDIT_NOT_COMPLETE")
+    kind = values.get("Candidate Type", "")
+    if kind not in {"COMMIT", "WORKTREE"}:
+        issues.append(f"{record.card_id}:INDEPENDENT_AUDIT_CANDIDATE_TYPE_INVALID")
+    if not MAINTENANCE_BRANCH.fullmatch(values.get("Branch", "")) and not re.fullmatch(r"card/v1-c\d{2}-[a-z0-9-]+", values.get("Branch", "")):
+        issues.append(f"{record.card_id}:INDEPENDENT_AUDIT_BRANCH_INVALID")
+    if not FULL_GIT_SHA.fullmatch(values.get("Base SHA", "")):
+        issues.append(f"{record.card_id}:INDEPENDENT_AUDIT_BASE_SHA_INVALID")
+    if kind == "COMMIT":
+        if not FULL_GIT_SHA.fullmatch(values.get("Candidate Commit SHA", "")):
+            issues.append(f"{record.card_id}:INDEPENDENT_AUDIT_COMMIT_SHA_INVALID")
+        if values.get("Candidate Diff SHA-256") or values.get("Untracked Files"):
+            issues.append(f"{record.card_id}:INDEPENDENT_AUDIT_CANDIDATE_SCHEMA_AMBIGUOUS")
+    if kind == "WORKTREE":
+        if values.get("Candidate Commit SHA"):
+            issues.append(f"{record.card_id}:INDEPENDENT_AUDIT_CANDIDATE_SCHEMA_AMBIGUOUS")
+        if not SHA256.fullmatch(values.get("Candidate Diff SHA-256", "")):
+            issues.append(f"{record.card_id}:INDEPENDENT_AUDIT_DIFF_SHA256_INVALID")
+        untracked = values.get("Untracked Files", "")
+        if not _valid_untracked_manifest(untracked):
+            issues.append(f"{record.card_id}:INDEPENDENT_AUDIT_UNTRACKED_FILES_INVALID")
+    if status == "NOT_RUN" and record.state == "READY_FOR_HUMAN_REVIEW":
+        return tuple(issues)
+    for field in ("Verifier context", "Canonical inputs reviewed", "Evidence reviewed", "Findings", "Unresolved blockers", "Verdict"):
+        if not _substantive(values.get(field, "")) and not (field in {"Findings", "Unresolved blockers"} and values.get(field) == "NONE"):
+            issues.append(f"{record.card_id}:INDEPENDENT_AUDIT_FIELD_MISSING:{field}")
+    if status in {"PASS", "PASS_WITH_GAPS"} and values.get("Unresolved blockers") != "NONE":
+        issues.append(f"{record.card_id}:INDEPENDENT_AUDIT_BLOCKER_PRESENT")
+    if status == "PASS_WITH_GAPS":
+        if values.get("Findings") == "NONE":
+            issues.append(f"{record.card_id}:INDEPENDENT_AUDIT_GAP_FINDINGS_MISSING")
+        gaps = values.get("Gap dispositions", "")
+        if not gaps or gaps == "NONE" or not all(
+            (entry := re.fullmatch(r"(ACCEPTED|DEFERRED|NON_BLOCKING)[ \t]+—[ \t]*(.*)", item.strip())) and _substantive(entry.group(2))
+            for item in gaps.split(";")
+        ):
+            issues.append(f"{record.card_id}:INDEPENDENT_AUDIT_GAP_DISPOSITION_MISSING")
+        if not _substantive(values.get("Limitations", "")):
+            issues.append(f"{record.card_id}:INDEPENDENT_AUDIT_LIMITATIONS_MISSING")
+    return tuple(issues)
+
+
+def _normalize_audit_recording(path: str, content: bytes) -> bytes:
+    """Ignore only values in designated audit-result records, never their structure."""
+    if path != "TRAID_CARD_EVIDENCE_MAP.md":
+        return content
+    prefix = b"FILE\0" if content.startswith(b"FILE\0") else b""
+    content = content[len(prefix):]
+    text = content.decode("utf-8")
+    lines = text.splitlines(keepends=True)
+    owner = ""
+    recording = False
+    for index, line in enumerate(lines):
+        if line.startswith("# "):
+            owner = ""
+            recording = False
+        elif line.startswith("## "):
+            owner = line.strip()
+            recording = False
+        elif line.startswith("### "):
+            heading = line.strip()
+            recording = (
+                heading == "### Independent Audit" and re.match(r"## V1-C\d{2} ", owner) is not None
+            ) or (heading == "### Current Maintenance Re-Audit Record" and owner.startswith("## 25. AEVS"))
+        if recording:
+            for field in AUDIT_RECONCILIATION_FIELDS:
+                lines[index] = re.sub(
+                    rf"^([ \t-]*{re.escape(field)}:[ \t]*)[^\n]*",
+                    r"\g<1><audit-result>", lines[index],
+                )
+    return prefix + "".join(lines).encode("utf-8")
+
+
+def _hash_part(digest: "hashlib._Hash", label: bytes, value: bytes) -> None:
+    digest.update(len(label).to_bytes(8, "big") + label + len(value).to_bytes(8, "big") + value)
+
+
+def worktree_candidate_identity(repo: Path, base_sha: str) -> dict[str, str]:
+    """Bind branch/base, effective tracked content, divergent index content, and untracked files."""
+    if not FULL_GIT_SHA.fullmatch(base_sha):
+        raise ValueError("CANDIDATE_BASE_SHA_INVALID")
+    branch = subprocess.check_output(["git", "branch", "--show-current"], cwd=repo, text=True).strip()
+    tracked = sorted(path.decode() for path in subprocess.check_output(["git", "ls-files", "-z"], cwd=repo).split(b"\0") if path)
+    untracked = sorted(path.decode() for path in subprocess.check_output(["git", "ls-files", "--others", "--exclude-standard", "-z"], cwd=repo).split(b"\0") if path)
+    digest = hashlib.sha256()
+    _hash_part(digest, b"schema", b"TraID frozen worktree v1")
+    _hash_part(digest, b"branch", branch.encode())
+    _hash_part(digest, b"base", base_sha.encode())
+    for path in sorted(set(tracked) | set(untracked)):
+        target = repo / path
+        if target.is_symlink():
+            worktree = b"SYMLINK\0" + os.readlink(target).encode()
+            worktree_mode = b"120000"
+        elif target.exists():
+            worktree = b"FILE\0" + target.read_bytes()
+            worktree_mode = b"100755" if os.lstat(target).st_mode & 0o111 else b"100644"
+        else:
+            worktree = b"DELETED"
+            worktree_mode = b"000000"
+        worktree = _normalize_audit_recording(path, worktree) if path == "TRAID_CARD_EVIDENCE_MAP.md" and worktree.startswith(b"FILE\0") else worktree
+        index = subprocess.run(["git", "show", f":{path}"], cwd=repo, capture_output=True, check=False)
+        if index.returncode == 0:
+            staged = b"FILE\0" + index.stdout
+            staged = _normalize_audit_recording(path, staged) if path == "TRAID_CARD_EVIDENCE_MAP.md" else staged
+            stage_row = subprocess.check_output(["git", "ls-files", "--stage", "--", path], cwd=repo).splitlines()
+            index_mode = stage_row[0].split(b" ", 1)[0] if stage_row else b"000000"
+        else:
+            staged = b"DELETED"
+            index_mode = b"000000"
+        _hash_part(digest, b"tracked path", path.encode())
+        _hash_part(digest, b"worktree", worktree)
+        _hash_part(digest, b"worktree mode", worktree_mode)
+        if staged != worktree or index_mode != worktree_mode:
+            base = subprocess.run(["git", "show", f"{base_sha}:{path}"], cwd=repo, capture_output=True, check=False)
+            baseline = b"FILE\0" + base.stdout if base.returncode == 0 else b"DELETED"
+            baseline = _normalize_audit_recording(path, baseline) if path == "TRAID_CARD_EVIDENCE_MAP.md" and base.returncode == 0 else baseline
+            base_row = subprocess.check_output(["git", "ls-tree", base_sha, "--", path], cwd=repo).splitlines()
+            base_mode = base_row[0].split(b" ", 1)[0] if base_row else b"000000"
+            if staged != baseline or index_mode != base_mode:
+                _hash_part(digest, b"divergent index", staged)
+                _hash_part(digest, b"divergent index mode", index_mode)
+    return {"Candidate Type": "WORKTREE", "Branch": branch, "Base SHA": base_sha,
+            "Candidate Diff SHA-256": digest.hexdigest(), "Untracked Files": ", ".join(untracked) if untracked else "NONE"}
+
+
+def candidate_applicability_issues(recorded: dict[str, str], actual: dict[str, str]) -> tuple[str, ...]:
+    """Only an identical normalized candidate retains a worktree audit verdict."""
+    return tuple(f"AUDITED_CANDIDATE_CHANGED:{field}" for field in ("Branch", "Base SHA", "Candidate Diff SHA-256") if recorded.get(field) != actual[field])
+
+
+def active_card_candidate_issues(evidence: str, record: CardRecord | None, repo: Path, branch: str) -> tuple[str, ...]:
+    """A review-ready Card's audit must still name the candidate on disk."""
+    if record is None or record.state != "READY_FOR_HUMAN_REVIEW" or int(record.card_id[-2:]) < AEVS_ADOPTION_START_CARD_NUMBER:
+        return ()
+    section = card_evidence_section(evidence, record.card_id)
+    match = re.search(r"^### Independent Audit\n(.*?)(?=^### |\Z)", section, re.MULTILINE | re.DOTALL)
+    if not match:
+        return ()  # The audit record validator owns the missing-record error.
+    values = {key: value.strip() for key, value in re.findall(
+        r"^[ \t-]*(Candidate Type|Branch|Base SHA|Candidate Commit SHA|Candidate Diff SHA-256|Untracked Files):[ \t]*([^\n]*)$",
+        match.group(1), re.MULTILINE,
+    )}
+    if values.get("Branch") != branch:
+        return (f"{record.card_id}:AUDITED_CANDIDATE_BRANCH_MISMATCH",)
+    if values.get("Candidate Type") == "WORKTREE" and FULL_GIT_SHA.fullmatch(values.get("Base SHA", "")) and SHA256.fullmatch(values.get("Candidate Diff SHA-256", "")):
+        actual = worktree_candidate_identity(repo, values["Base SHA"])
+        return tuple(f"{record.card_id}:{issue}" for issue in candidate_applicability_issues(values, actual))
+    if values.get("Candidate Type") == "COMMIT" and FULL_GIT_SHA.fullmatch(values.get("Candidate Commit SHA", "")):
+        head = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=repo, text=True).strip()
+        if head != values["Candidate Commit SHA"]:
+            return (f"{record.card_id}:AUDITED_CANDIDATE_COMMIT_MISMATCH",)
+        dirty = subprocess.check_output(["git", "status", "--porcelain", "--untracked-files=all"], cwd=repo, text=True)
+        if any(line[3:] != "TRAID_CARD_EVIDENCE_MAP.md" for line in dirty.splitlines() if line):
+            return (f"{record.card_id}:AUDITED_COMMIT_HAS_MATERIAL_WORKTREE_CHANGE",)
+        if dirty:
+            baseline = subprocess.check_output(["git", "show", "HEAD:TRAID_CARD_EVIDENCE_MAP.md"], cwd=repo)
+            current = (repo / "TRAID_CARD_EVIDENCE_MAP.md").read_bytes()
+            index = subprocess.check_output(["git", "show", ":TRAID_CARD_EVIDENCE_MAP.md"], cwd=repo)
+            if not (_normalize_audit_recording("TRAID_CARD_EVIDENCE_MAP.md", baseline)
+                    == _normalize_audit_recording("TRAID_CARD_EVIDENCE_MAP.md", current)
+                    == _normalize_audit_recording("TRAID_CARD_EVIDENCE_MAP.md", index)):
+                return (f"{record.card_id}:AUDITED_COMMIT_HAS_MATERIAL_WORKTREE_CHANGE",)
+    return ()
+
+
+def current_maintenance_candidate_issues(evidence: str, branch: str, repo: Path) -> tuple[str, ...]:
+    """Check the current frozen maintenance identity when a re-audit record exists."""
+    match = re.search(r"^### Current Maintenance Re-Audit Record\n(.*?)(?=^# |^## |^### |\Z)", evidence, re.MULTILINE | re.DOTALL)
+    if not match:
+        return ()
+    values = {key: value.strip() for key, value in re.findall(
+        r"^(Candidate Type|Branch|Base SHA|Candidate Diff SHA-256|Untracked Files):[ \t]*([^\n]*)$",
+        match.group(1), re.MULTILINE,
+    )}
+    issues: list[str] = []
+    if values.get("Candidate Type") != "WORKTREE":
+        issues.append("MAINTENANCE_CANDIDATE_TYPE_INVALID")
+    if values.get("Branch") != branch:
+        issues.append("MAINTENANCE_CANDIDATE_BRANCH_MISMATCH")
+    if not FULL_GIT_SHA.fullmatch(values.get("Base SHA", "")):
+        issues.append("MAINTENANCE_CANDIDATE_BASE_INVALID")
+    if not SHA256.fullmatch(values.get("Candidate Diff SHA-256", "")):
+        issues.append("MAINTENANCE_CANDIDATE_DIFF_INVALID")
+    if not _valid_untracked_manifest(values.get("Untracked Files", "")):
+        issues.append("MAINTENANCE_CANDIDATE_UNTRACKED_INVALID")
+    if issues:
+        return tuple(issues)
+    actual = worktree_candidate_identity(repo, values["Base SHA"])
+    issues.extend(candidate_applicability_issues(values, actual))
+    audit_status = re.search(r"^Status:[ \t]*([^\n]+)$", match.group(1), re.MULTILINE)
+    if values["Untracked Files"] != actual["Untracked Files"] and audit_status and audit_status.group(1) == "NOT_RUN":
+        issues.append("MAINTENANCE_CANDIDATE_UNTRACKED_MISMATCH")
+    elif values["Untracked Files"] != actual["Untracked Files"]:
+        # The manifest is the freeze-time list. Staging identical files later
+        # changes Git representation but not the content-bound digest.
+        if values["Candidate Diff SHA-256"] != actual["Candidate Diff SHA-256"]:
+            issues.append("MAINTENANCE_CANDIDATE_UNTRACKED_MISMATCH")
+    return tuple(issues)
+
+
+def maintenance_delivery_audit_issues(control: str, evidence: str) -> tuple[str, ...]:
+    """Maintenance may reach delivery stages only after its current audit resolves."""
+    record = _maintenance_record(control)
+    status_match = re.search(r"^Status:[ \t]*([^\n]+)$", record, re.MULTILINE)
+    maintenance_status = status_match.group(1).split(" —", 1)[0].strip() if status_match else ""
+    audit = re.search(r"^### Current Maintenance Re-Audit Record\n(.*?)(?=^# |^## |^### |\Z)", evidence, re.MULTILINE | re.DOTALL)
+    if not audit:
+        return ()
+    values = {key: value.strip() for key, value in re.findall(
+        r"^(Status|Verifier context|Canonical inputs reviewed|Evidence reviewed|Findings|Unresolved blockers|Gap dispositions|Limitations|Verdict):[ \t]*([^\n]*)$",
+        audit.group(1), re.MULTILINE,
+    )}
+    if maintenance_status in {"IN_PROGRESS", "READY_FOR_HUMAN_REVIEW"}:
+        return () if values.get("Status") in INDEPENDENT_AUDIT_STATES else ("MAINTENANCE_AUDIT_STATUS_INVALID",)
+    if maintenance_status not in MAINTENANCE_STATUSES:
+        return ()  # The maintenance status validator owns this failure.
+    issues: list[str] = []
+    if values.get("Status") not in {"PASS", "PASS_WITH_GAPS"}:
+        issues.append("MAINTENANCE_DELIVERY_WITHOUT_RESOLVED_AUDIT")
+    if values.get("Unresolved blockers") != "NONE":
+        issues.append("MAINTENANCE_AUDIT_BLOCKER_PRESENT")
+    if not _substantive(values.get("Verdict", "")):
+        issues.append("MAINTENANCE_AUDIT_VERDICT_MISSING")
+    for field in ("Verifier context", "Canonical inputs reviewed", "Evidence reviewed", "Findings"):
+        if not _substantive(values.get(field, "")) and not (field == "Findings" and values.get(field) == "NONE"):
+            issues.append(f"MAINTENANCE_AUDIT_FIELD_MISSING:{field}")
+    if values.get("Status") == "PASS_WITH_GAPS":
+        gaps = values.get("Gap dispositions", "")
+        if values.get("Findings") == "NONE" or not gaps or not all(
+            (entry := re.fullmatch(r"(ACCEPTED|DEFERRED|NON_BLOCKING)[ \t]+—[ \t]*(.*)", item.strip())) and _substantive(entry.group(2))
+            for item in gaps.split(";")
+        ):
+            issues.append("MAINTENANCE_AUDIT_GAPS_UNCLASSIFIED")
+        if not _substantive(values.get("Limitations", "")):
+            issues.append("MAINTENANCE_AUDIT_LIMITATIONS_MISSING")
+    return tuple(issues)
 
 
 def maintenance_consistency_issues(
@@ -441,6 +868,8 @@ def main() -> int:
         if line
     )
     maintenance_issues = maintenance_consistency_issues(control, branch, head, changed_paths)
+    maintenance_issues += current_maintenance_candidate_issues(evidence, branch, Path.cwd())
+    maintenance_issues += maintenance_delivery_audit_issues(control, evidence)
     if maintenance_issues:
         print(f"HARNESS_CONSISTENCY: BLOCKED: {', '.join(maintenance_issues)}")
         return 1
@@ -448,11 +877,23 @@ def main() -> int:
     if current_issues:
         print(f"HARNESS_CONSISTENCY: BLOCKED: {', '.join(current_issues)}")
         return 1
+    contract_map_issues = active_contract_map_issues(control, state.active_card)
+    if contract_map_issues:
+        print(f"HARNESS_CONSISTENCY: BLOCKED: {', '.join(contract_map_issues)}")
+        return 1
     checkpoint = bool(expected_head and subprocess.run(["git", "cat-file", "-e", f"{expected_head.group(1)}^{{commit}}"], check=False).returncode == 0 and subprocess.run(["git", "merge-base", "--is-ancestor", expected_head.group(1), head], check=False).returncode == 0)
     clean = not subprocess.check_output(["git", "status", "--porcelain"], text=True).strip()
     documentation_issues = tuple(
         issue for record in state.cards for issue in card_documentation_issues(evidence, record)
     )
+    documentation_issues += active_card_candidate_issues(evidence, current_record if active_card != "NONE" else None, Path.cwd(), branch)
+    if active_card != "NONE":
+        documentation_issues += technique_alignment_issues(control, card_evidence_section(evidence, active_card), active_card)
+    if active_card != "NONE" and state.delivery_approval and current_record and int(current_card_id[-2:]) >= AEVS_ADOPTION_START_CARD_NUMBER:
+        documentation_issues += independent_audit_issues(
+            card_evidence_section(evidence, current_card_id),
+            CardRecord(current_card_id, current_record.title, "COMPLETE", True),
+        )
     learning_issues = [issue for issue in documentation_issues if ":LEARNING_" in issue or "CARD_EVIDENCE_SECTION_MISSING" in issue]
     evidence_issues = [issue for issue in documentation_issues if issue not in learning_issues]
     complete = current_record is not None and current_record.state == "COMPLETE"

@@ -1575,6 +1575,23 @@ A stronger model does not replace controlled engineering.
 
 The project should increase autonomy only when the Harness can measure and constrain it.
 
+### Verification Risk Context
+
+```text
+Verification Standard: AEVS v1.0 — external verification-method reference for work governed by the Harness adoption rules, beginning with V1-C06
+Project Risk Context: AEVS Level 3 / High-Risk Context
+Reason: financial decision support and high-value market-data processing
+Card Verification Level: assessed independently for each authorized work item; determines its verification intensity
+```
+
+The project-level context describes TraID's hazards. It is not a universal
+minimum verification level for every Card. A work item's Verification Level
+may be lower or higher only with an explicit rationale showing which
+project-level hazards it exercises. The level is recorded during that work
+item's Contract/Risk Map and must not be silently lowered after implementation
+starts; any change follows the existing human-authorization rules. This
+durable context does not record mutable Card state or classify future Cards.
+
 ---
 
 ## 47. Test and Evaluation Posture

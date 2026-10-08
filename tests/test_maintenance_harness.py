@@ -25,14 +25,17 @@ def _maintenance_fixture(tmp_path: Path, branch: str, *, dirty_path: str | None 
     subprocess.run(["git", "init", "-q", "-b", branch], cwd=tmp_path, check=True)
     control = (ROOT / "PROJECT_CONTROL.md").read_text()
     evidence = (ROOT / "TRAID_CARD_EVIDENCE_MAP.md").read_text()
+    evidence = re.sub(r"^### Current Maintenance Re-Audit Record\n.*?(?=^# 20\.)", "", evidence, flags=re.MULTILINE | re.DOTALL)
     control = re.sub(r"^Git Branch: .+$", f"Git Branch: {branch}", control, count=1, flags=re.MULTILINE)
-    current_record = re.search(r"(^### Current Maintenance Record\n.*?)(?=^---$|^## \d+\.)", control, re.MULTILINE | re.DOTALL)
-    assert current_record
-    record = current_record.group(1)
-    record = re.sub(r"^Branch: .+$", f"Branch: {branch}", record, count=1, flags=re.MULTILINE)
+    control = re.sub(
+        r"(^### Current Maintenance Record\n.*?^Branch: )[^\r\n]+$",
+        rf"\g<1>{branch}",
+        control,
+        count=1,
+        flags=re.MULTILINE | re.DOTALL,
+    )
     working_tree = "DIRTY_ALLOWED" if dirty_path else "CLEAN"
     control = re.sub(r"^Working Tree: .+$", f"Working Tree: {working_tree}", control, count=1, flags=re.MULTILINE)
-    control = control[: current_record.start()] + record + control[current_record.end() :]
     (tmp_path / "PROJECT_CONTROL.md").write_text(control)
     (tmp_path / "TRAID_CARD_EVIDENCE_MAP.md").write_text(evidence)
     env = {**os.environ, "GIT_AUTHOR_NAME": "test", "GIT_AUTHOR_EMAIL": "test@example.invalid", "GIT_COMMITTER_NAME": "test", "GIT_COMMITTER_EMAIL": "test@example.invalid"}
@@ -40,11 +43,13 @@ def _maintenance_fixture(tmp_path: Path, branch: str, *, dirty_path: str | None 
     subprocess.run(["git", "commit", "-qm", "fixture"], cwd=tmp_path, check=True, env=env)
     base = _git(tmp_path, "rev-parse", "--short", "HEAD")
     control = re.sub(r"^Git Checkpoint: .+$", f"Git Checkpoint: {base} — verified fixture checkpoint", control, count=1, flags=re.MULTILINE)
-    current_record = re.search(r"(^### Current Maintenance Record\n.*?)(?=^---$|^## \d+\.)", control, re.MULTILINE | re.DOTALL)
-    assert current_record
-    record = current_record.group(1)
-    record = re.sub(r"^Base Commit: .+$", f"Base Commit: {base} — verified fixture base", record, count=1, flags=re.MULTILINE)
-    control = control[: current_record.start()] + record + control[current_record.end() :]
+    control = re.sub(
+        r"(^### Current Maintenance Record\n.*?^Base Commit: )[^\r\n]+$",
+        rf"\g<1>{base} — verified fixture base",
+        control,
+        count=1,
+        flags=re.MULTILINE | re.DOTALL,
+    )
     (tmp_path / "PROJECT_CONTROL.md").write_text(control)
     if dirty_path:
         target = tmp_path / dirty_path
