@@ -519,6 +519,29 @@ Exit Gate blockers
 
 Unknown material risk is not permission to guess.
 
+### AEVS v1.0 Risk-Proportional Verification
+
+TraID references AEVS v1.0 as an external verification method and applies it
+incrementally for authorized work beginning with V1-C06. The canonical contract remains the existing Card
+Specification, Exit Gate, Exit Gate Evidence Matrix, and `CARD_QUALITY_GATE`;
+do not create a parallel Acceptance Contract or AEVS profile.
+
+TraID's `AEVS Level 3 / High-Risk Context` is project context for financial
+decision support and high-value market-data processing. It is not a minimum
+level for every work item. Each authorized future Card records its own
+`Card Verification Level` (`LEVEL_1` through `LEVEL_4`) and substantive risk
+rationale in the existing Contract/Risk Map. That level determines
+verification intensity. A level below or above the project context requires
+an explicit rationale that addresses which project hazards the work exercises.
+Once implementation begins, do not silently lower the level; changes require
+explicit rationale and human authorization wherever existing governance
+requires it. Do not classify future Cards in advance.
+
+The Contract/Risk Map also records `Invariants affected` by references to
+existing canonical invariant IDs or sections, or `NONE — <substantive reason>`.
+This is a traceability link from Card to invariant to verification, not a copy
+of invariant text into Project Control.
+
 ---
 
 ## 15. CONTENT_ALIGNMENT_GATE
@@ -1207,6 +1230,37 @@ Run only applicable levels, but justify `NOT_APPLICABLE`.
 
 Do not claim PASS for an unexecuted level.
 
+For each future active work item under AEVS adoption, the Contract/Risk Map
+records an applicability decision and short rationale for each technique:
+
+```text
+deterministic invariant testing
+property-based testing
+failure injection
+fuzzing
+mutation testing
+differential testing
+adversarial testing
+chaos testing
+formal methods
+```
+
+Allowed decisions are `REQUIRED`, `CONDITIONAL`, and `NOT_APPLICABLE`.
+Each decision has a substantive rationale; `CONDITIONAL` also names an explicit
+trigger. These are Phase 0 decisions, so trigger resolution is not required
+before the trigger can be evaluated. At `CARD_QUALITY_GATE: PASS`, the Card's
+Evidence Map must contain a `Verification Technique Closure` record for all
+nine decisions. `REQUIRED` needs `Execution: EXECUTED` and an executed evidence
+reference. `CONDITIONAL` needs one of `NOT_TRIGGERED` with a reason/evidence,
+`TRIGGERED_EXECUTED` with executed evidence, or
+`REVISED_WITH_AUTHORIZATION` with rationale and authorization reference.
+`NOT_APPLICABLE` needs a substantive reason and no execution evidence. A bare
+conditional decision cannot close the quality gate. Closure repeats the Phase 0
+decision and trigger for traceability; the checker rejects silent drift between
+those records. Tooling remains conditional
+on a real work item's needs; this adoption adds no verification dependencies
+or tools.
+
 ---
 
 ## 37. Failure Rule
@@ -1281,6 +1335,68 @@ meaningful failures remain in the record after resolution; a fixed failure is
 not erased from history
 `What this enables next` never authorizes the next Card
 ```
+
+For future work under AEVS adoption, Contract/Risk Map decisions and technique
+closure evidence are required for `CARD_QUALITY_GATE: PASS`. Freeze and identify
+the candidate, then enter `READY_FOR_HUMAN_REVIEW` and STOP. At that state the
+Independent Audit record may have `Status: NOT_RUN`; the independent verifier
+acts next. A resolved non-blocking independent audit is required before human
+delivery acceptance and `COMPLETE`. The checker validates objective fields and
+vocabulary, not the engineering quality of a level, rationale, or test.
+
+### Independent Audit
+
+The Evidence Map carries a distinct Independent Audit record; implementation
+self-audit does not satisfy it. For future work, audit in this order:
+
+```text
+canonical Card Specification
+→ derived Acceptance/Exit Gate contract
+→ affected Critical Invariants
+→ Card Verification Level / technique decisions
+→ implementation diff
+→ executed tests/results
+→ Evidence Map
+→ findings/verdict
+```
+
+The verifier uses a fresh or otherwise independent review context, records the
+frozen candidate identity and reviewed inputs/evidence, and may return
+`BLOCKED`. The verifier must not modify the candidate. Actively search for
+missing requirements, false-green tests, invariant violations, scope or
+architecture leakage, weak failure handling, unsafe defaults, stale evidence,
+duplicated live state, and implementation/test circular reasoning. A material
+remediation requires a bounded re-audit. Do not treat model confidence or
+vendor diversity as evidence.
+
+Bind each verdict to a strict candidate identity. A committed candidate uses
+`Candidate Type: COMMIT`, branch, full Candidate Commit SHA, and full Base SHA.
+An uncommitted candidate uses `Candidate Type: WORKTREE`, branch, full Base
+SHA, 64-hex Candidate Diff SHA-256, and an explicit Untracked Files list or
+`NONE`. The worktree digest includes effective tracked content, divergent
+staged content, and untracked candidate content. Compute it with the Harness
+checker helper against the recorded base; a vague branch/head label is not an
+identity. `NOT_RUN` at review readiness still needs the frozen identity.
+
+The independent verifier audits that exact candidate read-only and produces
+observed results outside the candidate. A separately authorized execution role
+may then reconcile only the designated Independent Audit or maintenance
+re-audit result fields in the Evidence Map: identity, verifier context,
+reviewed inputs/evidence, status, findings, blockers, gap dispositions,
+limitations, verdict, and delivery evidence. The checker normalizes only those
+field values when reproducing the worktree digest. It hashes every other
+change, including new fields and text outside the record. This evidence-only
+recording does not invalidate the technical audit. Any material product,
+governance, checker, test, contract, or invariant change does invalidate it and
+requires a bounded re-audit. Staging identical content changes Git
+representation but not the effective candidate content.
+
+`NOT_RUN` cannot support delivery or completion. `BLOCKED` cannot support
+delivery or completion. `PASS` is acceptable. `PASS_WITH_GAPS` is acceptable
+only with `Unresolved blockers: NONE`, an explicit accepted/deferred/non-blocking
+disposition for every gap, and recorded limitations. A blocker cannot be
+reclassified merely by changing the status label. Human review judges the
+substance of gap acceptance and test sufficiency.
 
 ---
 
@@ -1864,6 +1980,15 @@ required delivery/human approvals completed
 Project Control reconciled
 ```
 
+For future work under AEVS adoption, also require the Card Verification Level,
+risk rationale, affected-invariant references, and technique-applicability
+decisions in the Contract/Risk Map; execute and evidence every `REQUIRED`
+technique; close every conditional trigger; and include a resolved Independent
+Audit record with no unresolved blocker before delivery/`COMPLETE`.
+These are additional gates and do not weaken existing Exit Gate, evidence,
+learning, or delivery conditions. Completed C01-C05 remain governed by their
+original contracts.
+
 Then:
 
 ```text
@@ -2006,6 +2131,7 @@ verified main
 → focused and relevant regression validation
 → self-audit, Evidence, Learning Record
 → CARD_QUALITY_GATE: PASS
+→ frozen candidate identity
 → READY_FOR_HUMAN_REVIEW
 → STOP for human review
 → independent audit

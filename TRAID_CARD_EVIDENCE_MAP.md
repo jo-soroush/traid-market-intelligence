@@ -425,6 +425,56 @@ Exit Gate proof:
 What this enables next:
 ```
 
+### Future-Work Contract/Risk and Independent Audit Records
+
+For future work beginning with V1-C06, record the following in the Card's
+evidence alongside the canonical specification, Exit Gate, and quality-gate
+proof. The Contract/Risk Map decisions themselves are recorded in the existing
+Project Control schema; this template records what was verified and learned.
+
+```text
+### Verification Technique Closure
+<repeat each of the nine Contract/Risk Map decisions with its rationale>
+  <technique>: REQUIRED — <substantive rationale>
+    Execution: EXECUTED
+    Evidence: <executed result reference>
+  <technique>: CONDITIONAL — <substantive rationale>
+    Trigger: <explicit condition>
+    Resolution: NOT_TRIGGERED | TRIGGERED_EXECUTED | REVISED_WITH_AUTHORIZATION
+    Resolution reason: <reason when not triggered or revised>
+    Evidence: <executed result reference when triggered>
+    Authorization reference: <approval/evidence when revised>
+  <technique>: NOT_APPLICABLE — <substantive rationale>
+
+### Independent Audit
+- Status: NOT_RUN | PASS | PASS_WITH_GAPS | BLOCKED
+- Candidate Type: COMMIT | WORKTREE
+- Branch: <frozen branch>
+- Base SHA: <full Git commit SHA>
+- Candidate Commit SHA: <full Git commit SHA; COMMIT only>
+- Candidate Diff SHA-256: <64 hex; WORKTREE only>
+- Untracked Files: <explicit list or NONE; WORKTREE only>
+- Verifier context: fresh/independent review context or equivalent
+- Canonical inputs reviewed: specification / Exit Gate / invariants / risk record
+- Evidence reviewed: diff / executed tests and results / validation / Evidence Map
+- Findings: substantive summary or NONE
+- Unresolved blockers: NONE | substantive blocker list
+- Gap dispositions: ACCEPTED | DEFERRED | NON_BLOCKING — <gap and reason>; repeat for every gap
+- Limitations: <recorded limitations when PASS_WITH_GAPS>
+- Verdict: delivery readiness recommendation
+```
+
+Implementation self-audit is a separate activity and never satisfies this
+Independent Audit record. Do not record model confidence as evidence. The
+candidate identity is required when it is frozen. `READY_FOR_HUMAN_REVIEW`
+allows `Status: NOT_RUN` before the independent audit. Delivery readiness and
+`COMPLETE` require `PASS`, or `PASS_WITH_GAPS` with no unresolved blocker,
+every gap classified accepted/deferred/non-blocking, and limitations recorded.
+The verifier is read-only. A separately authorized evidence-only reconciliation
+records the observed audit result in the designated record; it does not alter
+the audited technical candidate. Material change requires bounded re-audit.
+C01-C05 evidence remains historical and is not retrofit with these fields.
+
 Do not invent textbook lessons, alternatives, failures, root causes, tests, or
 source decisions that the Card did not demonstrate. Use `Pending`, `Not
 verified`, `Not applicable`, or `Blocked` when evidence does not support a
@@ -5539,6 +5589,149 @@ Retest result: PASS — focused Safe Resume tests 51 passed; governance/lifecycl
 Scope/leakage result: PASS — no product code, C04 implementation, financial semantics, CI expansion, new state source, commit, push, PR, or merge
 Status: CLOSED / DELIVERED / VERIFIED — PR #5 squash-merged at `cd310d7`; post-merge validation recorded after reconciliation
 ```
+
+## 25. AEVS v1.0 Governance Adoption Maintenance Candidate
+
+This record documents the authorized governance maintenance candidate. It is
+not a V1 Card, does not reopen C01-C05, and does not start or authorize C06.
+AEVS adoption remains a candidate until the changed worktree is independently
+re-audited and delivery is separately authorized.
+
+```text
+Maintenance Task ID: MAINT-AEVS-ADOPTION-V1
+Reason: prepare risk-proportional verification and explicit independent audit records for future work from C06 while correcting stale current completed-Card summaries
+Read-only assessment findings: project Level 3 context was ambiguous as a universal minimum; Project Control's current completed summary omitted COMPLETE V1-C05; D-OI-001 remained deferred and Hyperliquid OI unverified for canonical use
+Risk-model resolution: Project Risk Context is AEVS Level 3 / High-Risk Context; each future Card independently records LEVEL_1..LEVEL_4 and a substantive rationale that determines verification intensity
+Adoption design: AEVS v1.0 is an external verification-method reference; existing Card Specification + Exit Gate + Exit Gate Evidence Matrix + CARD_QUALITY_GATE remain canonical; no parallel Acceptance Contract or AEVS profile
+Claude routing decision: CLAUDE.md is NON-CANONICAL and routes to canonical owners only; it owns no mutable project state
+D-OI-001 review: current target corrected to no active Card / future version after authoritative semantics are verified because C04 is COMPLETE and its accepted outcome preserves unavailable OI; D-OI-001 remains DEFERRED, C09 remains conditional on verified canonical OI, and no OI semantics or authorization changed; historical OI evidence was preserved
+Current-state correction: both live completed-Card summaries now include C01-C05; historical evidence was not rewritten
+Files changed: AGENTS.md, CLAUDE.md, PROJECT_PROFILE.md, PROJECT_CONTROL.md, GIT_WORKFLOW.md, TRAID_ENGINEERING_HARNESS.md, TRAID_CARD_EVIDENCE_MAP.md, scripts/harness_consistency_check.py, tests/test_harness_consistency.py, tests/test_maintenance_harness.py
+New dependencies/tools: NONE
+Product code/architecture/financial guardrails: UNCHANGED
+Original-candidate self-audit: PASS — no duplicate mutable owner, parallel profile/contract, CLAUDE.md canonical-state ownership, C01-C05 retrofit, C06 authorization leakage, C01-C05-specific summary logic, subjective risk judging, weakened authorization checks, new dependencies/tools, product-code change, or delivery action
+Previous independent maintenance audit: BLOCKED — audited candidate SHA-256 ca2b1421ad57ab309e434da45fc672141a5a7435720e3863472d7b51b807049b
+Audit findings: MAJOR — Independent Audit was required at READY_FOR_HUMAN_REVIEW before the audit could occur; MAJOR — CONDITIONAL triggers and REQUIRED execution lacked enforced quality-gate closure; MAJOR — vague candidate identity could pass. MINOR — Invariants affected NONE lacked a required reason; durable AEVS wording was transitional.
+Audit root causes: lifecycle stages were collapsed in the audit checker/template; technique declarations had no stage-bound closure record; candidate schema accepted prose instead of a reproducible identity; NONE and transitional wording lacked dedicated validation/review.
+Consolidated remediation: review readiness now accepts NOT_RUN with a frozen identity while COMPLETE requires resolved audit; PASS_WITH_GAPS requires non-blocking gap dispositions and limitations; authorized evidence-only result recording is narrowly normalized in the candidate digest; material content changes require re-audit; technique closure and substantive NONE reason are checked; durable AEVS wording no longer depends on this maintenance's delivery state.
+Audit disposition after blocked verdict: bounded independent re-audit required for the materially remediated candidate
+Delivery authorization/performance: NOT_GRANTED / NOT_PERFORMED
+```
+
+### Previous Successful Bounded Re-Audit (Historical)
+
+```text
+Status: PASS — observed independent bounded AEVS re-audit of the earlier frozen worktree
+Candidate Type: WORKTREE
+Branch: maintenance/aevs-adoption-v1
+Base SHA: 81d010d2e699119b65e3f16894d38f5d3b1b2b69
+Candidate Diff SHA-256: d3f55705cb146bae3994f0e1ff501d34795b0e42ee1c90509c5405c5bfb77072
+Untracked Files: CLAUDE.md
+Findings: BLOCKER=none; MAJOR=none; MUST_FIX_BEFORE_DELIVERY=none; minor Project Control reconciliation and AGENTS wording observations
+Unresolved blockers: NONE
+Verdict: READY_TO_DELIVER_AEVS_ADOPTION for that exact candidate only
+Subsequent delivery gate: BLOCKED before commit — full pytest reported 267 passed and 2 failed after the evidence-only audit-result recording
+Delivery actions: no commit, push, PR, merge, or hosted CI occurred
+Applicability: the test remediation materially changes the candidate, so this PASS does not cover the new worktree
+```
+
+### Current Maintenance Re-Audit Record
+
+```text
+Status: PASS
+Candidate Type: WORKTREE
+Branch: maintenance/aevs-adoption-v1
+Base SHA: 81d010d2e699119b65e3f16894d38f5d3b1b2b69
+Candidate Diff SHA-256: 26a5b4a61c017956c4428d7efc52fd99ed6a174518829b9294cb34d845c2d0c3
+Untracked Files: CLAUDE.md
+Verifier context: independent bounded AEVS test root-cause re-audit; verifier identity/vendor details were not included in the supplied verdict
+Canonical inputs reviewed: per bounded independent AEVS test root-cause re-audit; itemized artifact list was not included in the supplied verdict
+Evidence reviewed: frozen WORKTREE candidate identity and evidence reviewed by the independent verifier; itemized list was not included in the supplied verdict
+Findings: BLOCKER=none; MAJOR=none; MUST_FIX_BEFORE_DELIVERY=NONE
+Unresolved blockers: NONE
+Gap dispositions: NONE
+Limitations: hosted CI and delivery results have not yet been observed
+Verdict: READY_TO_RESUME_AEVS_DELIVERY
+Delivery authorization/performance: GRANTED / NOT_PERFORMED — explicit current human final-delivery authorization
+```
+
+### Delivery-Gate Test Root-Cause Remediation
+
+```text
+Delivery stop: pre-commit full pytest reported 267 passed and 2 failed; test_maintenance_delivery_stage_requires_resolved_audit and test_maintenance_pass_with_gaps_requires_disposition_and_limitations failed. No commit, push, PR, merge, hosted CI, or C06 work occurred.
+Root cause: STATE_COUPLED_TEST_FIXTURE — both negative policy tests read the live Evidence Map and used literal replacements of its former NOT_RUN audit fields. After the earlier PASS was recorded, those replacements were no-ops; the production delivery-audit checker correctly accepted the actual PASS record.
+Checker under test: scripts/harness_consistency_check.py maintenance_delivery_audit_issues; production semantics were unchanged.
+Fix: tests/test_harness_consistency.py now constructs explicit isolated maintenance stage/audit scenarios for NOT_RUN, BLOCKED, PASS, and PASS_WITH_GAPS, including missing gap disposition, missing limitations, unresolved blocker, and a valid classified gap. A regression test rejects any live file read while these policy scenarios call the production checker.
+Neighboring fixture review: candidate-identity tests use temporary Git repositories and synthetic evidence; historical Card tests and current-state summary tests intentionally verify live canonical consistency; maintenance integration fixtures remove the live current re-audit record before exercising synthetic maintenance branches. No other audit-policy test inherited the current audit status.
+Focused retest: two previously failing tests 2 passed; three focused audit-policy tests 3 passed; Harness consistency and maintenance modules 130 passed; Harness, maintenance, lifecycle, and alignment modules 165 passed.
+Full pytest: PASS — 270 passed, 2 dependency deprecation warnings.
+Secret scan: PASS — no obvious tracked secret or credential pattern.
+Python compilation: PASS — compileall src, scripts, and tests completed without errors.
+Import smoke: first command failed because it named nonexistent traid.core.lifecycle; corrected import of traid.harness.lifecycle and traid.main PASS.
+FastAPI /health: PASS — HTTP 200, status=ok, service=traid, version=0.1.0, environment=development.
+pip check: PASS — no broken requirements found.
+git diff --check: PASS — no whitespace errors.
+Harness consistency: PASS — current maintenance state and candidate identity match repository reality.
+Session bootstrap: PASS_WITH_1_WARNINGS — 20 pass, 1 expected dirty-worktree warning, 0 fail.
+Audit applicability: the earlier bounded re-audit PASS remains historical evidence for Diff SHA-256 d3f55705cb146bae3994f0e1ff501d34795b0e42ee1c90509c5405c5bfb77072 only; changed tests and state/evidence require one bounded independent re-audit of the current worktree.
+Current independent audit: NOT_RUN — RE-AUDIT REQUIRED.
+Delivery authorization/performance: NOT_GRANTED / NOT_PERFORMED.
+```
+
+### Previous Candidate Validation Evidence
+
+```text
+Focused Harness/governance and maintenance tests: PASS — 84 passed
+Full test suite: PASS — 224 passed, 2 dependency deprecation warnings
+Harness consistency: PASS
+Session bootstrap: PASS_WITH_1_WARNING — expected dirty maintenance candidate warning; 0 failures
+Secret scan: PASS — no obvious tracked secret or credential pattern
+Python compilation: PASS — compileall completed without errors
+Import smoke: PASS — traid.main app and lifecycle module imported
+FastAPI /health: PASS — HTTP 200, status=ok, service=traid, version=0.1.0, environment=development
+pip check: PASS — no broken requirements found
+git diff --check: PASS — final candidate diff has no whitespace errors
+```
+
+### Previous Candidate Failures / Diagnosis / Recovery
+
+```text
+Failures observed: first focused run 72 passed / 11 failed; second focused run 77 passed / 6 failed; an initial import smoke used an incorrect module path; the default health-test port was already occupied
+Root causes: future-only audit rules needed explicit synthetic evidence fixtures; line parsers allowed whitespace to cross field boundaries; fixture summary parsing did not accept end-of-file; fixture rewriting used DOTALL across following table rows; the actual API entry point is traid.main; port 8765 was occupied
+Fixes: added valid independent-audit fixtures; constrained field parsing to a single line; accepted end-of-file for the roadmap summary; limited fixture rewrites to one line; inspected and used traid.main; served on port 18765
+Retest: focused suite 84 passed; full suite 224 passed; actual health endpoint returned HTTP 200
+Remaining limitation: independent maintenance audit has not run; hosted CI and delivery have not run or been authorized
+```
+
+### Consolidated Remediation Validation Evidence
+
+```text
+Focused Harness, maintenance, and lifecycle tests: PASS — 151 passed
+All-27-Card resolver consistency: PASS — 27 passed
+Full test suite: PASS — 269 passed, 2 dependency deprecation warnings
+Secret scan: PASS — no obvious tracked secret or credential pattern
+Python compilation: PASS — compileall src, scripts, and tests completed without errors
+Import smoke: PASS — traid.main and lifecycle module imported
+FastAPI /health: PASS — HTTP 200, status=ok, service=traid, version=0.1.0, environment=development
+pip check: PASS — no broken requirements found
+git diff --check: PASS — no whitespace errors
+Harness consistency and bootstrap first identity run: BLOCKED — maintenance allowed-path record omitted the authorized GIT_WORKFLOW.md delivery-state clarification
+Harness consistency after scope reconciliation: PASS
+Session bootstrap after scope reconciliation: PASS_WITH_1_WARNINGS — expected dirty maintenance candidate warning; 0 failures
+Initial remediation focused failure: 5 existing fixture failures after strict audit/technique fields were introduced; fixtures still used vague Candidate prose and omitted technique closure
+Second remediation focused failure: 1 test expected the wrong error code for bare Invariants affected NONE
+Third remediation focused failure: 1 synthetic maintenance manifest fixture omitted its pre-audit Status field, so the intended freeze-time manifest check did not apply
+Root causes: fixtures encoded the superseded audit schema; bare NONE was classified as missing rather than as a missing reason; the manifest fixture did not declare the lifecycle stage
+Self-audit finding and fix: the active Card Contract/Risk Map decision and trigger could disagree with the quality-gate closure record while each passed separately; the checker now rejects decision/trigger drift and requires closure even if quality PASS is declared before READY_FOR_HUMAN_REVIEW
+Fixes and retest: fixtures now use strict identities and closed technique evidence, including pre-audit Status; checker emits the dedicated NONE-reason error; focused suite passed 151 and full suite passed 269; maintenance scope record now includes GIT_WORKFLOW.md
+Remediation self-audit: PASS — review readiness permits NOT_RUN with frozen identity; delivery/COMPLETE require resolved audit; evidence-only result recording preserves identity; material changes invalidate it; vague identities, unresolved CONDITIONAL/REQUIRED records, bare NONE invariants, and Phase 0/closure decision drift are rejected; durable AEVS prose has no delivery-timed wording; no product code, dependency, new canonical owner, C01-C05 lifecycle, C06 authorization, OI semantics, or delivery action changed
+Remaining limitation: independent re-audit, hosted CI, and delivery are not executed or authorized
+```
+
+Self-audit is not independent audit. The previous audit was `BLOCKED`; the
+remediated candidate requires bounded independent re-audit. The verifier must
+review the frozen candidate read-only before an authorized evidence-only role
+records the observed result.
 
 # 20. Final Evidence Principle
 

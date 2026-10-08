@@ -300,6 +300,14 @@ must be able to return `BLOCKED`.
 Independent verification does not replace `CARD_QUALITY_GATE` or human
 approval.
 
+TraID's AEVS v1.0 verification rules apply incrementally to work beginning
+with V1-C06 under the effective lifecycle boundary recorded in the Harness.
+The existing canonical Card Specification, Exit Gate, Exit Gate Evidence
+Matrix, and `CARD_QUALITY_GATE` remain authoritative; AEVS is a verification
+method reference and does not create a parallel specification. Verification
+intensity is risk-proportional to the individual work item. Claude-specific
+routing belongs only in the non-canonical `CLAUDE.md` entry point.
+
 ## 10. Checkpoint / Recovery
 
 Use:

@@ -105,16 +105,16 @@ Canonical Harness Installation: VERIFIED
 Canonical Harness Files: 10 / 10 PRESENT
 Harness Structure: VERIFIED
 Research / Reconnaissance Organization: VERIFIED
-Implementation: COMPLETE — completed Cards are recorded in the canonical Card Status Table below; C01, C02, C03, and C04 implementation, validation, and approved delivery are verified; C05 implementation, validation, and approved delivery are verified
+Implementation: COMPLETE — completed Cards are recorded in the canonical Card Status Table below; V1-C01, V1-C02, V1-C03, V1-C04, and V1-C05 implementation, validation, and approved delivery are verified
 Source Code: PRESENT — C01 baseline, C02 canonical domain contracts, C03 boundary, C04 provider adapter, and C05 quality layer
 Tests: PRESENT — C01 through C05 focused, regression, and Harness tests
 Git Repository: INITIALIZED
-Git Branch: main
+Git Branch: maintenance/aevs-adoption-v1
 Git Checkpoint: efc8ef6 — verified C05 squash merge and post-merge validation baseline
 Git Upstream: origin/main
 Git Remote: origin — https://github.com/jo-soroush/traid-market-intelligence.git
 Git Safe Checkpoint: VERIFIED — final provenance maintenance reconciliation delivered
-Working Tree: CLEAN — verified after C05 post-merge validation
+Working Tree: DIRTY_ALLOWED — remediated AEVS governance candidate awaits bounded independent re-audit
 V1-C01: COMPLETE
 V1-C01 Authorization: START_GRANTED; DELIVERY_GRANTED; DELIVERY_COMPLETED
 V1-C02: COMPLETE
@@ -184,6 +184,31 @@ This record is operational maintenance state, not a Roadmap Card and not a
 new source of truth for Card order or authorization.
 
 ### Current Maintenance Record
+
+```text
+Maintenance Task ID: MAINT-AEVS-ADOPTION-V1
+Title: AEVS v1.0 incremental governance adoption
+Status: READY_FOR_HUMAN_REVIEW — delivery-gate test fixture remediation validated; one bounded independent re-audit required
+Reason: adopt risk-proportional verification and explicit independent audit records for future work while correcting a stale completed-Card summary
+Originating Evidence: read-only governance assessment identified the project-risk-context ambiguity and stale C05 completion summary; independent audit of the first candidate returned BLOCKED with three major and two minor findings
+Base Commit: 81d010d2e699119b65e3f16894d38f5d3b1b2b69 — verified clean main baseline
+Branch: maintenance/aevs-adoption-v1
+Authorized Scope: minimum AEVS v1.0 governance adoption from future work beginning with C06; generic completed-Card summary checking and focused tests; delivery-state audit clarification in GIT_WORKFLOW.md; truthful maintenance and evidence records; non-canonical Claude Code routing entry point
+Prohibited Scope: delivery; C06 start or classification; reopening C01-C05; product architecture or product code; dependencies or external verification tools; C05 threshold recalibration; D-OI-001 resolution; financial guardrail changes; trading/account execution
+Expected Areas: AGENTS.md, CLAUDE.md, PROJECT_PROFILE.md, PROJECT_CONTROL.md, GIT_WORKFLOW.md, TRAID_ENGINEERING_HARNESS.md, TRAID_CARD_EVIDENCE_MAP.md, scripts/harness_consistency_check.py, tests/test_harness_consistency.py, tests/test_maintenance_harness.py
+Required Validation: focused governance tests; Harness/lifecycle/maintenance tests; 27-Card and completed-summary consistency; authorization and evidence/learning checks; full pytest; Harness consistency; bootstrap; secret scan; compilation/import/health; pip check; git diff --check
+External Git Permissions: NOT_GRANTED — no commit, push, PR, merge, release, or delivery
+Closure Evidence: first independent audit BLOCKED; bounded re-audit PASS for the earlier frozen worktree; delivery stopped before commit after two pre-commit pytest failures; state-coupled test fixtures corrected and local validation passed; current materially changed candidate requires bounded re-audit; delivery NOT_GRANTED / NOT_PERFORMED
+Safe Resume: request one bounded independent re-audit of the newly frozen candidate; keep Active Card NONE; C01-C05 COMPLETE; C06 NOT_STARTED / NOT_GRANTED; D-OI-001 DEFERRED; Hyperliquid OI UNVERIFIED FOR CANONICAL USE; do not deliver or start C06
+Allowed Paths: AGENTS.md, CLAUDE.md, PROJECT_PROFILE.md, PROJECT_CONTROL.md, GIT_WORKFLOW.md, TRAID_ENGINEERING_HARNESS.md, TRAID_CARD_EVIDENCE_MAP.md, scripts/harness_consistency_check.py, tests/test_harness_consistency.py, tests/test_maintenance_harness.py
+```
+
+This record is operational maintenance state, not a Roadmap Card or a second
+Card-state owner. Active Card remains NONE. AEVS adoption is not delivered.
+
+---
+
+### Previous Maintenance Record
 
 ```text
 Maintenance Task ID: MAINT-OI-CONTRACT-RECONCILIATION
@@ -388,7 +413,7 @@ Routine reversible implementation is allowed only inside an explicitly approved 
 
 ```text
 Approved V1 Cards: 27
-Completed Cards: V1-C01, V1-C02, V1-C03, V1-C04
+Completed Cards: V1-C01, V1-C02, V1-C03, V1-C04, V1-C05
 Active Card: NONE
 Next Roadmap Card: V1-C06 — available only after separate C06 start approval
 Later Cards: NOT AUTHORIZED
@@ -580,6 +605,37 @@ Current:
 Contract Map Status: NOT_RUN
 Risk Map Status: NOT_RUN
 Reason: no active Card
+```
+
+For future active Cards beginning with V1-C06, record this work-item-specific
+Contract/Risk Map before implementation:
+
+```text
+Current active-Card Contract/Risk Map:
+Card Verification Level: LEVEL_1 | LEVEL_2 | LEVEL_3 | LEVEL_4
+Risk rationale:
+Invariants affected:
+Verification-technique applicability:
+  deterministic invariant testing: REQUIRED | CONDITIONAL | NOT_APPLICABLE — substantive rationale
+  property-based testing: REQUIRED | CONDITIONAL | NOT_APPLICABLE — substantive rationale
+  failure injection: REQUIRED | CONDITIONAL | NOT_APPLICABLE — substantive rationale
+  fuzzing: REQUIRED | CONDITIONAL | NOT_APPLICABLE — substantive rationale
+  mutation testing: REQUIRED | CONDITIONAL | NOT_APPLICABLE — substantive rationale
+  differential testing: REQUIRED | CONDITIONAL | NOT_APPLICABLE — substantive rationale
+  adversarial testing: REQUIRED | CONDITIONAL | NOT_APPLICABLE — substantive rationale
+  chaos testing: REQUIRED | CONDITIONAL | NOT_APPLICABLE — substantive rationale
+  formal methods: REQUIRED | CONDITIONAL | NOT_APPLICABLE — substantive rationale
+```
+
+For `CONDITIONAL`, add an indented `Trigger: <explicit condition>` below that
+technique. `Invariants affected` names canonical IDs/sections or
+`NONE — <substantive reason>`; bare `NONE` is invalid. Phase 0 records
+decisions. The Evidence Map records actual closure before the quality gate.
+
+Current active-Card Contract/Risk Map:
+
+```text
+Reason: no active authorized Card; C06 remains NOT_STARTED / NOT_GRANTED
 ```
 
 ---
@@ -915,7 +971,7 @@ Deferred ID: D-OI-001
 Originating Card: V1-C04 readiness / semantic verification
 Idea: Resolve Hyperliquid raw open-interest unit and aggregation semantics for canonical mapping
 Reason Deferred: Official evidence establishes the field exists and is likely size-related, but does not fully establish exact API unit and one-sided versus combined aggregation meaning
-Target Card / Future Version: V1-C04 contract decision; no implementation authorization created
+Target Card / Future Version: No active Card; future version after authoritative Hyperliquid semantics are verified; C09 may consume only verified canonical OI under its separately authorized contract
 Dependency: authoritative Hyperliquid documentation/source/runtime evidence establishing unit and aggregation semantics
 Risk if Forgotten: downstream derivatives/crowding analysis may lack trustworthy open-interest context
 ```
@@ -956,7 +1012,7 @@ Decision: final V1 governance surface is ten canonical Harness files including o
 Status: ACTIVE
 
 D-008
-Decision: Hyperliquid open interest remains a required C04 verification target; verified semantics may map to canonical OI, while unverified semantics must remain explicitly unavailable/unverified and cannot enter Core as a trusted value. C09 OI metrics are conditional on verified canonical OI.
+Decision: C04's required OI outcome is explicit unavailable/unverified when provider semantics cannot be verified. Raw Hyperliquid OI semantics remain deferred until authoritative evidence is available; unverified semantics cannot enter Core as trusted values. C09 OI metrics are conditional on verified canonical OI.
 Status: ACTIVE
 ```
 
@@ -1110,8 +1166,10 @@ when proof is absent.
 
 ```text
 Safe Resume:
-C01, C02, C03, C04, C05, provenance maintenance, and OI contract reconciliation
-are delivered and verified. No Card is active; C06 remains unauthorized and
+C01-C05, provenance maintenance, and OI contract reconciliation are delivered
+and verified. AEVS governance delivery stopped before commit on two pre-commit
+test failures; the test fixture remediation passed local validation and requires
+one bounded independent re-audit. No Card is active. C06 remains unauthorized and
 requires separate explicit start approval.
 Do not resume a completed Card or
 maintenance delivery.
@@ -1129,7 +1187,7 @@ V1-C03 Authorization: START_GRANTED; DELIVERY_GRANTED; DELIVERY_COMPLETED
 Current resume point:
 
 ```text
-C05 delivery is complete and verified.
+C05 delivery is complete and verified; AEVS governance delivery remains blocked before commit, and the validated test fixture remediation awaits one bounded independent re-audit.
 → Active Card NONE
 → C06 remains NOT_STARTED / NOT_GRANTED
 → stop until separate explicit C06 start approval
