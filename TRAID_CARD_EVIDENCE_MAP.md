@@ -5799,8 +5799,7 @@ Hosted CI: both required c01-baseline/test checks PASS
 Merge method: squash
 Merge SHA: 0772397185b9d34640241addb6a2a9dba2ae7cf9
 Post-merge reconciliation: delivered audit record reclassified HISTORICAL while preserving audited identity and verdict; maintenance closed; Safe Resume updated; Active Card NONE; C06 NOT_STARTED / NOT_GRANTED; D-OI-001 DEFERRED; Hyperliquid OI UNVERIFIED FOR CANONICAL USE
-Post-merge validation: PENDING — record actual results after execution
-Final Git state: PENDING — record actual synchronized-main state after validation and push
+Post-merge validation on reconciled main at `ca690ae`: full pytest PASS — 275 passed, 2 dependency deprecation warnings; Harness consistency PASS; session bootstrap PASS_WITH_0_WARNINGS — 21 PASS, 0 WARN, 0 FAIL; secret scan PASS; Python compilation PASS; import smoke and FastAPI `/health` PASS — HTTP 200; pip check PASS; git diff --check PASS. Validation was repeated after this evidence-only result recording before final synchronization.
 ```
 
 # 20. Final Evidence Principle
