@@ -40,13 +40,13 @@ Never invent a convenient state.
 ```text
 Project: TraID
 Target: V1
-Project Phase: INTEGRATED / C05_COMPLETE
-Active Card: NONE
-Active Card State: NONE
+Project Phase: INTEGRATED / C06_READY_FOR_HUMAN_REVIEW
+Active Card: V1-C06
+Active Card State: READY_FOR_HUMAN_REVIEW
 Last COMPLETE Card: V1-C05 — Data Quality, Freshness & Provenance
-Next Roadmap Card: V1-C06 — Historical Data & Replay Foundation
-Next Card Authorized: NO — C06 start NOT_GRANTED
-Implementation Authorization: COMPLETE — C05 delivery approved, merged, and verified
+Next Roadmap Card: V1-C07 — Order Book & Liquidity Analytics
+Next Card Authorized: NO — C07 start NOT_GRANTED
+Implementation Authorization: GRANTED — explicit V1-C06 Phase 1 authorization; delivery NOT_GRANTED
 Systemic State-Drift Remediation: CLOSED / DELIVERED / VERIFIED
 V1 COMPLETE: NO
 Live Trade Execution: PROHIBITED
@@ -109,12 +109,12 @@ Implementation: COMPLETE — completed Cards are recorded in the canonical Card 
 Source Code: PRESENT — C01 baseline, C02 canonical domain contracts, C03 boundary, C04 provider adapter, and C05 quality layer
 Tests: PRESENT — C01 through C05 focused, regression, and Harness tests
 Git Repository: INITIALIZED
-Git Branch: main
-Git Checkpoint: 0772397185b9d34640241addb6a2a9dba2ae7cf9 — verified PR #9 squash merge and post-merge reconciliation
+Git Branch: card/v1-c06-historical-data-replay-foundation
+Git Checkpoint: 9d96cd5537e1c978003ca3235aa331c5750b347c — verified C06 branch base on synchronized main
 Git Upstream: origin/main
 Git Remote: origin — https://github.com/jo-soroush/traid-market-intelligence.git
 Git Safe Checkpoint: VERIFIED — final provenance maintenance reconciliation delivered
-Working Tree: CLEAN — synchronized main after post-merge reconciliation
+Working Tree: DIRTY_ALLOWED — authorized V1-C06 implementation in progress
 V1-C01: COMPLETE
 V1-C01 Authorization: START_GRANTED; DELIVERY_GRANTED; DELIVERY_COMPLETED
 V1-C02: COMPLETE
@@ -204,8 +204,8 @@ Allowed Paths: AGENTS.md, CLAUDE.md, PROJECT_PROFILE.md, PROJECT_CONTROL.md, GIT
 ```
 
 This record is historical maintenance state, not a Roadmap Card or a second
-Card-state owner. Active Card remains NONE. AEVS operational reconciliation is
-not complete.
+Card-state owner. AEVS operational reconciliation is complete; current Card
+state is owned by the state table and active-Card record below.
 
 ### Current Maintenance Record
 
@@ -368,6 +368,7 @@ Human Delivery Approval: GRANTED — explicit V1-C05 Phase-2 delivery authorizat
 Delivery Verified: YES — PR #7, squash merge `efc8ef6`, remote verification, and post-merge validation complete
 ```
 
+
 ---
 
 Last completed-Card record:
@@ -405,15 +406,44 @@ Human Delivery Approval: GRANTED — explicit V1-C05 Phase-2 delivery authorizat
 Delivery Verified: YES — PR #7, squash merge `efc8ef6`, remote verification, and post-merge validation complete
 ```
 
+Current active-Card record:
+
+```text
+Card ID: V1-C06
+Title: Historical Data & Replay Foundation
+State: READY_FOR_HUMAN_REVIEW
+Branch: card/v1-c06-historical-data-replay-foundation
+Start Commit: 9d96cd5537e1c978003ca3235aa331c5750b347c
+Safe Checkpoint: 9d96cd5537e1c978003ca3235aa331c5750b347c — verified clean main base
+Engineering Goal: versioned canonical BTC historical datasets and deterministic replay with explicit coverage and gaps
+Learning Goal: temporal integrity, dataset identity, and reproducible replay
+Authorized Scope: C06 historical provider, canonical dataset/store/replay, bounded real-data acceptance, deterministic tests, and evidence
+Out of Scope: C07+ analytics, backtesting/fills/P&L, OI semantic resolution, new dependencies, C01-C05 contract changes, and delivery
+Dependencies: V1-C02 and V1-C05 COMPLETE with delivered evidence and passing baseline tests
+Source/Provenance Obligations: Hyperliquid public info BTC perpetual candles and funding; local collection only; publication latency and redistribution rights unverified
+Financial/Data Guardrails: preserve source and receipt times; model availability with explicit policy offsets; no inferred funding cadence, OI, interpolation, or lookahead
+Security Requirements: bounded read-only API, no credentials, root outside Git, integrity checks and symlink/path-escape rejection
+Focused Validation: PASS — 52 focused C06 tests and 328 full-suite tests passed after audit remediation; exact commands and warnings are in Card Evidence
+Exit Gate: PASS — bounded real BTC dataset, coverage, gaps, integrity, and deterministic replay recorded in Card Evidence
+ROADMAP_ALIGNMENT_GATE: PASS — C06 scope/dependencies/ownership verified at Phase 0
+CARD_QUALITY_GATE: PASS — developer validation and exact Exit Gate complete; independent audit NOT_RUN
+Blockers: Previous independent audit failed; its G1/M1/M2/N1-N5 findings were remediated in the current candidate, which requires bounded independent re-audit before any delivery decision
+Known Limitations: exact provider publication time, historical revisions/backfills, and funding cadence/continuity are unverified
+Human Start Approval: GRANTED — explicit V1-C06 implementation authorization in this request
+Human Delivery Approval: NOT_GRANTED
+Delivery Verified: NO
+```
+
 ## 7. Authorization Ledger
 
 ```text
-Card Start: GRANTED — V1-C05 Phase 1 implementation
+Card Start: GRANTED — V1-C06 Phase 1 implementation
 Delivery Approval: GRANTED / COMPLETED — V1-C05 delivery verified
-Next Card: NOT_GRANTED — C06 remains unauthorized after C05 completion
+Next Card: NOT_GRANTED — C07 and later remain unauthorized
 V1-C03 Authorization: START_GRANTED; DELIVERY_GRANTED; DELIVERY_COMPLETED
 V1-C04 Authorization: START_GRANTED; DELIVERY_GRANTED; DELIVERY_COMPLETED
 V1-C05 Authorization: START_GRANTED; DELIVERY_GRANTED; DELIVERY_COMPLETED
+V1-C06 Authorization: START_GRANTED; DELIVERY_NOT_GRANTED
 Architecture Change: NOT_GRANTED
 Material Scope Change: NOT_GRANTED
 Significant Technology Addition: NOT_GRANTED
@@ -439,8 +469,8 @@ Routine reversible implementation is allowed only inside an explicitly approved 
 ```text
 Approved V1 Cards: 27
 Completed Cards: V1-C01, V1-C02, V1-C03, V1-C04, V1-C05
-Active Card: NONE
-Next Roadmap Card: V1-C06 — available only after separate C06 start approval
+Active Card: V1-C06
+Next Roadmap Card: V1-C07 — available only after separate C07 start approval
 Later Cards: NOT AUTHORIZED
 ```
 
@@ -571,8 +601,7 @@ Exit-Gate Requirement Advanced:
 Current:
 
 ```text
-ROADMAP_ALIGNMENT_GATE: NOT_RUN
-Reason: no active authorized Card
+ROADMAP_ALIGNMENT_GATE: PASS — V1-C06 exact contract, C02/C05 dependencies, source and future-Card boundaries verified
 ```
 
 ---
@@ -627,9 +656,9 @@ Unresolved Semantics:
 Current:
 
 ```text
-Contract Map Status: NOT_RUN
-Risk Map Status: NOT_RUN
-Reason: no active Card
+Contract Map Status: PASS — C02 canonical models, C05 trust boundary, new provider/history/store/replay ownership inspected
+Risk Map Status: PASS — timestamp, provenance, integrity, duplicate, publication, storage and lookahead risks recorded
+Reason: V1-C06 explicitly authorized and bounded to historical data/replay
 ```
 
 For future active Cards beginning with V1-C06, record this work-item-specific
@@ -660,7 +689,22 @@ decisions. The Evidence Map records actual closure before the quality gate.
 Current active-Card Contract/Risk Map:
 
 ```text
-Reason: no active authorized Card; C06 remains NOT_STARTED / NOT_GRANTED
+Card Verification Level: LEVEL_3
+Risk rationale: C06 creates financial decision-support inputs that future evaluation may trust; corrupted history, false availability, or lookahead could mislead downstream decisions, while no trading or account action is enabled.
+Invariants affected: FINANCIAL_AND_DATA_GUARDRAILS §§34-35 (point-in-time and anti-lookahead), §47 (determinism); PROJECT_PROFILE §12 (historical provenance/coverage); TRAID_ENGINEERING_HARNESS §36 (validation ladder)
+Verification-technique applicability:
+  deterministic invariant testing: REQUIRED — dataset integrity, provenance, gap, duplicate and replay-time properties are exact contracts
+  property-based testing: REQUIRED — deterministic permutation matrices exercise record-order and duplicate invariance without a new dependency
+  failure injection: REQUIRED — corrupt storage, partial publication and provider failures must fail closed
+  fuzzing: CONDITIONAL — use bounded malformed-input generation if deterministic adversarial cases expose an unmodeled parser state
+    Trigger: deterministic adversarial parser cases reveal an unmodeled input class or insufficient boundary coverage
+  mutation testing: CONDITIONAL — use targeted mutation only if review finds a false-green invariant test
+    Trigger: developer review or audit finds a test that passes despite a violated C06 invariant
+    Trigger observed: YES — independent audit found surviving incomplete-candle and retry-limit mutations; bounded checks and closure are recorded in C06 Evidence
+  differential testing: REQUIRED — equivalent source payloads must normalize like the existing C04 adapter where semantics overlap
+  adversarial testing: REQUIRED — future data, OI, conflicting duplicates, malformed timestamps and symlink escape are explicit hazards
+  chaos testing: NOT_APPLICABLE — C06 has no distributed runtime or service-failover system
+  formal methods: NOT_APPLICABLE — deterministic examples and permutation/failure tests can exercise this bounded serialization and replay contract
 ```
 
 ---
@@ -727,8 +771,8 @@ Other:
 Current:
 
 ```text
-No active financially material Card.
-Global V1 guardrails remain in force.
+V1-C06 historical source, provenance, storage and replay are active.
+No financial policy or execution authority changes; global V1 guardrails remain in force.
 ```
 
 Unknown material semantics:
@@ -806,9 +850,9 @@ Evidence Reference:
 Current:
 
 ```text
-TraID repository test state: VERIFIED — 211 passed, 2 dependency warnings; post-merge C05 validation on main
-Harness consistency: PASS — C05 COMPLETE, delivery verified, and Active Card NONE validated
-Readiness gate: PASS — V1-C04 dependency/runtime/configuration preflight
+TraID repository test state: VERIFIED — 328 passed, 2 dependency warnings; C06 remediation developer validation on the authorized Card branch
+Harness consistency: PASS — C01-C05 COMPLETE, C06 READY_FOR_HUMAN_REVIEW, and delivery NOT_GRANTED validated
+Readiness gate: PASS — V1-C06 dependency/runtime/source preflight
 Secret scan: PASS
 Python compilation: PASS
 git diff --check: PASS
@@ -843,11 +887,11 @@ Recommended State:
 Current:
 
 ```text
-CARD_QUALITY_GATE: PASS — C05 trust-model remediation, exact Exit Gate, approved delivery, and post-merge verification proven
-Focused tests: 46 C05 tests passed; 52 C02–C04 regression tests passed; 98 C02–C05 combined; 211 full tests passed with 2 dependency warnings
-Evidence updated: YES — C05 implementation, failure diagnosis, learning, and Exit Gate recorded
-Learning Record: COMPLETE
-Remaining issue: None for C05; C06 remains separately unauthorized
+CARD_QUALITY_GATE: PASS — C06 developer validation and exact Exit Gate proven; independent audit NOT_RUN
+Focused tests: 52 C06 tests passed; 328 full tests passed with 2 dependency warnings
+Evidence updated: YES — C06 implementation, real-data acceptance, failure diagnosis, learning, and Exit Gate recorded
+Learning Record: COMPLETE — C06 fields recorded in Evidence Map
+Remaining issue: independent audit NOT_RUN; delivery NOT_GRANTED
 ```
 
 ---
@@ -870,12 +914,12 @@ Key Demonstrated Lesson:
 Current:
 
 ```text
-Latest Evidence Update: C05 DELIVERY — committed, pushed, PR #7 merged, and post-merge verified
-Evidence Card: V1-C05
-Evidence Status: COMPLETE — approved C05 Git delivery, hosted CI, merge, and post-merge verification recorded
-Critical Missing Proof: none for C05; C06 remains unauthorized
-Learning Record Status: COMPLETE — explicit 30-field record recorded in Evidence Map
-Key Demonstrated Lesson: executable Harness checks must agree with safe repository conventions
+Latest Evidence Update: C06 AUDIT REMEDIATION — new frozen worktree candidate, no delivery action
+Evidence Card: V1-C06
+Evidence Status: READY_FOR_HUMAN_REVIEW — previous failed audit retained historically; remediation validation recorded; bounded independent re-audit NOT_RUN
+Critical Missing Proof: bounded independent re-audit of the remediated candidate and separately approved delivery remain outstanding
+Learning Record Status: COMPLETE — C06 learning fields recorded in Evidence Map
+Key Demonstrated Lesson: historical event time, receipt time, and inferred replay availability require distinct contracts
 ```
 
 Never duplicate or fabricate the Evidence Map here.
@@ -1076,7 +1120,7 @@ Exact source decisions belong in Card evidence/source mapping.
 | V1-C03 | Exchange Adapter Contract | COMPLETE | YES | PASS | COMPLETE |
 | V1-C04 | Hyperliquid Provider Verification & Adapter | COMPLETE | YES | PASS | COMPLETE |
 | V1-C05 | Data Quality, Freshness & Provenance | COMPLETE | YES | PASS | COMPLETE |
-| V1-C06 | Historical Data & Replay Foundation | NOT_STARTED | NO | NOT_RUN | PENDING |
+| V1-C06 | Historical Data & Replay Foundation | READY_FOR_HUMAN_REVIEW | YES | PASS | READY_FOR_HUMAN_REVIEW |
 | V1-C07 | Order Book & Liquidity Analytics | NOT_STARTED | NO | NOT_RUN | PENDING |
 | V1-C08 | Trade Flow & CVD | NOT_STARTED | NO | NOT_RUN | PENDING |
 | V1-C09 | Derivatives & Volatility | NOT_STARTED | NO | NOT_RUN | PENDING |
@@ -1191,17 +1235,18 @@ when proof is absent.
 
 ```text
 Safe Resume:
-C01-C05, provenance maintenance, OI contract reconciliation, and AEVS
-governance maintenance are delivered and verified. No Card is active. C06
-remains NOT_STARTED / NOT_GRANTED and requires separate explicit start
-approval; do not begin C06 without it. D-OI-001 remains DEFERRED and
-Hyperliquid OI remains UNVERIFIED FOR CANONICAL USE.
-Active Card is NONE
-Next Roadmap Card: V1-C06
+C01-C05 and AEVS governance maintenance remain delivered and verified. V1-C06
+is READY_FOR_HUMAN_REVIEW on its dedicated branch with developer validation
+complete after bounded audit remediation. The new frozen candidate awaits
+bounded independent re-audit; delivery is not authorized. C07 and later remain
+unauthorized. D-OI-001 remains
+DEFERRED and Hyperliquid OI remains UNVERIFIED FOR CANONICAL USE.
+Active Card is V1-C06
+Next Roadmap Card: V1-C07
 
-Implementation Card: NONE
-Repository Write Authorization: no active Card; C06 start NOT_GRANTED
-Next Roadmap Card: V1-C06
+Implementation Card: V1-C06
+Repository Write Authorization: V1-C06 bounded implementation only; delivery NOT_GRANTED
+Next Roadmap Card: V1-C07
 V1-C01 Authorization: START_GRANTED; DELIVERY_GRANTED; DELIVERY_COMPLETED
 V1-C02 Authorization: START_GRANTED; DELIVERY_GRANTED; DELIVERY_COMPLETED
 V1-C03 Authorization: START_GRANTED; DELIVERY_GRANTED; DELIVERY_COMPLETED
@@ -1210,10 +1255,12 @@ V1-C03 Authorization: START_GRANTED; DELIVERY_GRANTED; DELIVERY_COMPLETED
 Current resume point:
 
 ```text
-All authorized maintenance through PR #9 is delivered, reconciled, and
-verified on main. Active Card is NONE. C06 remains NOT_STARTED / NOT_GRANTED;
-stop until separate explicit C06 start approval. D-OI-001 remains DEFERRED and
-Hyperliquid OI remains UNVERIFIED FOR CANONICAL USE.
+All authorized maintenance through PR #9 is delivered and reconciled. V1-C06
+is READY_FOR_HUMAN_REVIEW on its dedicated branch after developer validation
+of the remediated candidate. Resume with bounded independent read-only re-audit
+of the new frozen candidate; stop before delivery or C07 without separate
+human approval.
+D-OI-001 remains DEFERRED and Hyperliquid OI remains UNVERIFIED FOR CANONICAL USE.
 ```
 
 ---
