@@ -1889,162 +1889,279 @@ Human approval required before next Card: YES
 
 ## V1-C06 — Historical Data & Replay Foundation
 
-**Status:** NOT_STARTED
+**Status:** READY_FOR_HUMAN_REVIEW
 
-**Start Authorization:** NOT_GRANTED
+**Start Authorization:** GRANTED — explicit V1-C06 implementation authorization in the current request
 
 **Next Card Authorization:** NOT_GRANTED
 
 ### Contract / Risk Map
-- Historical dataset coverage, availability limitations, and gap policy: Pending
-- No silent interpolation or manufactured continuity: Pending
-- Repository/current-state reconciliation: Pending
-- Contract Map: Pending
-- Risk Map: Pending
-- Ownership map: Pending
-- Dependency proof: Pending
-- Future-Card leakage check: Pending
-- `ROADMAP_ALIGNMENT_GATE`: NOT_RUN
+- Historical dataset coverage, availability limitations, and gap policy: C06 owns versioned BTC 1h candle/funding coverage, explicit candle gaps, unknown funding continuity, and inferred replay availability
+- No silent interpolation or manufactured continuity: required by the C06 specification and Guardrails §§34-35; no gap filling or inferred funding cadence authorized
+- Repository/current-state reconciliation: clean synchronized main at 9d96cd5537e1c978003ca3235aa331c5750b347c; C06 branch created from that base; C01-C05 COMPLETE; Active Card switched to C06 after readiness
+- Contract Map: C02 `Candle`, `FundingSnapshot`, `SourceProvenance` stay canonical; C04 provider conversion is the differential reference; C05 quality stays the current-trust owner; new provider owns transport/normalization, new historical package owns dataset/store/replay
+- Risk Map: source timestamp versus receipt/publication/availability; partial history, boundary bars, duplicates, storage corruption, symlink escape, provider failure, and modeled lookahead; publication time/funding cadence/redistribution rights remain unverified
+- Ownership map: no C01-C05 code changes, no separate canonical financial models, no provider transport in historical core, no C07+ consumers
+- Dependency proof: C02 and C05 COMPLETE in the status table and delivered Evidence; baseline `.venv/bin/pytest -q` passed 275 with 2 dependency deprecation warnings
+- Future-Card leakage check: no strategy, backtest, fills, P&L, OI, analytics, event bus, or execution
+- `CONTENT_ALIGNMENT_GATE`: PASS — requested C06 objective and boundaries match the canonical contract
+- `ROADMAP_ALIGNMENT_GATE`: PASS — C02/C05 dependencies, ownership, source and Exit Gate inspected before implementation
+- `READINESS_GATE`: PASS — Python 3.13.12, installed dependencies (`pip check` PASS), 275 baseline tests PASS; official public API returned the requested closed window; Docker, credentials and external storage services are not required
+- Card Verification Level: LEVEL_3 — historical financial inputs can mislead future decision support if availability/integrity is false; no trading capability is added
+- Invariants affected: Guardrails §§34-35 and §47; Profile §12; Harness §36; C06-I1 through C06-I13 are the implementation's explicit test obligations
 
 ### Implementation / Inspection
-- Files / symbols inspected: Pending
-- Files / symbols changed: Pending
-- Verified behavior: Pending
-- Architecture before → after: Pending
-- What remained unchanged: Pending
-- Known limitations / deferrals: Pending
+- Files / symbols inspected: C02 `Candle`, `FundingSnapshot`, `SourceProvenance`; C04 Hyperliquid adapter and its tests; C05 quality boundary; canonical C06 specification, Roadmap, Harness, Guardrails, and Git Workflow.
+- Files / symbols changed: new `src/traid/historical/{__init__,models,dataset,store,replay}.py`, `src/traid/providers/hyperliquid_history.py`, four C06 test modules, this Evidence Map plus `PROJECT_CONTROL.md`, and `tests/test_maintenance_harness.py` under the explicit human-authorized G1 scope exception. The production checker was not changed.
+- Verified behavior: versioned deterministic JSONL dataset construction, duplicate collapse/conflict rejection, explicit candle gaps and incomplete bars, bounded provider requests, atomic directory publication, hash-before-parse loading, and modeled-time replay filtering.
+- Architecture before → after: C02 models and C04 live adapter remain owners; a separate read-only historical provider feeds a provider-independent dataset/store/replay package.
+- What remained unchanged: C01-C05 product files and contracts, dependencies, Guardrails, C05 current-use quality decisions, OI semantics, and all C07+ behavior.
+- Known limitations / deferrals: publication latency and historical backfills are unverified; 60-second offsets are assumed policy; funding cadence/continuity are unknown; source-data redistribution permission is unverified; local dataset remains outside Git. `C06-OBS-C04-FUNDING-001` records C04 rejection of negative funding as a separate non-blocking future maintenance observation; C04 is unchanged.
 
 ### Source / Provenance
-- Decision ID: Pending
-- Classification: Pending
-- Source project/repository: Pending
-- Commit/tag/branch: Pending
-- Exact source file/module/symbol: Pending
-- License: Pending
-- Runtime/semantic verification: Pending
-- TraID adaptation/rejection: Pending
-- Source evidence: Pending
+- Decision ID: C06-SRC-001
+- Classification: BUILD against the documented public API; no external SDK/code reuse
+- Source project/repository: Hyperliquid public info API, `https://api.hyperliquid.xyz/info`
+- Commit/tag/branch: NOT_APPLICABLE — HTTP API documentation, not adapted repository code
+- Exact source file/module/symbol: `candleSnapshot` and `fundingHistory` request types documented in the official Info/Perpetuals API pages
+- License: official Historical Data page says the API may be used to record additional historical datasets locally; redistribution permission is NOT_VERIFIED, so source data remains outside Git and is not published
+- Runtime/semantic verification: 2026-10-11 18:51 UTC, bounded read-only window probe returned HTTP 200, 169 candle rows including the exclusive end boundary, and 168 funding rows for 2026-10-01T00:00Z to 2026-10-08T00:00Z
+- TraID adaptation/rejection: map only BTC perpetual 1h candles and source-reported funding; reject OI and keep funding cadence/continuity unknown
+- Source evidence: `https://hyperliquid.gitbook.io/hyperliquid-docs/for-developers/api/info-endpoint`, `https://hyperliquid.gitbook.io/hyperliquid-docs/for-developers/api/info-endpoint/perpetuals`, `https://hyperliquid.gitbook.io/hyperliquid-docs/historical-data`
 
 ### Tests / Evaluation
-- Focused tests: Pending
-- Relevant regression tests: Pending
-- Card-specific evaluation / acceptance: Pending
-- Actual commands/runners: Pending
-- Actual results: Pending
-- Warnings: Pending
-- Environment/configuration: Pending
+- Focused tests: `.venv/bin/pytest -q tests/test_historical_dataset.py tests/test_historical_store.py tests/test_historical_replay.py tests/test_hyperliquid_history.py` → 52 passed after audit remediation; those modules plus `tests/test_maintenance_harness.py` → 63 passed.
+- Relevant regression tests: `.venv/bin/pytest -q` → 328 passed, 2 dependency deprecation warnings after audit remediation; baseline before C06 was 275 passed.
+- Card-specific evaluation / acceptance: real local BTC perpetual window 2026-10-01T00:00:00Z to 2026-10-08T00:00:00Z; 7 candle pages and 7 funding pages; 168 candles, 168 funding snapshots, 0 missing candle intervals, 0 duplicates, 0 incomplete bars; 336 replay events identical across two runs. Stored outside Git under caller root `../TraID-historical-data/c06`.
+- Actual commands/runners: focused and full pytest above; `scripts/harness_consistency_check.py`; `bash scripts/session_bootstrap.sh`; `bash scripts/check_secrets.sh`; `.venv/bin/python -m compileall -q src tests scripts`; `.venv/bin/pip check`; `git diff --check`; Python import and FastAPI TestClient `/health` smoke.
+- Actual results: Harness PASS; bootstrap PASS_WITH_1_WARNINGS (expected authorized dirty worktree); secret scan PASS; compilation PASS; import/health 200 status `ok`; pip check no broken requirements; diff check PASS.
+- Warnings: full pytest emitted Starlette/httpx and AnyIO deprecation warnings; bootstrap reported the expected dirty C06 worktree; pip disabled its unwritable cache without a dependency failure.
+- Environment/configuration: `.venv` Python 3.13.12; no Docker, credentials, external database, new package, or live API dependency for automated tests. Bootstrap's `python3` command found host Python 3.14.7; tests used `.venv`.
 
 ### Financial / Data / AI / Risk / Security Evidence
-- Financial invariants: Pending
-- Data Quality / Provenance: Pending
-- AI boundary / fail-closed behavior: Pending
-- Risk Gate / bypass behavior: Pending
-- Anti-lookahead / replay integrity: Pending
-- Security / secrets / untrusted-input checks: Pending
-- Not-applicable items and justification: Pending
+- Financial invariants: canonical Decimal text round-trips (including scale), source-reported negative funding is preserved without reinterpretation/cost, OI rejection, no current-use trust claim; see focused dataset/store and provider tests.
+- Data Quality / Provenance: source, source type, ID, source timestamp, and receipt timestamp retained and validated; manifest records exact window, category counts, candle gaps, duplicate/incomplete counts, inferred availability policy, and unknown funding continuity.
+- AI boundary / fail-closed behavior: no AI component or inferred financial semantics; corrupt, truncated, incompatible, or conflicting input raises before replay or publication.
+- Risk Gate / bypass behavior: no Strategy, Risk Gate, trade candidate, or execution path exists in C06.
+- Anti-lookahead / replay integrity: replay filters on modeled availability, not receipt or event time alone; half-open range and as-of tests reject premature release and future-record injection.
+- Security / secrets / untrusted-input checks: no credentials; bounded public requests, terminal HTTP 429, two retry maximum, strict JSON/Decimal/timestamp parsing, outside-Git storage root, symlink/path traversal rejection, hash-before-parse, secret scan PASS.
+- Not-applicable items and justification: trading/account controls and AI model scoring are outside this read-only historical foundation.
 
 ### Failures / Diagnosis / Recovery
-- Failures observed: Pending
-- Root cause: Pending
-- Diagnosis: Pending
-- Fix/recovery: Pending
-- Regression proof: Pending
-- Remaining risk: Pending
+- Failures observed: the first focused run had three failures; later self-review identified non-UTC-offset replay-envelope acceptance and an inclusive pagination boundary ambiguity. After moving C06 to review readiness, full pytest had four maintenance-fixture failures (319 passed, 4 failed).
+- Root cause: two C06 test fixtures assumed the first replay event was a candle although funding sorted first; the loader wrapped a useful timestamp `DatasetError` as a generic record error; Python aware-datetime equality compares instants across offsets; pagination needed an inclusive cursor. The maintenance fixture copied the live C06 frozen audit candidate into synthetic maintenance branches, causing correct `AUDITED_CANDIDATE_BRANCH_MISMATCH` rejection unrelated to maintenance scope.
+- Diagnosis: inspected failed assertions, replay total-order policy, decoder exception path, datetime equality, and documented inclusive `startTime` behavior.
+- Fix/recovery: C06 tests select candle category explicitly; decoder preserves `DatasetError`; replay envelope requires zero UTC offset; provider re-reads the last pagination timestamp and rejects unprovable full-page boundaries. The maintenance test helper now sets an explicit synthetic pre-review Card state when the live Card is review-ready, so its hypothetical maintenance branch is not bound to a foreign frozen candidate; production checker and assertions remain unchanged.
+- Regression proof: initial candidate's 48 focused and 323 full-suite tests passed; after audit remediation, 52 focused C06, 63 C06 plus maintenance, and 328 full-suite tests passed. The stored acceptance dataset still loads and replays with unchanged hashes and 336 events.
+- Remaining risk: provider publication times, historical revisions, funding cadence, and redistribution rights remain NOT_VERIFIED; an independent verifier has not audited this candidate.
 
 ### Git / Repository
-- Branch: Pending
-- Start commit: Pending
-- Checkpoint commit: Pending
-- Push: Pending
-- Draft PR: Pending
-- Merge: Pending
-- `git diff` review: Pending
-- `git status` review: Pending
-- Secrets/generated artifacts/unrelated changes: Pending
+- Branch: card/v1-c06-historical-data-replay-foundation
+- Start commit: 9d96cd5537e1c978003ca3235aa331c5750b347c
+- Checkpoint commit: NONE — implementation candidate remains uncommitted for independent audit
+- Push: NOT_PERFORMED — delivery not authorized
+- Draft PR: NOT_PERFORMED — delivery not authorized
+- Merge: NOT_PERFORMED — delivery not authorized
+- `git diff` review: PASS — C06 implementation/tests, two authorized state/evidence files, and one necessary maintenance-test fixture correction; no production checker change
+- `git status` review: PASS — C06 files are untracked candidate content; no staged changes or product files from C01-C05 modified
+- Secrets/generated artifacts/unrelated changes: no secrets or raw source responses in Git; real dataset is outside Git; no dependencies or unrelated product code changed
 
 ### Learning Record
 
-What we built: Pending
+What We Wanted To Build: A versioned, traceable BTC historical dataset and replay foundation with explicit gaps and availability limits.
+Why It Matters: Future analytics cannot draw sound conclusions from history whose identity, coverage, or temporal availability is ambiguous.
+System Before This Card: C02 supplied canonical values, C04 supplied a live provider adapter, and C05 supplied current-use quality; historical persistence and replay did not exist.
+Design Decision: Use a dedicated bounded public-info provider and provider-independent JSONL dataset/store/replay package with explicit inferred availability policy.
+Alternatives Considered: Extending the live C04 adapter, adding a database or external dataset framework, and treating receipt or event time as proven publication time.
+Why We Chose This Approach: It keeps C01-C05 ownership intact, adds no dependency, allows byte-level identity, and exposes rather than hides temporal uncertainty.
+What We Implemented: BTC 1h candle and funding normalization, deterministic duplicates/ordering/coverage, manifest and integrity checks, safe local publication, and modeled-time replay.
+What We Built: Six production files and four focused test modules within the C06 scope, plus current Card state/evidence updates.
+Why We Built It: To give later separately authorized Cards reproducible historical inputs without implementing backtesting or trading.
+What we built: A versioned BTC 1h candle/funding dataset with explicit coverage, integrity-checked local storage, and a deterministic modeled-time replay iterator.
 
-Why we built it: Pending
+Why we built it: Future analytics and evaluation need reproducible historical inputs whose gaps, provenance, and time limits are visible.
 
-Engineering problem: Pending
+Engineering problem: A successful historical API response alone cannot prove completeness, publication time, or safe point-in-time availability.
 
-AI / Data / Financial concept: Pending
+AI / Data / Financial concept: modeled availability is an explicit policy bound and is distinct from source event time, receipt time, and unverified provider publication time.
 
-How it works: Pending
+How it works: a bounded provider normalizes C02 values; the dataset layer deduplicates, sorts, records coverage, and hashes canonical JSONL bytes; the store publishes a complete directory by same-filesystem rename and verifies bytes before load; replay filters validated records by modeled availability.
 
-Architecture before: Pending
+Architecture before: C01-C05 supplied live canonical models, a provider adapter, and current-use quality rules; no historical persistence or replay existed.
 
-Architecture after: Pending
+Architecture after: a separate historical provider and provider-independent historical package exist without changing C01-C05 or adding downstream strategy/backtest logic.
 
-Important files and ownership: Pending
+Important files and ownership: `hyperliquid_history.py` owns source transport/normalization; `historical/dataset.py` owns identity, duplicates, and coverage; `store.py` owns publication/load; `replay.py` owns deterministic release; C02 still owns value models.
 
-Source / provenance: Pending
+Source / provenance: official Hyperliquid public info API and documentation; source ID/time and receipt time survive normalization; local collection is documented, redistribution rights remain unverified.
 
-Tests / evaluations and actual results: Pending
+Tests / evaluations and actual results: initial candidate 48 focused/323 full-suite passed; remediated candidate 52 focused C06/328 full-suite passed with 2 dependency deprecation warnings; bounded real fetch produced 168 candles and 168 funding snapshots across 14 pages, dataset data SHA-256 `7f667f69c22bb0b53bee0694d8280ac59f7ab42b42c8e170405dcd5ef2a57df1`, and 336 stable replay events.
 
-Financial / data / security invariants: Pending
+Financial / data / security invariants: exact Decimal values and provenance, no OI/funding reinterpretation, explicit gaps and incomplete bars, no interpolation, fail-closed corruption/duplicates/versions, modeled-time anti-lookahead, and outside-Git storage.
+Problems We Hit: The first focused run had three failures due to event-order assumptions in tests and an obscured decoder error; self-review found UTC-offset equality and pagination boundary risks; four maintenance fixtures failed only after C06 entered review readiness.
+Root Cause: Tests selected a record by position rather than category, a decoder wrapper hid its own validation error, aware datetimes compared equal across offsets, pagination initially assumed an exclusive cursor, and maintenance policy fixtures inherited a live frozen Card audit identity.
+How We Solved It: Made C06 test selection semantic, preserved loader error detail, enforced zero UTC offset, re-read an inclusive pagination boundary, and gave synthetic maintenance fixtures an explicit pre-review Card state without changing the production checker.
+Why The Fix Is Correct: The initial focused regressions exercise formerly missed paths; audit remediation then added record-level incomplete-candle and exact retry-limit proofs. Four affected maintenance tests, 52 focused C06 tests, and 328 full-suite tests pass; the real dataset reloads to the same 336-event replay and hashes.
+What We Rejected: New storage services, extra exchanges, external verification packages, live data trust promotion, OI conversion, funding-cost inference, interpolation, C07+ analytics, and trading/account operations.
 
-Problem(s) discovered: Pending
+Problem(s) discovered: three initial focused failures came from order-sensitive test expectations and wrapped decoder diagnostics; self-review found offset-equality and pagination-boundary edge cases; four maintenance policy scenarios inherited a live C06 audit identity.
 
-How we diagnosed / solved them: Pending
+How we diagnosed / solved them: isolated failing assertions, corrected fixture selection and error propagation, required zero UTC offset, used inclusive documented pagination with a boundary re-read, inspected the four maintenance fixture failures, isolated their synthetic Card state, and reran focused/full suites.
+Known Limitations: Provider publication latency, historical backfills/revisions, funding cadence/continuity, and source-data redistribution permission remain unverified; 60-second offsets are assumed policy rather than observed latency. C04 negative-funding rejection is a separate non-blocking future maintenance observation; C06/C04 differential equivalence is limited to candles and non-negative funding.
 
-Professional engineering lesson: Pending
+Professional engineering lesson: the same historical value can have distinct event, receipt, publication, and modeled availability times; each must retain its own meaning and uncertainty.
 
-Student takeaway: Pending
+Student takeaway: deterministic replay needs a byte-stable dataset identity, validated boundaries, and explicit coverage before any event is yielded.
 
-Exit Gate proof: Pending
+Exit Gate proof: the 168-hour BTC dataset is versioned, hashed, locally loadable, and repeatedly replayed with explicit source/category coverage, zero observed candle gaps, unknown funding continuity, rolling-history limitations, and no fill/interpolation.
 
-What this enables next: Pending
+What this enables next: a separately authorized future Card can consume validated historical inputs; this does not authorize C07, backtesting, delivery, or trading.
 
 ### Exit Gate Proof
-- Exact Card Exit Gate: Pending — re-read from `TRAID_CARD_SPECIFICATIONS.md`
-- Requirement-to-evidence mapping: Pending
-- Unproven requirements: Pending
-- Exact Exit Gate fully proven: NO
+- Exact Card Exit Gate: "A versioned BTC canonical dataset can be replayed deterministically with source/category coverage, gaps, and availability limitations explicit and without silently filling or interpolating missing information."
+- Requirement-to-evidence mapping: see current Exit Gate Evidence Matrix below and the real dataset manifest identified by `f96e7a0764a18b059a99356ebafb5ad581dc5cf2be81225c5d160a53b8b7f724`.
+- Unproven requirements: NONE within the exact C06 Exit Gate; true historical publication latency and redistribution permission remain explicitly unverified limitations.
+- Exact Exit Gate fully proven: YES — developer validation; independent audit NOT_RUN.
+
+### Validation Checkpoints
+
+| Checkpoint | Command / evidence | Result | Current |
+|---|---|---|---|
+| C06 focused | four C06 test modules | 52 passed | NO |
+| Full regression and acceptance | `.venv/bin/pytest -q` plus real dataset reload/replay | 328 passed; 336 real replay events | YES |
+
+### Exit Gate Evidence Matrix
+
+| Requirement | Implementation | Executed evidence | Current status |
+|---|---|---|---|
+| Versioned canonical BTC dataset and identity | `historical/models.py`, `dataset.py`, `store.py` | build/store/load tests; real 168h dataset ID and data SHA-256 above | PASS |
+| Exact canonical values and provenance | C02 models reused by `dataset.py` and provider | Decimal/provenance round-trip; C04 differential equivalence for candles and non-negative funding only | PASS |
+| Source and category coverage | manifest in `dataset.py` | real 168 candles, 168 funding; candle COMPLETE, funding UNKNOWN | PASS |
+| Gaps and unavailable history explicit | gap starts and rolling-retention limitations | missing-bar and partial coverage tests; real window 0 observed gaps | PASS |
+| Duplicates and incomplete bars explicit | deterministic `_unique` and incomplete count | duplicate/conflict and boundary-bar tests | PASS |
+| Deterministic ordering and repeated replay | `dataset.py` total sort, `replay.py` pull iterator | permutation and repeated replay tests; real 336 events twice | PASS |
+| Availability limitations and no modeled lookahead | versioned 60s offsets, as-of and range filters | temporal boundary and future-injection tests | PASS |
+| No silent fill/interpolation | construction preserves only observed values | missing-bar/no synthetic record test | PASS |
+| C01-C05 contracts unchanged and OI excluded | dedicated C06 files; OI rejected | Git scope review and OI/adversarial tests | PASS |
+
+### C06 Invariant Evidence
+
+| ID | Invariant | Executed evidence | Current status |
+|---|---|---|---|
+| C06-I1 | Replay does not mutate stored records | repeated replay/load equality test | PASS |
+| C06-I2 | Identical datasets replay identically | permutation identity and repeated real 336-event replay | PASS |
+| C06-I3 | Canonical values round-trip exactly | Decimal-scale/provenance store-load test | PASS |
+| C06-I4 | Replay total order is deterministic | total-order and exhaustive small permutation tests | PASS |
+| C06-I5 | Provenance survives; receipt is not availability | provenance round-trip and receipt-time replay tests | PASS |
+| C06-I6 | Corrupt, partial, or tampered data fails closed | hash, truncation, absent manifest, version, and symlink tests | PASS |
+| C06-I7 | Duplicate handling is deterministic | identical/conflicting duplicate and boundary pagination tests | PASS |
+| C06-I8 | Replay boundaries prevent modeled lookahead | as-of, half-open range, future-injection tests | PASS |
+| C06-I9 | Incomplete bars and gaps are explicit | missing-bar, exclusive-boundary, early-receipt, and forged-hash load tests | PASS |
+| C06-I10 | OI remains excluded | canonical OI and provider OI injection tests | PASS |
+| C06-I11 | Historical data is not trusted as current | manifest inferred-availability fields and absence of current-use quality promotion | PASS |
+| C06-I12 | C01-C05 contracts unchanged | Git scope review; full 328-test regression | PASS |
+| C06-I13 | Funding remains uninterpreted with unknown cadence | exact funding Decimal and unknown continuity tests | PASS |
+
+### Verification Technique Closure
+
+  deterministic invariant testing: REQUIRED — dataset integrity, provenance, gap, duplicate and replay-time properties are exact contracts
+    Execution: EXECUTED
+    Evidence: 52 focused tests including hash, gap, duplicate, provenance, record-level completion, and replay boundary assertions; 328 full-suite tests passed
+  property-based testing: REQUIRED — deterministic permutation matrices exercise record-order and duplicate invariance without a new dependency
+    Execution: EXECUTED
+    Evidence: `test_input_permutations_have_identical_bytes_and_identity` exercised all 12 sample input permutations; duplicate-order identity test passed
+  failure injection: REQUIRED — corrupt storage, partial publication and provider failures must fail closed
+    Execution: EXECUTED
+    Evidence: store corruption, missing manifest, symlink, network retry, 429, truncated response, and invalid provider tests passed
+  fuzzing: CONDITIONAL — use bounded malformed-input generation if deterministic adversarial cases expose an unmodeled parser state
+    Trigger: deterministic adversarial parser cases reveal an unmodeled input class or insufficient boundary coverage
+    Resolution: NOT_TRIGGERED
+    Resolution reason: deterministic malformed JSON, decimal, timestamp, provenance, category, page, and boundary cases exposed no unmodeled parser class after targeted fixes
+  mutation testing: CONDITIONAL — use targeted mutation only if review finds a false-green invariant test
+    Trigger: developer review or audit finds a test that passes despite a violated C06 invariant
+    Resolution: TRIGGERED_EXECUTED
+    Evidence: independent audit found surviving incomplete-candle and retry-limit mutations; bounded temporary source mutants were detected by corrected tests (three early-candle regressions failed on the mutant; retry-limit regression failed at 4 versus 3 attempts), and both production files were restored byte-for-byte
+  differential testing: REQUIRED — equivalent source payloads must normalize like the existing C04 adapter where semantics overlap
+    Execution: EXECUTED
+    Evidence: C04 differential candle and positive-funding mapping tests passed; explicit negative-funding test proves C06 preserves the source value while C04 rejects it, so equivalence is limited to overlapping valid inputs
+  adversarial testing: REQUIRED — future data, OI, conflicting duplicates, malformed timestamps and symlink escape are explicit hazards
+    Execution: EXECUTED
+    Evidence: future injection, OI, duplicate conflict, malformed timestamp, symlink/path traversal, unsupported version, and non-UTC envelope tests passed
+  chaos testing: NOT_APPLICABLE — C06 has no distributed runtime or service-failover system
+  formal methods: NOT_APPLICABLE — deterministic examples and permutation/failure tests can exercise this bounded serialization and replay contract
 
 ### CARD_QUALITY_GATE
 
-Status: BLOCKED
+Status: PASS
 
 Card: V1-C06
 
-Focused tests: Pending
+Focused tests: PASS — 52 C06 tests
 
-Relevant regression tests: Pending
+Relevant regression tests: PASS — 328 full-suite tests, 2 dependency deprecation warnings
 
-Card evaluation / acceptance: Pending
+Card evaluation / acceptance: PASS — bounded real 168h BTC dataset, 168 candles + 168 funding, 336 deterministic replay events; the existing stored dataset remains valid after record-level completion enforcement
 
-Financial invariant tests: Pending
+Financial invariant tests: PASS — exact Decimal, no funding reinterpretation, OI exclusion, modeled-time boundary
 
-Data-quality / provenance tests: Pending
+Data-quality / provenance tests: PASS — category coverage, gaps, duplicates, incomplete bars, source and receipt timestamps
 
-AI / Risk tests: Pending
+AI / Risk tests: NOT_APPLICABLE — no AI, Strategy, Risk Gate, or trade path is implemented
 
-Security checks: Pending
+Security checks: PASS — secret scan, path/symlink, JSON/tamper, bounded network failure tests
 
-Exit Gate proof: Pending
+Exit Gate proof: PASS — exact C06 Exit Gate and current evidence matrix above
 
-Evidence updated: YES — initial empty evidence contract only; no implementation claim
+Evidence updated: YES — executed results, real dataset identity, failure history, and Learning Record recorded
 
-Project Control updated: Pending
+Project Control updated: YES — C06 READY_FOR_HUMAN_REVIEW, delivery NOT_GRANTED
 
-git diff reviewed: Pending
+git diff reviewed: PASS — C06 code/tests and authorized state/evidence only
 
-git status reviewed: Pending
+git status reviewed: PASS — authorized uncommitted C06 candidate only
 
-Unrelated changes: Pending
+Unrelated changes: NONE
 
-Secrets / generated artifacts check: Pending
+Secrets / generated artifacts check: PASS — secret scan; real dataset outside Git
 
-Known limitations: Pending
+Known limitations: provider publication latency and historical revisions, funding cadence/continuity, and redistribution rights remain unverified; modeled availability is assumed policy
 
-Remaining issues: Card not started; no implementation evidence
+Remaining issues: previous failed independent audit retained below; bounded re-audit of this changed candidate NOT_RUN; delivery NOT_GRANTED; C07 NOT_GRANTED
 
-Recommended status: NOT_STARTED
+Recommended status: READY_FOR_HUMAN_REVIEW — stop for independent audit, no delivery
 
 Human approval required before next Card: YES
+
+### Consolidated Audit Remediation History
+
+- Previous independent audit: `C06_AUDIT_FAILED_REMEDIATION_REQUIRED` against WORKTREE candidate `f088b7df5927a90c02e1b256b620174c26f607ae4f8bf0e86aa7f9a6d883dcda` on base `9d96cd5537e1c978003ca3235aa331c5750b347c`. This is historical evidence, not a verdict on the remediated candidate.
+- Human authorization: one bounded cycle for G1, M1, M2, N1-N5; `tests/test_maintenance_harness.py` is an explicit G1-only scope exception. No production checker change, assertion weakening, skipped tests, C01-C05 implementation change, dependency, delivery, or C07 work was authorized or performed.
+- G1: reproduced that the prior maintenance fixture supplied `Active Card: V1-C06` with `IN_PROGRESS`, contrary to the canonical maintenance precondition. The fixture now constructs `Active Card: NONE`, clears the active record/authorization and frozen C06 identity, supplies a synthetic idle Safe Resume and explicit maintenance authorization, and still calls the production checker. Four affected scenarios and a fail-closed idle-precondition regression passed.
+- M1: replaced macOS-only `/private/tmp` with pytest `tmp_path`; storage-root, symlink, traversal, tamper, and outside-Git assertions remain active. The configured `.github/workflows/ci.yml` uses Ubuntu and Python 3.13; hosted CI for this uncommitted candidate is NOT_VERIFIED.
+- M2: red tests proved an 00:00-01:00 candle received at 00:30 became `COMPLETE` when `fetched_at` was 02:00, and a correctly rehashed forged dataset passed validation. Construction now excludes and counts any candle received before interval close; validation rejects such records even with valid hashes. The stored 168h acceptance dataset still loads with unchanged dataset/data hashes and 336 replay events.
+- N1: verified Guardrails §38 is Fees and §47 is Determinism/Reproducibility; corrected only the C06 references in Project Control and this Evidence Map.
+- N2: retry-exhaustion test now counts exactly three requests. A bounded four-attempt mutant failed with `4 != 3`; the production retry policy remains two retries.
+- N3: count and gap tests recompute manifest identity after mutation and reach the intended `record count` and `candle gap` validators; neither passes merely at identity validation.
+- N4: C06 preserves negative source-reported funding. A focused test demonstrates C04 rejects the same negative payload, while candle and non-negative funding differential tests pass. The real dataset contains two negative funding observations. `C06-OBS-C04-FUNDING-001` is a separate non-blocking future maintenance observation; C04 was not modified or reopened.
+- N5: the independent audit triggered the existing CONDITIONAL mutation decision. Temporary early-candle and four-attempt source mutants were detected by three and one targeted regression failures respectively; files were restored byte-for-byte. Generated bytecode from the equal-size retry mutant briefly caused one subsequent false failure; clearing only its ignored `.pyc` cache restored the 63-test focused suite. No mutation tool or dependency was added.
+- Current audit state: NOT_RUN for the remediated candidate. Its material code/tests/evidence changes require one bounded independent re-audit; the prior failed result remains historical.
+
+### Independent Audit
+
+- Status: PASS_WITH_GAPS
+- Candidate Type: WORKTREE
+- Branch: card/v1-c06-historical-data-replay-foundation
+- Base SHA: 9d96cd5537e1c978003ca3235aa331c5750b347c
+- Candidate Diff SHA-256: 01618f2dafc7e1f2d2f4e5879f799dd60d16d33accb2cd3c5ca2d626897a6f5b
+- Untracked Files: src/traid/historical/__init__.py, src/traid/historical/dataset.py, src/traid/historical/models.py, src/traid/historical/replay.py, src/traid/historical/store.py, src/traid/providers/hyperliquid_history.py, tests/test_historical_dataset.py, tests/test_historical_replay.py, tests/test_historical_store.py, tests/test_hyperliquid_history.py
+- Verifier context: Claude Code independent bounded C06 re-audit; external verdict supplied for this exact frozen candidate
+- Canonical inputs reviewed: C06 contract, Exit Gate, invariants, and risk record under the existing Harness audit procedure; itemized paths were not supplied with the verdict
+- Evidence reviewed: exact WORKTREE candidate identity above and bounded re-audit findings supplied for that candidate
+- Findings: R1 — MINOR / NON_BLOCKING: explicit regression assertions for close minus 1 millisecond and exactly-at-close boundaries are missing; implementation behavior at both boundaries was observed correct
+- Unresolved blockers: NONE
+- Gap dispositions: ACCEPTED — R1 boundary regression-test gap accepted for C06 delivery by the explicit human delivery authorization, with implementation boundary behavior observed correct
+- Limitations: R1 remains a residual regression-test coverage gap; provider publication time, historical revisions, funding cadence, and redistribution rights remain unverified
+- Verdict: C06_REAUDIT_PASS_READY_FOR_HUMAN_DELIVERY_REVIEW — PASS_WITH_GAPS, no BLOCKER or MAJOR findings, R1 accepted as non-blocking for this delivery
 
 
 ---

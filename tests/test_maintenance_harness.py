@@ -21,6 +21,51 @@ def _run_checker(cwd: Path) -> subprocess.CompletedProcess[str]:
     return subprocess.run([sys.executable, str(CHECKER)], cwd=cwd, text=True, capture_output=True, env=env)
 
 
+def _idle_maintenance_scaffold(control: str, evidence: str) -> tuple[str, str]:
+    """Give policy scenarios an explicit idle Card state, independent of live C06."""
+    active = re.search(r"^Active Card: (V1-C\d{2}|NONE)$", control, re.MULTILINE)
+    assert active, "canonical Card state must exist in the scaffold"
+    card_id = active.group(1)
+    if card_id == "NONE":
+        return control, evidence
+
+    row = re.search(rf"^\| {re.escape(card_id)} \| ([^|]+) \|[^\n]+$", control, re.MULTILINE)
+    assert row, "active Card must have a canonical status row"
+    title = row.group(1).strip()
+    control, row_count = re.subn(
+        rf"^\| {re.escape(card_id)} \| [^|]+ \|[^\n]+$",
+        f"| {card_id} | {title} | NOT_STARTED | NO | NOT_RUN | PENDING |",
+        control, count=1, flags=re.MULTILINE,
+    )
+    assert row_count == 1
+    control = re.sub(r"^Active Card: V1-C\d{2}$", "Active Card: NONE", control, flags=re.MULTILINE)
+    control = re.sub(r"^Active Card State: .+$", "Active Card State: NONE", control, count=1, flags=re.MULTILINE)
+    control = re.sub(r"^Next Roadmap Card: .+$", f"Next Roadmap Card: {card_id}", control, flags=re.MULTILINE)
+    control = re.sub(r"^Next Card Authorized: .+$", f"Next Card Authorized: NO — {card_id} start NOT_GRANTED", control, count=1, flags=re.MULTILINE)
+    control = re.sub(r"^Implementation Authorization: .+$", "Implementation Authorization: NONE — synthetic maintenance fixture", control, count=1, flags=re.MULTILINE)
+    control = re.sub(r"^Project Phase: .+$", "Project Phase: INTEGRATED / SYNTHETIC_IDLE", control, count=1, flags=re.MULTILINE)
+    control = re.sub(r"^Card Start: .+$", "Card Start: NOT_GRANTED — synthetic maintenance fixture", control, count=1, flags=re.MULTILINE)
+    control = re.sub(rf"^{re.escape(card_id)} Authorization: .+\n", "", control, flags=re.MULTILINE)
+    control, record_count = re.subn(
+        r"^Current active-Card record:\n\n```text\n.*?^```\n",
+        "", control, count=1, flags=re.MULTILINE | re.DOTALL,
+    )
+    assert record_count == 1
+    control, resume_count = re.subn(
+        r"^## 34\. Current Safe Resume Point\n.*?(?=^## 35\.)",
+        f"## 34. Current Safe Resume Point\n\n```text\nSafe Resume: synthetic maintenance scenario only\nActive Card is NONE\nNext Roadmap Card: {card_id}\n```\n\n---\n\n",
+        control, count=1, flags=re.MULTILINE | re.DOTALL,
+    )
+    assert resume_count == 1
+    evidence, evidence_count = re.subn(
+        rf"^## {re.escape(card_id)} — [^\n]+\n.*?(?=^## V1-C\d{{2}} |\Z)",
+        f"## {card_id} — {title}\n\n**Status:** NOT_STARTED\n\n**Start Authorization:** NOT_GRANTED\n\n**Next Card Authorization:** NOT_GRANTED\n\n",
+        evidence, count=1, flags=re.MULTILINE | re.DOTALL,
+    )
+    assert evidence_count == 1
+    return control, evidence
+
+
 def _maintenance_fixture(
     tmp_path: Path,
     branch: str,
@@ -33,10 +78,11 @@ def _maintenance_fixture(
     ),
 ) -> Path:
     subprocess.run(["git", "init", "-q", "-b", branch], cwd=tmp_path, check=True)
-    # Live files provide unrelated Card/evidence scaffolding only. Replace the
-    # entire maintenance authorization so policy tests use explicit scenarios.
+    # Live files supply only document structure. The policy scenario declares
+    # an idle Card state and its own maintenance authorization.
     control = (ROOT / "PROJECT_CONTROL.md").read_text()
     evidence = (ROOT / "TRAID_CARD_EVIDENCE_MAP.md").read_text()
+    control, evidence = _idle_maintenance_scaffold(control, evidence)
     evidence = re.sub(r"^### (?:Current|Historical) Maintenance Re-Audit Record\n.*?(?=^# 20\.)", "", evidence, flags=re.MULTILINE | re.DOTALL)
     control = re.sub(r"^Git Branch: .+$", f"Git Branch: {branch}", control, count=1, flags=re.MULTILINE)
     maintenance = "\n".join((
@@ -113,6 +159,22 @@ def test_authorized_hotfix_branch_passes(tmp_path: Path) -> None:
     fixture = _maintenance_fixture(tmp_path, "hotfix/recovery-fix")
     result = _run_checker(fixture)
     assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_maintenance_fixture_has_idle_card_precondition_and_fails_if_activated(tmp_path: Path) -> None:
+    fixture = _maintenance_fixture(tmp_path, "maintenance/idle-card-precondition")
+    control_path = fixture / "PROJECT_CONTROL.md"
+    control = control_path.read_text()
+    assert re.search(r"^Active Card: NONE$", control, re.MULTILINE)
+    assert re.search(r"^Active Card State: NONE$", control, re.MULTILINE)
+    assert _run_checker(fixture).returncode == 0
+    first_pending = re.search(r"^\| (V1-C\d{2}) \| ([^|]+) \| NOT_STARTED \| NO \| NOT_RUN \| PENDING \|$", control, re.MULTILINE)
+    assert first_pending
+    card_id, title = first_pending.groups()
+    control_path.write_text(control.replace(first_pending.group(0), f"| {card_id} | {title} | IN_PROGRESS | YES | BLOCKED | IN_PROGRESS |", 1))
+    result = _run_checker(fixture)
+    assert result.returncode != 0
+    assert "ACTIVE_CARD_NONE_WITH_ACTIVE_STATE" in result.stdout
 
 
 @pytest.mark.parametrize(
