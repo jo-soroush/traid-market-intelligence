@@ -1889,7 +1889,7 @@ Human approval required before next Card: YES
 
 ## V1-C06 — Historical Data & Replay Foundation
 
-**Status:** READY_FOR_HUMAN_REVIEW
+**Status:** COMPLETE — delivered; post-merge validation and operational reconciliation are in progress
 
 **Start Authorization:** GRANTED — explicit V1-C06 implementation authorization in the current request
 
@@ -1953,15 +1953,15 @@ Human approval required before next Card: YES
 - Diagnosis: inspected failed assertions, replay total-order policy, decoder exception path, datetime equality, and documented inclusive `startTime` behavior.
 - Fix/recovery: C06 tests select candle category explicitly; decoder preserves `DatasetError`; replay envelope requires zero UTC offset; provider re-reads the last pagination timestamp and rejects unprovable full-page boundaries. The maintenance test helper now sets an explicit synthetic pre-review Card state when the live Card is review-ready, so its hypothetical maintenance branch is not bound to a foreign frozen candidate; production checker and assertions remain unchanged.
 - Regression proof: initial candidate's 48 focused and 323 full-suite tests passed; after audit remediation, 52 focused C06, 63 C06 plus maintenance, and 328 full-suite tests passed. The stored acceptance dataset still loads and replays with unchanged hashes and 336 events.
-- Remaining risk: provider publication times, historical revisions, funding cadence, and redistribution rights remain NOT_VERIFIED; an independent verifier has not audited this candidate.
+- Remaining risk: R1 boundary assertions remain a non-blocking regression-test coverage gap; provider publication times, historical revisions, funding cadence, and redistribution rights remain NOT_VERIFIED.
 
-### Git / Repository
-- Branch: card/v1-c06-historical-data-replay-foundation
-- Start commit: 9d96cd5537e1c978003ca3235aa331c5750b347c
-- Checkpoint commit: NONE — implementation candidate remains uncommitted for independent audit
-- Push: NOT_PERFORMED — delivery not authorized
-- Draft PR: NOT_PERFORMED — delivery not authorized
-- Merge: NOT_PERFORMED — delivery not authorized
+### Git / Repository (Candidate-Freeze Record)
+- Branch at audit freeze: card/v1-c06-historical-data-replay-foundation
+- Start/base commit: 9d96cd5537e1c978003ca3235aa331c5750b347c
+- Checkpoint commit at freeze: NONE — candidate was intentionally uncommitted for independent audit
+- Push at freeze: NOT_PERFORMED — delivery had not yet been authorized
+- Draft PR at freeze: NOT_PERFORMED — delivery had not yet been authorized
+- Merge at freeze: NOT_PERFORMED — delivery had not yet been authorized
 - `git diff` review: PASS — C06 implementation/tests, two authorized state/evidence files, and one necessary maintenance-test fixture correction; no production checker change
 - `git status` review: PASS — C06 files are untracked candidate content; no staged changes or product files from C01-C05 modified
 - Secrets/generated artifacts/unrelated changes: no secrets or raw source responses in Git; real dataset is outside Git; no dependencies or unrelated product code changed
@@ -2021,7 +2021,7 @@ What this enables next: a separately authorized future Card can consume validate
 - Exact Card Exit Gate: "A versioned BTC canonical dataset can be replayed deterministically with source/category coverage, gaps, and availability limitations explicit and without silently filling or interpolating missing information."
 - Requirement-to-evidence mapping: see current Exit Gate Evidence Matrix below and the real dataset manifest identified by `f96e7a0764a18b059a99356ebafb5ad581dc5cf2be81225c5d160a53b8b7f724`.
 - Unproven requirements: NONE within the exact C06 Exit Gate; true historical publication latency and redistribution permission remain explicitly unverified limitations.
-- Exact Exit Gate fully proven: YES — developer validation; independent audit NOT_RUN.
+- Exact Exit Gate fully proven: YES — developer validation and bounded independent audit PASS_WITH_GAPS; R1 is accepted as non-blocking for this delivery.
 
 ### Validation Checkpoints
 
@@ -2114,7 +2114,7 @@ Exit Gate proof: PASS — exact C06 Exit Gate and current evidence matrix above
 
 Evidence updated: YES — executed results, real dataset identity, failure history, and Learning Record recorded
 
-Project Control updated: YES — C06 READY_FOR_HUMAN_REVIEW, delivery NOT_GRANTED
+Project Control at candidate freeze: YES — C06 READY_FOR_HUMAN_REVIEW; delivery was NOT_GRANTED at that checkpoint
 
 git diff reviewed: PASS — C06 code/tests and authorized state/evidence only
 
@@ -2126,9 +2126,9 @@ Secrets / generated artifacts check: PASS — secret scan; real dataset outside 
 
 Known limitations: provider publication latency and historical revisions, funding cadence/continuity, and redistribution rights remain unverified; modeled availability is assumed policy
 
-Remaining issues: previous failed independent audit retained below; bounded re-audit of this changed candidate NOT_RUN; delivery NOT_GRANTED; C07 NOT_GRANTED
+Remaining issues: R1 boundary regression-test coverage gap is accepted as non-blocking for this delivery; provider publication latency, historical revisions, funding cadence/continuity, and redistribution rights remain unverified; C07 NOT_GRANTED
 
-Recommended status: READY_FOR_HUMAN_REVIEW — stop for independent audit, no delivery
+Recommended status: C06 delivery COMPLETE; post-merge validation/reconciliation pending after the failure recorded below; C07 remains NOT_GRANTED
 
 Human approval required before next Card: YES
 
@@ -2144,10 +2144,11 @@ Human approval required before next Card: YES
 - N3: count and gap tests recompute manifest identity after mutation and reach the intended `record count` and `candle gap` validators; neither passes merely at identity validation.
 - N4: C06 preserves negative source-reported funding. A focused test demonstrates C04 rejects the same negative payload, while candle and non-negative funding differential tests pass. The real dataset contains two negative funding observations. `C06-OBS-C04-FUNDING-001` is a separate non-blocking future maintenance observation; C04 was not modified or reopened.
 - N5: the independent audit triggered the existing CONDITIONAL mutation decision. Temporary early-candle and four-attempt source mutants were detected by three and one targeted regression failures respectively; files were restored byte-for-byte. Generated bytecode from the equal-size retry mutant briefly caused one subsequent false failure; clearing only its ignored `.pyc` cache restored the 63-test focused suite. No mutation tool or dependency was added.
-- Current audit state: NOT_RUN for the remediated candidate. Its material code/tests/evidence changes require one bounded independent re-audit; the prior failed result remains historical.
+- At candidate freeze, audit state was NOT_RUN for the remediated candidate; the prior failed result remains historical. The subsequent bounded re-audit result is recorded below.
 
 ### Independent Audit
 
+- Record Classification: HISTORICAL — delivery completed; verdict remains bound to the frozen candidate identity below
 - Status: PASS_WITH_GAPS
 - Candidate Type: WORKTREE
 - Branch: card/v1-c06-historical-data-replay-foundation
@@ -2162,6 +2163,57 @@ Human approval required before next Card: YES
 - Gap dispositions: ACCEPTED — R1 boundary regression-test gap accepted for C06 delivery by the explicit human delivery authorization, with implementation boundary behavior observed correct
 - Limitations: R1 remains a residual regression-test coverage gap; provider publication time, historical revisions, funding cadence, and redistribution rights remain unverified
 - Verdict: C06_REAUDIT_PASS_READY_FOR_HUMAN_DELIVERY_REVIEW — PASS_WITH_GAPS, no BLOCKER or MAJOR findings, R1 accepted as non-blocking for this delivery
+
+### C06 Delivery and Post-Merge Reconciliation
+
+```text
+Delivery branch: card/v1-c06-historical-data-replay-foundation
+Delivery commit: 4090151f937006b227f9644ad284d504c04884ef; parent/base 9d96cd5537e1c978003ca3235aa331c5750b347c
+PR: #10 — https://github.com/jo-soroush/traid-market-intelligence/pull/10; target main
+Hosted CI: both applicable c01-baseline/test checks PASS for PR head 4090151f937006b227f9644ad284d504c04884ef
+Merge method/SHA: squash; 1c40b3a5b0c801d303d71053c411427767d671c1
+Audit identity: preserved as WORKTREE on the candidate branch, base 9d96cd5537e1c978003ca3235aa331c5750b347c, Diff SHA-256 01618f2dafc7e1f2d2f4e5879f799dd60d16d33accb2cd3c5ca2d626897a6f5b, with the ten-file untracked manifest in the Independent Audit record above. The delivery commit is separate provenance.
+Pre-delivery full pytest: PASS — 328 passed, 2 dependency deprecation warnings
+Pre-delivery focused C06 tests: PASS — 52 passed
+Pre-delivery Harness: PASS; bootstrap PASS_WITH_1_WARNINGS (expected dirty candidate warning, 20 PASS / 1 WARN / 0 FAIL)
+Pre-delivery secret scan, compilation, import smoke, FastAPI /health, pip check, and staged diff check: PASS; health HTTP 200; pip reported no broken requirements
+Post-merge validation: BLOCKED — the post-merge run reported 325 passed and 3 failed; all failures are completed-Card summary fixture tests listed in the maintenance record below
+Final operational state: C01-C06 COMPLETE; Active Card NONE; C07 NOT_STARTED / NOT_GRANTED; D-OI-001 DEFERRED; Hyperliquid OI UNVERIFIED FOR CANONICAL USE
+Dataset: real acceptance data remains outside Git; no raw provider response or dataset was committed
+Remaining limitations: R1 remains an accepted regression-test coverage gap; historical publication latency/backfills, funding cadence/continuity, and redistribution rights remain unverified
+```
+
+### C06 Post-Merge Summary-Fixture Maintenance
+
+```text
+Origin: PR #10 delivered C06 and squash-merged at 1c40b3a5b0c801d303d71053c411427767d671c1; post-merge validation reported 325 passed and 3 failed
+Failures: test_completed_card_summary_must_include_all_completed_cards; test_completed_card_summary_rejects_extra_noncomplete_card; test_completed_card_summary_accepts_future_dynamically_completed_card
+Independent root-cause result: TEST_FIXTURE_DEFECT — the production checker derives expected completed Cards from the canonical status table and is correct; the three tests hard-coded C01-C05 summaries and unchecked literal replacements, so their intended scenarios disappeared after C06 became COMPLETE
+Preserved reconciliation draft: the pre-existing PROJECT_CONTROL.md and TRAID_CARD_EVIDENCE_MAP.md diff was backed up outside Git at `/private/tmp/traid-c06-postmerge-reconciliation.patch`; SHA-256 `727be2e3064920b5094648c54e2ae42c496253ae1438164b11f587d57a0879fc`; bytes matched the working diff before branch creation and remain available through this bounded maintenance
+Maintenance base/branch: base 1c40b3a5b0c801d303d71053c411427767d671c1; `maintenance/c06-post-merge-summary-fixture`; Active Card NONE; C01-C06 COMPLETE; C07 NOT_STARTED / NOT_GRANTED
+Authorized scope: tests/test_harness_consistency.py, PROJECT_CONTROL.md, TRAID_CARD_EVIDENCE_MAP.md. Production checker and C06 product implementation are not in scope.
+Fixture correction: read the Card table using production `parse_card_table`, derive completed/non-completed IDs, construct both summary fields with bounded one-match substitutions, and assert the positive baseline has no summary issue before each negative mutation. All scenarios call production `current_state_issues`.
+Lifecycle coverage: synthetic pre-reconciliation state with C06 READY_FOR_HUMAN_REVIEW; reconciled state with C06 COMPLETE; and a future state that marks the first NOT_STARTED Card COMPLETE and rebuilds both summaries dynamically.
+Neighbor fixture review: the nearby `test_live_current_head_claim_is_rejected` was changed without authorization while repairing the completed-Card fixtures. It has been restored exactly to its merged-base implementation; the completed-Card summary corrections remain. The historical-summary consistency test remains live by design; maintenance-scope scenarios declare their allowed paths explicitly.
+Mutation evidence: PASS — scratch checker with the Implementation summary comparison disabled was detected by the missing-Card test; a scratch checker weakened to expected-set subset comparison was detected by the extra-noncomplete-Card test. Production checker source was unchanged. Re-run after F1–F3 remediation: both bounded scratch mutations were detected again.
+Focused summary regressions: PASS — 8 passed, covering both negative scenarios across pre-reconciliation, reconciled, and future-completion states, the dynamically completed future Card, and prose-change independence.
+Adjacent current-head policy regression: PASS — restored merged-base test passed (1 passed).
+Focused governance/lifecycle tests: PASS — tests/test_harness_consistency.py, tests/test_maintenance_harness.py, tests/test_lifecycle.py, and tests/test_alignment.py; 176 passed.
+All-27-Card resolver consistency: PASS — 27 passed.
+Full pytest: PASS — 333 passed, 2 existing Starlette/AnyIO deprecation warnings.
+Harness consistency: PASS — `.venv/bin/python scripts/harness_consistency_check.py`.
+Bootstrap: PASS_WITH_1_WARNINGS — 20 PASS, 1 expected dirty-worktree warning, 0 FAIL; Active Card NONE and C07 NOT_GRANTED were observed.
+Secret scan: PASS — `bash scripts/check_secrets.sh`; no obvious tracked secret or credential pattern.
+Python compilation: PASS — `.venv/bin/python -m compileall -q src scripts tests`.
+Import/health: PASS — imported `traid.main` and `traid.harness.lifecycle.evaluate_pre_card_readiness`; `/health` returned HTTP 200, status=ok, service=traid, version=0.1.0, environment=development.
+pip check: PASS — no broken requirements found.
+git diff --check: PASS — no whitespace errors.
+Validation limitation: hosted CI has not run for this maintenance candidate; no delivery action was authorized or performed.
+Previous candidate independent audit: FAIL — F1 MAJOR (unauthorized neighboring test change), F2 MINOR (premature post-merge validation claim), and F3 MINOR (two unnecessary historical-text edits); the previous candidate digest and findings are preserved in the historical audit record below.
+Remediation: F1 restored `test_live_current_head_claim_is_rejected` exactly from merged base while retaining the completed-Card fixture repair; F2 separated verified PR/hosted-CI/squash-merge facts from blocked post-merge validation and incomplete final reconciliation; F3 restored the PR #9 status sentence and AEVS §25 introduction exactly from merged base.
+Current independent audit: NOT_RUN for the remediated candidate; no independent candidate verdict is claimed. Delivery: NOT_GRANTED / NOT_PERFORMED; hosted maintenance CI NOT_VERIFIED; final reconciliation INCOMPLETE.
+Out-of-scope observation: section-4-specific normalization behavior remains a separate future maintenance observation; no production checker modification is authorized or planned.
+```
 
 
 ---
@@ -5796,6 +5848,52 @@ Audit applicability: the earlier bounded re-audit PASS remains historical eviden
 Current independent audit: NOT_RUN — RE-AUDIT REQUIRED.
 Delivery authorization/performance: NOT_GRANTED / NOT_PERFORMED.
 ```
+
+### Historical Maintenance Re-Audit Record
+
+```text
+Record Classification: HISTORICAL
+Maintenance Task ID: MAINT-C06-POST-MERGE-SUMMARY-FIXTURE
+Status: BLOCKED
+Candidate Type: WORKTREE
+Branch: maintenance/c06-post-merge-summary-fixture
+Base SHA: 1c40b3a5b0c801d303d71053c411427767d671c1
+Candidate Diff SHA-256: 7a0cc072444d96a156f61b3d6d549eda9657fb00f6899dc08b663c52bcf69be1
+Untracked Files: NONE
+Verifier context: independent maintenance audit; findings F1–F3 supplied against this exact frozen candidate
+Canonical inputs reviewed: maintenance authorization, current PROJECT_CONTROL state, evidence history, and candidate diff as identified by the audit findings
+Evidence reviewed: exact WORKTREE candidate identity above and the independently observed F1–F3 findings
+Findings: F1 MAJOR — unauthorized neighboring test change; F2 MINOR — premature post-merge validation claim; F3 MINOR — two unnecessary historical-text edits
+Unresolved blockers: F1 requires correction before re-audit
+Gap dispositions: F2 and F3 require the bounded corrections authorized for this remediation
+Limitations: this failed audit applies only to the candidate identity recorded above
+Verdict: FAIL — bounded maintenance audit; remediation required
+```
+
+### Current Maintenance Re-Audit Record
+
+```text
+Record Classification: CURRENT
+Maintenance Task ID: MAINT-C06-POST-MERGE-SUMMARY-FIXTURE
+Status: PASS
+Candidate Type: WORKTREE
+Branch: maintenance/c06-post-merge-summary-fixture
+Base SHA: 1c40b3a5b0c801d303d71053c411427767d671c1
+Candidate Diff SHA-256: 2977bdc01e2899bd71d713e3cdc39ea1c670babee4fa91530c1bbc9d8d532769
+Untracked Files: NONE
+Verifier context: Claude Code independent bounded maintenance re-audit
+Canonical inputs reviewed: current maintenance authorization, F1–F3 audit findings, repository maintenance procedure, and frozen candidate state
+Evidence reviewed: exact WORKTREE candidate identity above, corrected test fixtures, remediation evidence, and executed validation
+Findings: NONE — no BLOCKER, MAJOR, or MINOR findings remain
+Unresolved blockers: NONE
+Gap dispositions: NONE
+Limitations: post-merge reconciliation remains pending until this maintenance is delivered and final main validation passes
+Verdict: PASS — MAINTENANCE_REAUDIT_PASS_READY_FOR_HUMAN_DELIVERY_REVIEW
+```
+
+The historical record preserves the failed audit and its exact candidate identity.
+The current record binds only the corrected summary-fixture maintenance candidate.
+Earlier AEVS and C06 audit records retain their own identities and findings.
 
 ### Previous Candidate Validation Evidence
 

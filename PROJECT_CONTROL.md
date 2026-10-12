@@ -40,13 +40,13 @@ Never invent a convenient state.
 ```text
 Project: TraID
 Target: V1
-Project Phase: INTEGRATED / C06_READY_FOR_HUMAN_REVIEW
-Active Card: V1-C06
-Active Card State: READY_FOR_HUMAN_REVIEW
-Last COMPLETE Card: V1-C05 — Data Quality, Freshness & Provenance
+Project Phase: INTEGRATED / C06_COMPLETE
+Active Card: NONE
+Active Card State: NONE
+Last COMPLETE Card: V1-C06 — Historical Data & Replay Foundation
 Next Roadmap Card: V1-C07 — Order Book & Liquidity Analytics
 Next Card Authorized: NO — C07 start NOT_GRANTED
-Implementation Authorization: GRANTED — explicit V1-C06 Phase 1 authorization; delivery NOT_GRANTED
+Implementation Authorization: V1-C06 START_GRANTED / DELIVERY_GRANTED / DELIVERY_COMPLETED; C07 NOT_GRANTED
 Systemic State-Drift Remediation: CLOSED / DELIVERED / VERIFIED
 V1 COMPLETE: NO
 Live Trade Execution: PROHIBITED
@@ -105,16 +105,16 @@ Canonical Harness Installation: VERIFIED
 Canonical Harness Files: 10 / 10 PRESENT
 Harness Structure: VERIFIED
 Research / Reconnaissance Organization: VERIFIED
-Implementation: COMPLETE — completed Cards are recorded in the canonical Card Status Table below; V1-C01, V1-C02, V1-C03, V1-C04, and V1-C05 implementation, validation, and approved delivery are verified
-Source Code: PRESENT — C01 baseline, C02 canonical domain contracts, C03 boundary, C04 provider adapter, and C05 quality layer
-Tests: PRESENT — C01 through C05 focused, regression, and Harness tests
+Implementation: COMPLETE — V1-C01, V1-C02, V1-C03, V1-C04, V1-C05, and V1-C06 implementation, validation, and approved delivery are verified in the canonical Card Status Table below
+Source Code: PRESENT — C01 baseline, C02 canonical domain contracts, C03 boundary, C04 provider adapter, C05 quality layer, and C06 historical data/replay foundation
+Tests: PRESENT — C01 through C06 focused, regression, and Harness tests
 Git Repository: INITIALIZED
-Git Branch: card/v1-c06-historical-data-replay-foundation
-Git Checkpoint: 9d96cd5537e1c978003ca3235aa331c5750b347c — verified C06 branch base on synchronized main
-Git Upstream: origin/main
+Git Branch: maintenance/c06-post-merge-summary-fixture
+Git Checkpoint: 1c40b3a5b0c801d303d71053c411427767d671c1 — verified main base for bounded post-merge maintenance
+Git Upstream: NOT_CONFIGURED — maintenance branch is local and unpushed
 Git Remote: origin — https://github.com/jo-soroush/traid-market-intelligence.git
-Git Safe Checkpoint: VERIFIED — final provenance maintenance reconciliation delivered
-Working Tree: DIRTY_ALLOWED — authorized V1-C06 implementation in progress
+Git Safe Checkpoint: VERIFIED — main merge base; original reconciliation diff backed up externally
+Working Tree: DIRTY_ALLOWED — authorized maintenance candidate and preserved reconciliation draft
 V1-C01: COMPLETE
 V1-C01 Authorization: START_GRANTED; DELIVERY_GRANTED; DELIVERY_COMPLETED
 V1-C02: COMPLETE
@@ -125,14 +125,41 @@ V1-C04: COMPLETE
 V1-C04 Authorization: START_GRANTED; DELIVERY_GRANTED; DELIVERY_COMPLETED
 V1-C05: COMPLETE
 V1-C05 Authorization: START_GRANTED; DELIVERY_GRANTED; DELIVERY_COMPLETED
+V1-C06: COMPLETE
+V1-C06 Authorization: START_GRANTED; DELIVERY_GRANTED; DELIVERY_COMPLETED
 ```
 
 Filesystem verification is not implementation evidence. Runtime, test, and
 Git delivery claims require their own executed evidence.
 
-C01, C02, C03, C04, and C05 repository, runtime, validation, approved delivery,
-and post-merge verification evidence are recorded. No Card is active; C06
-remains unauthorized.
+C01-C06 implementation and approved delivery evidence are recorded. C06
+post-merge validation previously reported 325 passed and 3 failed in completed-
+Card summary tests; final post-merge reconciliation is not yet verified. No Card
+is active; C07 remains unauthorized.
+
+### Current Maintenance Record
+
+```text
+Maintenance Task ID: MAINT-C06-POST-MERGE-SUMMARY-FIXTURE
+Title: C06 post-merge completed-Card summary test-fixture correction
+Status: IN_PROGRESS — authorized fixture correction and reconciliation validation
+Reason: post-merge pytest reported 325 passed and 3 failures in completed-Card summary scenarios; independent root-cause analysis proved deterministic test-fixture coupling while production checker behavior is correct
+Originating Evidence: PR #10 squash merge `1c40b3a5b0c801d303d71053c411427767d671c1`; post-merge pytest result and independent Claude Code root-cause analysis
+Base Commit: 1c40b3a5b0c801d303d71053c411427767d671c1 — verified C06 merge on synchronized main
+Branch: maintenance/c06-post-merge-summary-fixture
+Authorized Scope: deterministic completed-Card summary fixtures in tests/test_harness_consistency.py; truthful maintenance and post-merge reconciliation records in PROJECT_CONTROL.md and TRAID_CARD_EVIDENCE_MAP.md
+Prohibited Scope: production checker changes; C01-C06 product implementation or contract changes; C07 implementation/authorization; financial guardrails; OI semantics; dependencies/tools; commit, push, PR, or merge
+Expected Areas: tests/test_harness_consistency.py, PROJECT_CONTROL.md, TRAID_CARD_EVIDENCE_MAP.md
+Required Validation: focused summary regressions; Harness/maintenance/lifecycle and 27-Card tests; full pytest; Harness; bootstrap; secret scan; compilation/import/health; pip check; git diff --check; bounded scratch mutation checks
+External Git Permissions: NOT_GRANTED — no commit, push, PR, or merge authorized
+Closure Evidence: Developer validation and F1–F3 remediation recorded in TRAID_CARD_EVIDENCE_MAP.md; previous candidate audit FAIL is preserved historically; current candidate independent audit NOT_RUN; delivery NOT_GRANTED / NOT_PERFORMED
+Safe Resume: finish only this bounded fixture and state-reconciliation maintenance, validate the candidate, then stop for independent audit; keep Active Card NONE, C01-C06 COMPLETE, C07 NOT_STARTED / NOT_GRANTED, and D-OI-001 DEFERRED
+Allowed Paths: tests/test_harness_consistency.py, PROJECT_CONTROL.md, TRAID_CARD_EVIDENCE_MAP.md
+```
+
+This maintenance preserves C06 delivery evidence and does not reopen a Card.
+
+---
 
 ### Previous Maintenance Record
 
@@ -207,7 +234,7 @@ This record is historical maintenance state, not a Roadmap Card or a second
 Card-state owner. AEVS operational reconciliation is complete; current Card
 state is owned by the state table and active-Card record below.
 
-### Current Maintenance Record
+### Previous Maintenance Record — MAINT-POST-MERGE-RECONCILIATION-CONTRACT-V1
 
 ```text
 Maintenance Task ID: MAINT-POST-MERGE-RECONCILIATION-CONTRACT-V1
@@ -406,12 +433,12 @@ Human Delivery Approval: GRANTED — explicit V1-C05 Phase-2 delivery authorizat
 Delivery Verified: YES — PR #7, squash merge `efc8ef6`, remote verification, and post-merge validation complete
 ```
 
-Current active-Card record:
+Last completed-Card record:
 
 ```text
 Card ID: V1-C06
 Title: Historical Data & Replay Foundation
-State: READY_FOR_HUMAN_REVIEW
+State: COMPLETE
 Branch: card/v1-c06-historical-data-replay-foundation
 Start Commit: 9d96cd5537e1c978003ca3235aa331c5750b347c
 Safe Checkpoint: 9d96cd5537e1c978003ca3235aa331c5750b347c — verified clean main base
@@ -426,24 +453,24 @@ Security Requirements: bounded read-only API, no credentials, root outside Git, 
 Focused Validation: PASS — 52 focused C06 tests and 328 full-suite tests passed after audit remediation; exact commands and warnings are in Card Evidence
 Exit Gate: PASS — bounded real BTC dataset, coverage, gaps, integrity, and deterministic replay recorded in Card Evidence
 ROADMAP_ALIGNMENT_GATE: PASS — C06 scope/dependencies/ownership verified at Phase 0
-CARD_QUALITY_GATE: PASS — developer validation and exact Exit Gate complete; independent audit NOT_RUN
-Blockers: Previous independent audit failed; its G1/M1/M2/N1-N5 findings were remediated in the current candidate, which requires bounded independent re-audit before any delivery decision
-Known Limitations: exact provider publication time, historical revisions/backfills, and funding cadence/continuity are unverified
+CARD_QUALITY_GATE: PASS — developer validation and exact Exit Gate complete; independent audit PASS_WITH_GAPS with R1 accepted as non-blocking for delivery
+Blockers: final post-merge governance verification pending after three summary-fixture failures; no C06 product defect identified; C07 remains NOT_GRANTED
+Known Limitations: R1 boundary regression-test gap remains; provider publication time, historical revisions/backfills, funding cadence/continuity, and redistribution rights are unverified
 Human Start Approval: GRANTED — explicit V1-C06 implementation authorization in this request
-Human Delivery Approval: NOT_GRANTED
-Delivery Verified: NO
+Human Delivery Approval: GRANTED — explicit C06 controlled-delivery authorization
+Delivery Verified: YES — PR #10 merged with hosted PR CI PASS at verified squash merge `1c40b3a5b0c801d303d71053c411427767d671c1`; post-merge validation remains BLOCKED pending maintenance delivery, final reconciliation is INCOMPLETE, and C07 remains NOT_GRANTED
 ```
 
 ## 7. Authorization Ledger
 
 ```text
 Card Start: GRANTED — V1-C06 Phase 1 implementation
-Delivery Approval: GRANTED / COMPLETED — V1-C05 delivery verified
+Delivery Approval: GRANTED / COMPLETED — V1-C06 delivery verified
 Next Card: NOT_GRANTED — C07 and later remain unauthorized
 V1-C03 Authorization: START_GRANTED; DELIVERY_GRANTED; DELIVERY_COMPLETED
 V1-C04 Authorization: START_GRANTED; DELIVERY_GRANTED; DELIVERY_COMPLETED
 V1-C05 Authorization: START_GRANTED; DELIVERY_GRANTED; DELIVERY_COMPLETED
-V1-C06 Authorization: START_GRANTED; DELIVERY_NOT_GRANTED
+V1-C06 Authorization: START_GRANTED; DELIVERY_GRANTED; DELIVERY_COMPLETED
 Architecture Change: NOT_GRANTED
 Material Scope Change: NOT_GRANTED
 Significant Technology Addition: NOT_GRANTED
@@ -468,8 +495,8 @@ Routine reversible implementation is allowed only inside an explicitly approved 
 
 ```text
 Approved V1 Cards: 27
-Completed Cards: V1-C01, V1-C02, V1-C03, V1-C04, V1-C05
-Active Card: V1-C06
+Completed Cards: V1-C01, V1-C02, V1-C03, V1-C04, V1-C05, V1-C06
+Active Card: NONE
 Next Roadmap Card: V1-C07 — available only after separate C07 start approval
 Later Cards: NOT AUTHORIZED
 ```
@@ -820,8 +847,8 @@ Current implementation evidence:
 ```text
 Risk Gate Implementation: NOT_STARTED
 Risk Gate Non-Bypass Evidence: NOT_AVAILABLE
-Historical Replay Foundation: NOT_STARTED
-Anti-Lookahead Evidence: NOT_AVAILABLE
+Historical Replay Foundation: COMPLETE — C06 dataset/replay foundation delivered
+Anti-Lookahead Evidence: PASS — C06 modeled replay-availability boundaries proven; backtesting remains future work
 Backtest Engine Integration: NOT_STARTED
 STOP-FIRST Test Evidence: NOT_AVAILABLE
 P&L Reconciliation Evidence: NOT_AVAILABLE
@@ -850,8 +877,8 @@ Evidence Reference:
 Current:
 
 ```text
-TraID repository test state: VERIFIED — 328 passed, 2 dependency warnings; C06 remediation developer validation on the authorized Card branch
-Harness consistency: PASS — C01-C05 COMPLETE, C06 READY_FOR_HUMAN_REVIEW, and delivery NOT_GRANTED validated
+TraID repository test state: VERIFIED — bounded maintenance full suite 333 passed, 2 dependency deprecation warnings; the original post-merge run's 3 completed-Card summary fixture failures are fixed by synthetic table-derived scenarios
+Harness consistency: PASS — production consistency checker on the active maintenance candidate
 Readiness gate: PASS — V1-C06 dependency/runtime/source preflight
 Secret scan: PASS
 Python compilation: PASS
@@ -887,11 +914,11 @@ Recommended State:
 Current:
 
 ```text
-CARD_QUALITY_GATE: PASS — C06 developer validation and exact Exit Gate proven; independent audit NOT_RUN
-Focused tests: 52 C06 tests passed; 328 full tests passed with 2 dependency warnings
+CARD_QUALITY_GATE: PASS — C06 developer validation and exact Exit Gate proven; independent audit PASS_WITH_GAPS with R1 accepted as non-blocking for the delivered C06 candidate
+Focused tests: 52 C06 tests passed; 328 full tests passed with 2 dependency warnings before delivery; post-merge run had 325 passed and 3 failed in summary fixtures
 Evidence updated: YES — C06 implementation, real-data acceptance, failure diagnosis, learning, and Exit Gate recorded
 Learning Record: COMPLETE — C06 fields recorded in Evidence Map
-Remaining issue: independent audit NOT_RUN; delivery NOT_GRANTED
+Remaining issue: corrected maintenance candidate awaits bounded independent audit and authorized delivery before final clean-main reconciliation; no C06 product defect identified; C06 R1 remains accepted for delivery; provider publication latency, revisions, funding cadence, and redistribution rights remain unverified
 ```
 
 ---
@@ -914,10 +941,10 @@ Key Demonstrated Lesson:
 Current:
 
 ```text
-Latest Evidence Update: C06 AUDIT REMEDIATION — new frozen worktree candidate, no delivery action
+Latest Evidence Update: C06 POST-MERGE GOVERNANCE FIXTURE MAINTENANCE — PR #10 merge recorded; 325 tests passed and 3 summary fixture tests failed
 Evidence Card: V1-C06
-Evidence Status: READY_FOR_HUMAN_REVIEW — previous failed audit retained historically; remediation validation recorded; bounded independent re-audit NOT_RUN
-Critical Missing Proof: bounded independent re-audit of the remediated candidate and separately approved delivery remain outstanding
+Evidence Status: MAINTENANCE_IN_PROGRESS — C06 delivery remains complete; post-merge governance verification/reconciliation is pending
+Critical Missing Proof: bounded independent audit and later authorized maintenance delivery/reconciliation; current candidate validation passes
 Learning Record Status: COMPLETE — C06 learning fields recorded in Evidence Map
 Key Demonstrated Lesson: historical event time, receipt time, and inferred replay availability require distinct contracts
 ```
@@ -940,11 +967,11 @@ Rollback Path:
 Current:
 
 ```text
-Checkpoint Type: NONE VERIFIED
-Branch: NOT VERIFIED
-Commit/State: NOT VERIFIED
-Validation: NOT VERIFIED
-Rollback Path: NOT VERIFIED
+Checkpoint Type: POST_MERGE_RECONCILIATION
+Branch: maintenance/c06-post-merge-summary-fixture
+Commit/State: 1c40b3a5b0c801d303d71053c411427767d671c1 — verified C06 squash merge and maintenance base
+Validation: PASS — maintenance candidate full pytest 333 passed; merge-checkpoint main's earlier 325 passed / 3 failed is retained as historical failure evidence; final post-delivery main validation remains pending
+Rollback Path: forward corrective governance commit or revert; no history rewrite
 ```
 
 Destructive rollback requires explicit approval.
@@ -968,15 +995,15 @@ Post-Merge Verification:
 Current:
 
 ```text
-Branch: main; Card branch: card/v1-c05-data-quality-freshness-provenance
-Commits: 88985be (C05 source); efc8ef6 (C05 squash merge); prior Card commits recorded above
-Push: C05 Card branch and origin/main VERIFIED
-PR: #7 — https://github.com/jo-soroush/traid-market-intelligence/pull/7
-PR State: MERGED — hosted CI PASS
-Human Review: APPROVED — C05 delivery approval granted
-Merge Approval: GRANTED
-Merge: VERIFIED — `efc8ef6` squash merge on main
-Post-Merge Verification: PASS — main contains C05; remote and working tree verified
+Branch: main; Card branch: card/v1-c06-historical-data-replay-foundation
+Commits: 4090151f937006b227f9644ad284d504c04884ef (C06 source); 1c40b3a5b0c801d303d71053c411427767d671c1 (C06 squash merge); prior Card commits recorded above
+Push: C06 Card branch and origin/main VERIFIED
+PR: #10 — https://github.com/jo-soroush/traid-market-intelligence/pull/10
+PR State: MERGED — both hosted c01-baseline/test checks PASS
+Human Review: APPROVED — explicit C06 controlled-delivery authorization
+Merge Approval: GRANTED — explicit C06 controlled-delivery authorization
+Merge: VERIFIED — `1c40b3a5b0c801d303d71053c411427767d671c1` squash merge on main
+Post-Merge Verification: ORIGINAL MAIN CHECKPOINT BLOCKED — 325 passed / 3 summary-fixture failures; corrected maintenance candidate passes 333 tests; final synchronized-main reconciliation remains pending delivery
 ```
 
 The block above records the verified C04 delivery and current integrated
@@ -1120,7 +1147,7 @@ Exact source decisions belong in Card evidence/source mapping.
 | V1-C03 | Exchange Adapter Contract | COMPLETE | YES | PASS | COMPLETE |
 | V1-C04 | Hyperliquid Provider Verification & Adapter | COMPLETE | YES | PASS | COMPLETE |
 | V1-C05 | Data Quality, Freshness & Provenance | COMPLETE | YES | PASS | COMPLETE |
-| V1-C06 | Historical Data & Replay Foundation | READY_FOR_HUMAN_REVIEW | YES | PASS | READY_FOR_HUMAN_REVIEW |
+| V1-C06 | Historical Data & Replay Foundation | COMPLETE | YES | PASS | COMPLETE |
 | V1-C07 | Order Book & Liquidity Analytics | NOT_STARTED | NO | NOT_RUN | PENDING |
 | V1-C08 | Trade Flow & CVD | NOT_STARTED | NO | NOT_RUN | PENDING |
 | V1-C09 | Derivatives & Volatility | NOT_STARTED | NO | NOT_RUN | PENDING |
@@ -1235,32 +1262,34 @@ when proof is absent.
 
 ```text
 Safe Resume:
-C01-C05 and AEVS governance maintenance remain delivered and verified. V1-C06
-is READY_FOR_HUMAN_REVIEW on its dedicated branch with developer validation
-complete after bounded audit remediation. The new frozen candidate awaits
-bounded independent re-audit; delivery is not authorized. C07 and later remain
-unauthorized. D-OI-001 remains
-DEFERRED and Hyperliquid OI remains UNVERIFIED FOR CANONICAL USE.
-Active Card is V1-C06
+C01-C06 and AEVS governance maintenance are delivered. V1-C06 remains COMPLETE
+after PR #10 squash merge. The original main-checkpoint test-fixture failures
+are corrected on maintenance/c06-post-merge-summary-fixture; its validation
+passes. This candidate awaits bounded independent audit and separate delivery
+authorization. C07 remains NOT_STARTED / NOT_GRANTED; do not begin C07.
+D-OI-001 remains DEFERRED and Hyperliquid OI remains UNVERIFIED FOR CANONICAL
+USE. Active Card is NONE.
 Next Roadmap Card: V1-C07
 
-Implementation Card: V1-C06
-Repository Write Authorization: V1-C06 bounded implementation only; delivery NOT_GRANTED
+Implementation Card: NONE
+Repository Write Authorization: no active Card; C07 start NOT_GRANTED
 Next Roadmap Card: V1-C07
 V1-C01 Authorization: START_GRANTED; DELIVERY_GRANTED; DELIVERY_COMPLETED
 V1-C02 Authorization: START_GRANTED; DELIVERY_GRANTED; DELIVERY_COMPLETED
 V1-C03 Authorization: START_GRANTED; DELIVERY_GRANTED; DELIVERY_COMPLETED
+V1-C04 Authorization: START_GRANTED; DELIVERY_GRANTED; DELIVERY_COMPLETED
+V1-C05 Authorization: START_GRANTED; DELIVERY_GRANTED; DELIVERY_COMPLETED
+V1-C06 Authorization: START_GRANTED; DELIVERY_GRANTED; DELIVERY_COMPLETED
 ```
 
 Current resume point:
 
 ```text
-All authorized maintenance through PR #9 is delivered and reconciled. V1-C06
-is READY_FOR_HUMAN_REVIEW on its dedicated branch after developer validation
-of the remediated candidate. Resume with bounded independent read-only re-audit
-of the new frozen candidate; stop before delivery or C07 without separate
-human approval.
-D-OI-001 remains DEFERRED and Hyperliquid OI remains UNVERIFIED FOR CANONICAL USE.
+PR #10 delivery is recorded; final post-merge validation/reconciliation is
+pending. Finish the bounded summary-fixture maintenance and stop at
+READY_FOR_INDEPENDENT_AUDIT. Active Card remains NONE; C07 is NOT_GRANTED and
+must not start. D-OI-001 remains DEFERRED and Hyperliquid OI remains
+UNVERIFIED FOR CANONICAL USE.
 ```
 
 ---

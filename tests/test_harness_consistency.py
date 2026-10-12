@@ -251,43 +251,152 @@ def test_closed_maintenance_pending_text_is_rejected() -> None:
     assert "CLOSED_MAINTENANCE_HAS_PENDING_TEXT" in issues
 
 
-def test_completed_card_summary_must_include_all_completed_cards() -> None:
-    control = CONTROL.read_text().replace(
-        "V1-C01, V1-C02, V1-C03, V1-C04, and V1-C05 implementation",
-        "V1-C01 and V1-C02 implementation",
-        1,
+def _set_synthetic_card_state(control: str, card_id: str, state: str) -> str:
+    assert card_id in {record.card_id for record in consistency.parse_card_table(control)}
+    assert state in {"COMPLETE", "READY_FOR_HUMAN_REVIEW", "NOT_STARTED"}
+
+    def update_row(match: re.Match[str]) -> str:
+        fields = [field.strip() for field in match.group(0).strip().strip("|").split("|")]
+        assert fields[0] == card_id
+        fields[2] = state
+        fields[3] = "YES" if state in {"COMPLETE", "READY_FOR_HUMAN_REVIEW"} else "NO"
+        fields[4] = "PASS" if state in {"COMPLETE", "READY_FOR_HUMAN_REVIEW"} else "NOT_RUN"
+        fields[5] = state if state in {"COMPLETE", "READY_FOR_HUMAN_REVIEW"} else "PENDING"
+        return "| " + " | ".join(fields) + " |"
+
+    control, count = re.subn(
+        rf"^\| {re.escape(card_id)} \|[^\n]*$", update_row, control,
+        count=1, flags=re.MULTILINE,
     )
-    issues = consistency.current_state_issues(control, EVIDENCE.read_text(), _git(ROOT, "rev-parse", "HEAD"))
-    assert "COMPLETED_CARD_SUMMARY_MISMATCH:IMPLEMENTATION" in issues
+    assert count == 1
+    return control
 
 
-def test_completed_card_summary_rejects_extra_noncomplete_card() -> None:
-    control = CONTROL.read_text().replace(
-        "Completed Cards: V1-C01, V1-C02, V1-C03, V1-C04, V1-C05",
-        "Completed Cards: V1-C01, V1-C02, V1-C03, V1-C04, V1-C05, V1-C06",
-        1,
-    )
-    issues = consistency.current_state_issues(control, EVIDENCE.read_text(), _git(ROOT, "rev-parse", "HEAD"))
-    assert "COMPLETED_CARD_SUMMARY_MISMATCH:ROADMAP_POSITION" in issues
-
-
-def test_completed_card_summary_accepts_future_dynamically_completed_card() -> None:
-    control = CONTROL.read_text()
-    control = re.sub(
-        r"^\| V1-C27 \|([^|]+)\| NOT_STARTED \| NO \|",
-        r"| V1-C27 |\1| COMPLETE | YES |",
+def _replace_completed_summaries(
+    control: str,
+    implementation_ids: tuple[str, ...],
+    roadmap_ids: tuple[str, ...],
+) -> str:
+    implementation = ", ".join(implementation_ids)
+    roadmap = ", ".join(roadmap_ids)
+    control, implementation_count = re.subn(
+        r"^Implementation: COMPLETE\s+—.*$",
+        f"Implementation: COMPLETE — {implementation}",
         control,
         count=1,
         flags=re.MULTILINE,
     )
-    control = control.replace("V1-C04, and V1-C05 implementation", "V1-C04, V1-C05, and V1-C27 implementation", 1)
-    control = control.replace(
-        "Completed Cards: V1-C01, V1-C02, V1-C03, V1-C04, V1-C05",
-        "Completed Cards: V1-C01, V1-C02, V1-C03, V1-C04, V1-C05, V1-C27",
-        1,
+    control, roadmap_count = re.subn(
+        r"^Completed Cards:.*$",
+        f"Completed Cards: {roadmap}",
+        control,
+        count=1,
+        flags=re.MULTILINE,
     )
-    issues = consistency.current_state_issues(control, EVIDENCE.read_text(), _git(ROOT, "rev-parse", "HEAD"))
+    assert implementation_count == 1
+    assert roadmap_count == 1
+    return control
+
+
+def _completed_summary_scenario(
+    state: str,
+    control: str | None = None,
+) -> tuple[str, tuple[str, ...], tuple[str, ...], str | None]:
+    """Construct an explicit lifecycle scenario; the production parser owns expected status."""
+    control = CONTROL.read_text() if control is None else control
+    records = consistency.parse_card_table(control)
+    card_order = tuple(record.card_id for record in records)
+    c06_index = card_order.index("V1-C06")
+    previously_completed = tuple(
+        record.card_id for record in records[:c06_index]
+        if record.state == "COMPLETE"
+    )
+    assert previously_completed
+    for record in records:
+        target_state = "COMPLETE" if record.card_id in previously_completed else "NOT_STARTED"
+        control = _set_synthetic_card_state(control, record.card_id, target_state)
+    future_card: str | None = None
+    if state == "merged_c06_pre_reconciliation":
+        # The merged candidate preceded the operational reconciliation that marked C06 COMPLETE.
+        control = _set_synthetic_card_state(control, "V1-C06", "READY_FOR_HUMAN_REVIEW")
+    elif state == "c06_complete_reconciliation":
+        control = _set_synthetic_card_state(control, "V1-C06", "COMPLETE")
+    elif state == "later_card_complete":
+        control = _set_synthetic_card_state(control, "V1-C06", "COMPLETE")
+        future_card = next(record.card_id for record in records[c06_index + 1:])
+        control = _set_synthetic_card_state(control, future_card, "COMPLETE")
+    else:
+        raise AssertionError(f"unknown synthetic lifecycle scenario: {state}")
+
+    completed = tuple(
+        record.card_id for record in consistency.parse_card_table(control)
+        if record.state == "COMPLETE"
+    )
+    not_completed = tuple(
+        record.card_id for record in consistency.parse_card_table(control)
+        if record.state != "COMPLETE"
+    )
+    assert completed
+    control = _replace_completed_summaries(control, completed, completed)
+    summary_issues = tuple(
+        issue for issue in consistency.current_state_issues(
+            control, "", _git(ROOT, "rev-parse", "HEAD")
+        ) if "COMPLETED_CARD_SUMMARY" in issue
+    )
+    assert not summary_issues
+    return control, completed, not_completed, future_card
+
+
+SUMMARY_LIFECYCLE_SCENARIOS = (
+    "merged_c06_pre_reconciliation",
+    "c06_complete_reconciliation",
+    "later_card_complete",
+)
+
+
+@pytest.mark.parametrize("scenario", SUMMARY_LIFECYCLE_SCENARIOS)
+def test_completed_card_summary_must_include_all_completed_cards(scenario: str) -> None:
+    control, completed, _, _ = _completed_summary_scenario(scenario)
+    missing_card = completed[-1]
+    reduced = tuple(card_id for card_id in completed if card_id != missing_card)
+    control = _replace_completed_summaries(control, reduced, completed)
+    issues = consistency.current_state_issues(control, "", _git(ROOT, "rev-parse", "HEAD"))
+    assert "COMPLETED_CARD_SUMMARY_MISMATCH:IMPLEMENTATION" in issues
+    assert "COMPLETED_CARD_SUMMARY_MISMATCH:ROADMAP_POSITION" not in issues
+
+
+@pytest.mark.parametrize("scenario", SUMMARY_LIFECYCLE_SCENARIOS)
+def test_completed_card_summary_rejects_extra_noncomplete_card(scenario: str) -> None:
+    control, completed, not_completed, _ = _completed_summary_scenario(scenario)
+    extra_card = not_completed[0]
+    control = _replace_completed_summaries(control, completed, (*completed, extra_card))
+    issues = consistency.current_state_issues(control, "", _git(ROOT, "rev-parse", "HEAD"))
+    assert "COMPLETED_CARD_SUMMARY_MISMATCH:ROADMAP_POSITION" in issues
+    assert "COMPLETED_CARD_SUMMARY_MISMATCH:IMPLEMENTATION" not in issues
+
+
+def test_completed_card_summary_accepts_future_dynamically_completed_card() -> None:
+    control, completed, _, future_card = _completed_summary_scenario("later_card_complete")
+    assert future_card is not None and future_card in completed
+    issues = consistency.current_state_issues(control, "", _git(ROOT, "rev-parse", "HEAD"))
     assert not any("COMPLETED_CARD_SUMMARY" in issue for issue in issues)
+
+
+def test_completed_card_summary_scenarios_ignore_live_prose_changes() -> None:
+    control, count = re.subn(
+        r"implementation, validation, and approved delivery are verified",
+        "implementation and delivery evidence are recorded",
+        CONTROL.read_text(),
+        count=1,
+    )
+    assert count == 1
+    control, completed, _, _ = _completed_summary_scenario("c06_complete_reconciliation", control)
+    assert completed
+    assert not any(
+        "COMPLETED_CARD_SUMMARY" in issue for issue in consistency.current_state_issues(
+            control, "", _git(ROOT, "rev-parse", "HEAD")
+        )
+    )
 
 
 def test_historical_completed_sets_do_not_create_current_summary_failure() -> None:
