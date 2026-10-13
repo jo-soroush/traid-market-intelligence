@@ -8,10 +8,21 @@ cd -- "$PROJECT_ROOT"
 
 "$SCRIPT_DIR/check_tracked_secret_filenames.sh"
 
-if rg -n --hidden -g '!.git/**' -g '!docs/**' -g '!*.md' \
-  'AKIA[0-9A-Z]{16}|-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----|sk-[A-Za-z0-9]{20,}' .; then
-  echo "obvious credential material detected" >&2
-  exit 1
-fi
+scan_status=0
+git grep -n -E \
+  'AKIA[0-9A-Z]{16}|-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----|sk-[A-Za-z0-9]{20,}' \
+  -- . ':(top,exclude)docs/**' ':(exclude)*.md' || scan_status=$?
+
+case "$scan_status" in
+  0)
+    echo "obvious credential material detected" >&2
+    exit 1
+    ;;
+  1) ;; # The scan completed without a match.
+  *)
+    echo "secret scan failed: git grep exited with status $scan_status" >&2
+    exit 1
+    ;;
+esac
 
 echo "secret scan passed: no obvious tracked secret or credential pattern"

@@ -6104,6 +6104,50 @@ Post-merge reconciliation: delivered audit record reclassified HISTORICAL while 
 Post-merge validation on reconciled main at `ca690ae`: full pytest PASS — 275 passed, 2 dependency deprecation warnings; Harness consistency PASS; session bootstrap PASS_WITH_0_WARNINGS — 21 PASS, 0 WARN, 0 FAIL; secret scan PASS; Python compilation PASS; import smoke and FastAPI `/health` PASS — HTTP 200; pip check PASS; git diff --check PASS. Validation was repeated after this evidence-only result recording before final synchronization.
 ```
 
+### Secret Scan Fail-Closed Maintenance — MAINT-SECRET-SCAN-FAIL-CLOSED
+
+```text
+State: READY_FOR_HUMAN_REVIEW — self-validation PASS; independent review NOT_RUN; delivery NOT_GRANTED
+Base: f109aec3cf27bc96d22336dfcde34693a307892b
+Branch: maintenance/secret-scan-fail-closed
+Authorization: human SECRET SCAN FIX and SCOPE CLARIFICATION authorize the minimum separate maintenance record, scanner fix, regression tests, self-validation and self-review; no commit/push/merge
+Observed failure: hosted Actions run 38464788684 reported success for the terminal commit, but its secret-scan log contained rg: command not found; content scanning was not proven
+Root cause: CONFIRMED — scripts/check_secrets.sh used rg inside an if; Bash errexit does not terminate that conditional on command failure, and every nonzero status fell through to the PASS message
+Contract map: scripts/check_secrets.sh owns content scanning and invokes scripts/check_tracked_secret_filenames.sh first; .github/workflows/ci.yml invokes the script; tests/test_secret_filenames.py owns filename and scanner regressions
+Risk map: missing tool or scan error must fail closed; preserve tracked-file scope, all patterns, docs/** and *.md exclusions, hidden-file eligibility and filename enforcement; no secrets or synthetic secret literals in Git
+Content alignment: PASS — bounded security maintenance; no Card reopened, architecture/policy/Harness change, new dependency, or C07 work
+Roadmap alignment: PASS — Active Card NONE; C01-C06 COMPLETE; C07 NOT_STARTED / NOT_GRANTED; D-OI-001 DEFERRED
+Scope decision: existing script describes obvious tracked secret hazards and bootstrap checks tracked filename hazards; no canonical untracked-content requirement found. git grep scans tracked working-tree content, including modified tracked files; untracked/ignored content and history are outside this baseline. This explicit scope replaces rg's incidental scan of untracked nonignored files as authorized by the preferred tracked-file approach.
+Implementation: git grep -n -E with unchanged detection regex and docs/** / *.md path exclusions; status 0 fails on detection, 1 passes on completed no-match, all other statuses fail with an error; filename helper remains first and unchanged
+Validation: focused scanner regressions PASS — 25 passed. Initial full regression: 369 passed / 1 failed; test_dirty_allowed_without_maintenance_authorization_fails_closed expected MAINTENANCE_RECORD_MISSING but received MAINTENANCE_BRANCH_AUTHORIZATION_MISMATCH and MAINTENANCE_BASE_NOT_ANCESTOR.
+Failure diagnosis: retaining the historical C06 Current Maintenance heading alongside the new Current Maintenance heading exposed the old record after the negative fixture removed the new one. Correction: use the canonical Previous Maintenance Record heading for the old section, preserving its entire record body unchanged; no fixture/checker changes. Retest: failing governance test 1 passed; full pytest 370 passed with 2 existing Starlette/AnyIO deprecation warnings. Production Harness PASS; bootstrap 20 PASS / 1 expected authorized dirty-tree warning / 0 FAIL; bash -x scripts/check_secrets.sh showed git grep executed with status 1 (no match) before PASS; git diff --check PASS.
+Self-review: scanner regex unchanged; Git extended regex and exclude pathspecs preserve documented tracked-file scope; filename helper and workflow unchanged; focused tests generate synthetic content only in temporary repositories. Closed C06 record bodies and historical evidence preserved; only the superseded maintenance section heading is archived.
+Known limitations: baseline patterns are not comprehensive credential detection; no history/untracked scan; hosted execution for this fix is NOT_RUN because delivery is NOT_GRANTED
+Safe resume: self-validation and preservation review PASS; STOP for independent review of the frozen WORKTREE candidate; no commit/push/merge or C07 work
+```
+
+### Current Maintenance Re-Audit Record
+
+```text
+Record Classification: CURRENT
+Maintenance Task ID: MAINT-SECRET-SCAN-FAIL-CLOSED
+Status: PASS
+Candidate Type: WORKTREE
+Branch: maintenance/secret-scan-fail-closed
+Base SHA: f109aec3cf27bc96d22336dfcde34693a307892b
+Candidate Diff SHA-256: 9fa71dcbde434813f77e9c78297917e9e6bd9144d28f218d7541b18bc256061c
+Untracked Files: NONE
+Verifier context: Human-supplied independent review result: TRAID_SECRET_SCAN_INDEPENDENT_REVIEW: PASS; Codex delivery executor records the verdict only
+Canonical inputs reviewed: Review applies to the frozen maintenance candidate and existing workflow; detailed reviewer inputs were not supplied in the delivery authorization
+Evidence reviewed: Frozen WORKTREE candidate 9fa71dcbde434813f77e9c78297917e9e6bd9144d28f218d7541b18bc256061c; implementation/self-validation evidence preserved above; independent PASS supplied by human
+Findings: NONE reported in the supplied independent PASS authorization
+Unresolved blockers: NONE
+Gap dispositions: NONE reported
+Limitations: Detailed independent review report not supplied; hosted validation must be observed for the delivery commit; post-merge terminal reconciliation requires the separate §21.1 gate
+Verdict: PASS — TRAID_SECRET_SCAN_INDEPENDENT_REVIEW: PASS
+Delivery authorization/performance: GRANTED / NOT_PERFORMED — human AUTHORIZED SECRET SCAN FIX DELIVERY authorizes commit, branch push, one PR, conditional squash merge and verification; frozen pre-review authorization statements elsewhere are retained as candidate history; separate terminal reconciliation is not yet authorized
+```
+
 # 20. Final Evidence Principle
 
 ```text
