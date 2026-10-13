@@ -6104,6 +6104,11 @@ Post-merge reconciliation: delivered audit record reclassified HISTORICAL while 
 Post-merge validation on reconciled main at `ca690ae`: full pytest PASS — 275 passed, 2 dependency deprecation warnings; Harness consistency PASS; session bootstrap PASS_WITH_0_WARNINGS — 21 PASS, 0 WARN, 0 FAIL; secret scan PASS; Python compilation PASS; import smoke and FastAPI `/health` PASS — HTTP 200; pip check PASS; git diff --check PASS. Validation was repeated after this evidence-only result recording before final synchronization.
 ```
 
+The following frozen implementation/self-review snapshot is historical. Its
+pre-delivery state and authorization describe that candidate, not current
+operational state; the PR #13 delivery record below supersedes them. All
+implementation, validation, failure and limitation evidence is retained.
+
 ### Secret Scan Fail-Closed Maintenance — MAINT-SECRET-SCAN-FAIL-CLOSED
 
 ```text
@@ -6126,10 +6131,10 @@ Known limitations: baseline patterns are not comprehensive credential detection;
 Safe resume: self-validation and preservation review PASS; STOP for independent review of the frozen WORKTREE candidate; no commit/push/merge or C07 work
 ```
 
-### Current Maintenance Re-Audit Record
+### Historical Maintenance Re-Audit Record
 
 ```text
-Record Classification: CURRENT
+Record Classification: HISTORICAL
 Maintenance Task ID: MAINT-SECRET-SCAN-FAIL-CLOSED
 Status: PASS
 Candidate Type: WORKTREE
@@ -6145,7 +6150,28 @@ Unresolved blockers: NONE
 Gap dispositions: NONE reported
 Limitations: Detailed independent review report not supplied; hosted validation must be observed for the delivery commit; post-merge terminal reconciliation requires the separate §21.1 gate
 Verdict: PASS — TRAID_SECRET_SCAN_INDEPENDENT_REVIEW: PASS
-Delivery authorization/performance: GRANTED / NOT_PERFORMED — human AUTHORIZED SECRET SCAN FIX DELIVERY authorizes commit, branch push, one PR, conditional squash merge and verification; frozen pre-review authorization statements elsewhere are retained as candidate history; separate terminal reconciliation is not yet authorized
+Delivery authorization/performance: COMPLETED for PR #13 — human-authorized delivery commit 16ab7ec5f956884b045117fd48d2c42906a699ae squash-merged at 2e04a174096b60e2c3719d4d4d5ff6a92a442e3e; the exact original PASS remains bound to its recorded WORKTREE identity. Terminal reconciliation requires separate authorization under GIT_WORKFLOW.md §21.1.
+```
+
+### PR #13 Post-Merge Delivery and Reconciliation
+
+```text
+Maintenance Task ID: MAINT-SECRET-SCAN-FAIL-CLOSED
+Closure state: CLOSED / DELIVERED / VERIFIED
+Delivery commit / PR head: 16ab7ec5f956884b045117fd48d2c42906a699ae
+PR: #13 — https://github.com/jo-soroush/traid-market-intelligence/pull/13
+Merge method: squash
+Merge SHA: 2e04a174096b60e2c3719d4d4d5ff6a92a442e3e
+Hosted push run: 38470080283 — SUCCESS for delivery commit; 370 passed, 1 warning
+Hosted PR run: 38470085981 — SUCCESS for delivery commit; 370 passed, 1 warning
+Hosted merge run: 38470362785 — SUCCESS for exact merge SHA; 370 passed, 1 warning
+Actual hosted scanner evidence: all three logs show the scanner PASS message without missing-tool errors; the exact delivered script can reach that message only after git grep returns status 1 (completed scan, no match). The logs do not echo the inner command; evidence is the verified fail-closed control flow plus actual successful script execution, not green CI alone.
+Post-merge local validation: full pytest 370 passed with 2 existing dependency warnings; traced git grep executed with status 1 (no match), scanner PASS; clean main equaled origin/main at the merge SHA
+Original post-merge governance failure: Harness BLOCKED with MAINTENANCE_CANDIDATE_BRANCH_MISMATCH (reported twice); bootstrap 20 PASS / 0 WARN / 1 FAIL because the delivered CURRENT audit still bound the maintenance branch. This expected fail-closed lifecycle failure did not reopen C06 or invalidate the delivered scanner implementation.
+Reconciliation: preserve the Current Maintenance Record section with CLOSED status; retire the delivered audit as HISTORICAL, retaining its exact PASS identity, findings, dispositions and limitations; no active maintenance
+External delivery evidence: PR #13 comments https://github.com/jo-soroush/traid-market-intelligence/pull/13#issuecomment-6155508162 and https://github.com/jo-soroush/traid-market-intelligence/pull/13#issuecomment-6155531495; hosted Actions runs above
+Terminal evidence boundary: scratch/independent review, exact terminal diff identity, authorization, terminal commit, local/hosted terminal validation and remote SHA are retained outside canonical documents under GIT_WORKFLOW.md §21.1; no terminal delivery is claimed by these historical maintenance delivery facts
+Operational state: C01-C06 COMPLETE; Active Card NONE; C07 NOT_STARTED / NOT_GRANTED; D-OI-001 DEFERRED; Hyperliquid OI UNVERIFIED FOR CANONICAL USE
 ```
 
 # 20. Final Evidence Principle

@@ -109,12 +109,12 @@ Implementation: COMPLETE — V1-C01, V1-C02, V1-C03, V1-C04, V1-C05, and V1-C06 
 Source Code: PRESENT — C01 baseline, C02 canonical domain contracts, C03 boundary, C04 provider adapter, C05 quality layer, and C06 historical data/replay foundation
 Tests: PRESENT — C01 through C06 focused, regression, and Harness tests
 Git Repository: INITIALIZED
-Git Branch: maintenance/secret-scan-fail-closed
-Git Checkpoint: 622d7848bb00cdd0d1c3a877844b1c3099230f75 — historical PR #12 policy merge; terminal reconciliation base
-Git Upstream: NONE — local maintenance branch; delivery NOT_GRANTED
+Git Branch: main
+Git Checkpoint: 2e04a174096b60e2c3719d4d4d5ff6a92a442e3e — historical PR #13 merge; terminal reconciliation base
+Git Upstream: origin/main — runtime synchronization is derived from Git
 Git Remote: origin — https://github.com/jo-soroush/traid-market-intelligence.git
-Git Safe Checkpoint: VERIFIED — historical PR #12 merge 622d7848bb00cdd0d1c3a877844b1c3099230f75; prior reconciliation history preserved
-Working Tree: DIRTY_ALLOWED — authorized secret-scan maintenance scope only
+Git Safe Checkpoint: VERIFIED — historical PR #13 merge 2e04a174096b60e2c3719d4d4d5ff6a92a442e3e; prior reconciliation history preserved
+Working Tree: CLEAN
 V1-C01: COMPLETE
 V1-C01 Authorization: START_GRANTED; DELIVERY_GRANTED; DELIVERY_COMPLETED
 V1-C02: COMPLETE
@@ -136,15 +136,16 @@ C01-C06 implementation and approved delivery evidence are recorded. PR #11 is
 merged at e8ce5af0b548819d8b37711ff0e5185c7d306512 with successful hosted CI.
 The reconciliation policy was delivered by PR #12 at
 622d7848bb00cdd0d1c3a877844b1c3099230f75. Its delivered audit is HISTORICAL;
-C06 maintenance is closed. Separate secret-scan maintenance is active below.
-No Card is active and C07 remains unauthorized.
+C06 maintenance remains closed. PR #13 delivered the secret-scan fix at
+2e04a174096b60e2c3719d4d4d5ff6a92a442e3e; its audit is HISTORICAL and maintenance
+is closed. No Card or maintenance is active and C07 remains unauthorized.
 
 ### Current Maintenance Record
 
 ```text
 Maintenance Task ID: MAINT-SECRET-SCAN-FAIL-CLOSED
 Title: Fail-closed portable tracked-file secret scanning
-Status: READY_FOR_HUMAN_REVIEW — implementation and self-validation PASS; independent review NOT_RUN; delivery NOT_GRANTED
+Status: CLOSED / DELIVERED / VERIFIED — PR #13 squash-merged; hosted tests and actual secret scan verified
 Reason: hosted secret scan reported PASS despite rg being unavailable because scanner errors inside an if condition were treated as no match
 Originating Evidence: terminal commit f109aec3cf27bc96d22336dfcde34693a307892b; Actions run 38464788684 logged scripts/check_secrets.sh: line 11: rg: command not found while reporting success
 Base Commit: f109aec3cf27bc96d22336dfcde34693a307892b — verified clean synchronized main maintenance base
@@ -153,9 +154,9 @@ Authorized Scope: replace rg with fail-closed git grep for documented tracked-fi
 Prohibited Scope: closed C06 records, Git workflow, Harness rules/checker, CI workflow, product code, dependencies, unrelated cleanup, C07 work, commit, push, PR, merge
 Expected Areas: scripts/check_secrets.sh, tests/test_secret_filenames.py, PROJECT_CONTROL.md, TRAID_CARD_EVIDENCE_MAP.md
 Required Validation: PASS — 25 focused scanner tests; 370 full tests with 2 existing deprecation warnings; production Harness PASS; bootstrap 20 PASS / 1 expected dirty-tree warning / 0 FAIL; actual git grep scan PASS (status 1, no match); diff and preservation self-review PASS
-External Git Permissions: NOT_GRANTED — local branch and bounded implementation/self-validation only; independent review precedes delivery
-Closure Evidence: implementation and self-validation completed; initial governance regression, diagnosis and passing retest retained in TRAID_CARD_EVIDENCE_MAP.md; independent review NOT_RUN and delivery NOT_GRANTED
-Safe Resume: self-validation complete; STOP for independent review of the frozen candidate; Active Card NONE, C01-C06 COMPLETE, C07 NOT_GRANTED, D-OI-001 DEFERRED
+External Git Permissions: COMPLETED for PR #13 only — human-authorized commit, branch push, PR and squash merge completed; no further external action authorized by this closed record
+Closure Evidence: independent PASS preserved for WORKTREE Diff SHA-256 9fa71dcbde434813f77e9c78297917e9e6bd9144d28f218d7541b18bc256061c; commit 16ab7ec5f956884b045117fd48d2c42906a699ae delivered through PR #13, squash-merged at 2e04a174096b60e2c3719d4d4d5ff6a92a442e3e. Push, PR and merge hosted runs passed with 370 tests and actual fail-closed secret-scan execution verified. Post-merge local pytest 370 passed and traced git grep scan passed. Original branch-bound main Harness/bootstrap failure is preserved in the Evidence Map; terminal review, validation and delivery evidence is retained externally under GIT_WORKFLOW.md §21.1.
+Safe Resume: no active maintenance; PR #13 maintenance is closed. STOP. Active Card NONE, C01-C06 COMPLETE, C07 NOT_STARTED / NOT_GRANTED, D-OI-001 DEFERRED. Terminal reconciliation follows only the separately authorized GIT_WORKFLOW.md §21.1 procedure.
 Allowed Paths: scripts/check_secrets.sh, tests/test_secret_filenames.py, PROJECT_CONTROL.md, TRAID_CARD_EVIDENCE_MAP.md
 ```
 
@@ -1318,8 +1319,9 @@ C06 and its post-delivery maintenance are complete. PR #11 delivered the fixture
 correction; PR #12 delivered the reconciliation policy at historical checkpoint
 622d7848bb00cdd0d1c3a877844b1c3099230f75. Delivered maintenance audits are
 HISTORICAL with their exact evidence preserved. C06 maintenance remains closed.
-Separate MAINT-SECRET-SCAN-FAIL-CLOSED implementation and self-validation are
-authorized on maintenance/secret-scan-fail-closed; delivery is NOT_GRANTED.
+PR #13 secret-scan maintenance is CLOSED / DELIVERED / VERIFIED at historical
+merge checkpoint 2e04a174096b60e2c3719d4d4d5ff6a92a442e3e. Its independently
+reviewed PASS audit is HISTORICAL; no active maintenance remains.
 Terminal review, authorization, validation, and delivery evidence is retained
 outside canonical documents under GIT_WORKFLOW.md §21.1.
 STOP. C01-C06 remain COMPLETE, Active Card is NONE, C07 is NOT_STARTED /
@@ -1328,7 +1330,7 @@ FOR CANONICAL USE.
 Next Roadmap Card: V1-C07
 
 Implementation Card: NONE
-Repository Write Authorization: MAINT-SECRET-SCAN-FAIL-CLOSED bounded maintenance only; no active Card; C07 start NOT_GRANTED
+Repository Write Authorization: no active maintenance or Card; C07 start NOT_GRANTED
 Next Roadmap Card: V1-C07
 V1-C01 Authorization: START_GRANTED; DELIVERY_GRANTED; DELIVERY_COMPLETED
 V1-C02 Authorization: START_GRANTED; DELIVERY_GRANTED; DELIVERY_COMPLETED
@@ -1343,9 +1345,9 @@ Current resume point:
 ```text
 PR #11 and its successful hosted CI are recorded. PR #12 delivered the
 reconciliation policy; its audit is HISTORICAL and maintenance is closed.
-Separate secret-scan maintenance is active; stop for independent review after
-its implementation and self-validation. C06 terminal evidence is retained
-externally under GIT_WORKFLOW.md §21.1.
+PR #13 secret-scan maintenance is delivered and closed; its audit is HISTORICAL
+with exact PASS evidence preserved. No active maintenance remains. STOP.
+Terminal evidence is retained externally under GIT_WORKFLOW.md §21.1.
 Active Card remains NONE; C01-C06 are COMPLETE; C07 is NOT_STARTED / NOT_GRANTED
 and must not start. D-OI-001 remains DEFERRED and Hyperliquid OI remains
 UNVERIFIED FOR CANONICAL USE.
