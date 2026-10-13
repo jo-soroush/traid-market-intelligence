@@ -5651,7 +5651,7 @@ Regression test added: tests/test_maintenance_harness.py covers valid future mai
 Retest result: original portability tests 2 passed; maintenance/Harness/lifecycle suite 74 passed; C02 domain tests 9 passed; full pytest 103 passed with 2 warnings; Harness consistency and Bootstrap passed; secret scan, compilation, and git diff --check passed
 Hosted CI result: PASS — c01-baseline/test for push and PR at c396c0e; post-merge push run 34841403500 PASS for c957bd4
 Maintenance enforcement result: PASS — generic branch/category, authorization, base, scope, dirty-state, and Card-lifecycle regressions passed
-Remaining risk: GitHub branch-protection settings remain NOT_VERIFIED; no product/domain impact
+Historical platform observation: at the time of this evidence, GitHub branch-protection settings had not been verified; this record makes no claim about later platform settings. No product/domain impact.
 Base / branch: ef35af1 / maintenance/ci-python-portability
 External delivery: COMPLETE — PR #1 merged at c957bd4; no force push
 Closure state: CLOSED / DELIVERED / VERIFIED
@@ -5738,7 +5738,7 @@ Why the fix is correct: Git remains the live owner of branch/HEAD/worktree facts
 Permanent fix or workaround: generic checker/test enforcement and ownership clarification; hosted CI continues to execute the regression tests, while direct checker execution remains a local runtime-Git check
 Regression test added: tests/test_harness_consistency.py covers live current-head rejection, ancestor checkpoint acceptance, closed-maintenance pending text, incomplete completed-card summary, and safe-resume references to completed work; existing 27-card/lifecycle/maintenance tests remain active
 Retest result: PASS — focused governance/lifecycle/maintenance/alignment tests 95 passed; full pytest 139 passed with 2 dependency deprecation warnings; Harness consistency passed; Bootstrap passed with 2 environment warnings; secret scan, compilation, and git diff --check passed
-Remaining risk: GitHub branch protection remains unconfigured/not verified; Docker build proof was not rerun in this governance correction; local bootstrap still warns that system pytest is unavailable
+Historical platform observation: at the time of this evidence, GitHub branch-protection settings had not been verified; repository policy did not establish whether enforcement was configured. Docker build proof was not rerun in this governance correction; local bootstrap still warned that system pytest was unavailable.
 Scope/leakage result: PASS — only governance, Harness, test, and evidence files changed; no C02/C03 product behavior, Hyperliquid implementation, financial semantics, C04 start, or authorization was added
 Closure state: CLOSED / DELIVERED / VERIFIED — PR #5 squash-merged at `cd310d7`; post-merge validation recorded after reconciliation
 ```
@@ -5893,10 +5893,10 @@ Verdict: PASS — MAINTENANCE_REAUDIT_PASS_READY_FOR_HUMAN_DELIVERY_REVIEW
 
 The historical records preserve the failed audit and its exact candidate identity, plus the successful audit bound to the exact delivered fixture-correction candidate. The latter PASS does not cover the later governance-state correction. Earlier AEVS and C06 audit records retain their own identities and findings.
 
-### Current Maintenance Re-Audit Record
+### Historical Maintenance Re-Audit Record
 
 ```text
-Record Classification: CURRENT
+Record Classification: HISTORICAL
 Maintenance Task ID: MAINT-C06-POST-MERGE-SUMMARY-FIXTURE
 Status: PASS
 Candidate Type: WORKTREE
@@ -5912,16 +5912,57 @@ Unresolved blockers: NONE
 Gap dispositions: NONE
 Limitations: this audit applies only to the frozen candidate identity above; hosted CI for the new delivery commit and post-merge validation/reconciliation remain pending
 Verdict: PASS — MAINTENANCE_REAUDIT_PASS_READY_FOR_HUMAN_DELIVERY_REVIEW
-Delivery authorization/performance: NOT_GRANTED / NOT_PERFORMED — this bounded identity remediation authorizes no commit, push, PR update, or merge
+Delivery authorization/performance: COMPLETED for PR #11 — the separately authorized delivery reached merge; the original PASS remains bound only to the recorded WORKTREE candidate
+```
+
+### PR #11 Post-Merge Reconciliation
+
+```text
+Maintenance Task ID: MAINT-C06-POST-MERGE-SUMMARY-FIXTURE
+Delivery commit: a3598cdb212c867e8676d758465bb106148a16ce
+PR: #11 — https://github.com/jo-soroush/traid-market-intelligence/pull/11
+PR head: de2179c5c19575d05695dd11f2b19c342bbdee47
+Hosted CI: PASS — both observed c01-baseline test checks completed with SUCCESS for PR head de2179c5c19575d05695dd11f2b19c342bbdee47
+Merge method: squash
+Merge SHA: e8ce5af0b548819d8b37711ff0e5185c7d306512
+Audit record transition: the exact PASS record above is now HISTORICAL; its WORKTREE identity, findings, and verdict are preserved
+Final post-merge reconciliation: LOCAL_CANDIDATE_VALIDATION_PASS — 349 pytest passed with 2 existing deprecation warnings; Harness PASS; bootstrap 20 PASS / 1 expected dirty-tree warning / 0 FAIL; secret scan PASS; diff check PASS. Independent review and final governance PR delivery remain pending, so final main-state reconciliation is not claimed complete.
+Operational state: C01-C06 COMPLETE; Active Card NONE; C07 NOT_STARTED / NOT_GRANTED; D-OI-001 DEFERRED; Hyperliquid OI UNVERIFIED FOR CANONICAL USE
+```
+
+### Current Maintenance Re-Audit Record
+
+```text
+Record Classification: CURRENT
+Maintenance Task ID: MAINT-C06-POST-MERGE-RECONCILIATION-PR11
+Status: PASS
+Candidate Type: WORKTREE
+Branch: maintenance/c06-post-merge-reconciliation
+Base SHA: e8ce5af0b548819d8b37711ff0e5185c7d306512
+Candidate Diff SHA-256: e586669b9e5a5df9ab839e0e1bb9a52099f474bb77420fc38e918d985e47434b
+Untracked Files: NONE
+Verifier context: Claude Code independent delta review; TRAID_FINAL_DELTA: PASS for the exact WORKTREE candidate below, with prior independent PASS findings reused as directed
+Canonical inputs reviewed: PROJECT_CONTROL.md, TRAID_CARD_EVIDENCE_MAP.md, GIT_WORKFLOW.md, and applicable Harness maintenance/audit lifecycle rules
+Evidence reviewed: previous independently PASS-audited policy candidate and the exact N2/N3 delta in GIT_WORKFLOW.md §21.1 Steps 2 and 5; deterministic diff SHA-256 matched with local diff.noprefix=true and false; final candidate identity remained e586669b9e5a5df9ab839e0e1bb9a52099f474bb77420fc38e918d985e47434b
+Findings: NONE — no remaining N2/N3 finding
+Unresolved blockers: NONE
+Gap dispositions: NONE
+Limitations: this is a delta review reusing the previous PASS for unchanged policy content; merging this policy PR does not perform or authorize the terminal reconciliation. Actual GitHub branch-protection/ruleset enforcement remains NOT_VERIFIED.
+Verdict: PASS — TRAID_FINAL_DELTA: PASS; approved policy candidate for delivery
+Delivery authorization/performance: AUTHORIZED / NOT_PERFORMED — current human authorization covers this policy candidate through conditional squash merge; terminal reconciliation remains separately unauthorized
 ```
 
 ### Post-Commit Governance-State Mismatch and Correction
+
+Historical checkpoint: the observations below describe the maintenance state
+before PR #11 delivery and are superseded by the PR #11 Post-Merge Reconciliation
+record above. They are retained as audit history, not as current-state claims.
 
 ```text
 Observed committed state: branch maintenance/c06-post-merge-summary-fixture at a3598cdb212c867e8676d758465bb106148a16ce; clean worktree; upstream origin/maintenance/c06-post-merge-summary-fixture; PR #11 open at that head. Two observed hosted c01-baseline/test checks completed with SUCCESS for that PR head.
 Root cause: the Harness converted the `DIRTY_ALLOWED` declaration to `expected_working_tree_clean=False`, then required equality with actual cleanliness. That made a clean committed tree fail with WORKING_TREE_STATE_MISMATCH. `DIRTY_ALLOWED` means clean or dirty is permitted; it does not require dirt. The separate stale upstream declaration was also corrected in the pending governance candidate.
 Prior state-correction candidate: WORKTREE Diff SHA-256 855e430821679d03eb6a7bf0a38df23b0a095c8f899785ddcb1ea4e15b5351f0; not independently audited, not committed, and superseded by this authorized follow-up.
-Human-authorized scope supplement: this instruction explicitly authorizes a narrow working-tree policy correction in the Harness checker/lifecycle evaluator, focused tests, and documentation. It does not authorize unrelated checker behavior, product code, dependencies, delivery, or PR #11 changes. The earlier fixture-maintenance scope was narrower; this supplement is recorded explicitly rather than inferred.
+Human-authorized scope supplements: after the original fixture-only authorization, explicit instructions separately authorized (1) the production Harness/lifecycle correction defining `DIRTY_ALLOWED` as clean or authorized in-scope dirty state; (2) the worktree candidate-identity correction comparing divergent staged content/mode to `HEAD`, plus stability and partial-staging regressions; and (3) the final audit remediation replacing the real-history-dependent identity regression with synthetic full-history/squash/depth-one Git histories and correcting the specified F1/F2 wording. Each supplement retained its stated file and behavior boundaries. These records document authorization as it was granted; no later unrelated Harness or product work is implied.
 Audit applicability: the original maintenance PASS remains historical evidence for Diff SHA-256 2977bdc01e2899bd71d713e3cdc39ea1c670babee4fa91530c1bbc9d8d532769. The new implementation materially changes Harness behavior and requires independent audit. Current candidate audit remains NOT_RUN.
 Correction-candidate validation: focused Harness/maintenance/lifecycle/alignment tests PASS — 186 passed; full pytest PASS — 343 passed with 2 existing Starlette/AnyIO deprecation warnings. Harness PASS on the current authorized dirty maintenance branch; bootstrap PASS_WITH_1_WARNINGS — 20 PASS, 1 expected dirty-worktree warning, 0 FAIL. Secret scan PASS; Python compilation PASS; import smoke and FastAPI /health PASS — HTTP 200, status=ok; pip check PASS; git diff --check PASS.
 Before/after proof: in an isolated synthetic maintenance repository with a valid authorization and a clean tree declared DIRTY_ALLOWED, the committed pre-fix Harness returned WORKING_TREE_STATE_MISMATCH; the corrected production Harness returned PASS. The production Harness also passed with an authorized in-scope dirty change, then passed again after committing that same scoped change and confirming the scratch tree was clean. CLEAN plus dirty returned WORKING_TREE_STATE_MISMATCH.

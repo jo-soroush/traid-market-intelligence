@@ -561,6 +561,111 @@ derived from Git when validated. Project Control may retain an explicitly
 historical checkpoint or delivery commit, which must exist and be an ancestor
 of the runtime HEAD.
 
+### 21.1 Exceptional Terminal Governance Reconciliation
+
+This is a terminal, evidence-only closure after an ordinary Card or
+maintenance delivery has completed its required independent review, human
+approval, PR, hosted CI, and merge. It resolves current-state facts that cannot
+be truthfully finalized on the branch-bound candidate before merge. It does not
+authorize routine development on `main`, replace normal review/delivery gates,
+or weaken the Harness. Adoption or merge of this policy does not itself execute
+or complete any pending terminal reconciliation.
+
+The only editable repository paths are `PROJECT_CONTROL.md` and
+`TRAID_CARD_EVIDENCE_MAP.md`. The terminal diff may record verified merge and
+hosted-CI provenance, observed validation, closed maintenance state, and the
+corresponding Safe Resume/current operational state. It must preserve the
+delivered audit identity, verdict, findings, dispositions, and limitations. It
+must classify that delivered audit `HISTORICAL` and must not create another
+`CURRENT` maintenance audit record, authorize new work, or reclassify a
+technical finding. Product code, tests, Harness/checker, CI, architecture,
+financial guardrails, and Card contracts are outside this exception.
+
+Use this exact order:
+
+1. **Independent review:** Verify the already approved merge SHA on
+   `origin/main`. Prepare the exact two-file terminal diff in an isolated
+   scratch clone/worktree from that SHA, validate it there, and confirm the
+   resulting state has no `CURRENT` record for the delivered task. A fresh
+   independent reviewer reviews that exact diff read-only before any write to
+   `main`. Record the merge SHA, path manifest, and reviewed diff SHA-256 with
+   the review evidence. Any blocker stops the procedure.
+2. **Explicit authorization:** Obtain separate human authorization naming the
+   exact merge SHA, maintenance task, both permitted paths, intended state
+   transition, reviewed diff identity, and acceptance of the validation and
+   recovery steps here. The authorization must also expressly permit publishing
+   the terminal reconciliation evidence to one named GitHub destination (the
+   repository and specific PR, issue, or other review record) and identify the
+   intended evidence to publish: the independent review verdict/findings,
+   terminal commit and remote SHA, local validation results, and hosted Actions
+   run/result. This is destination- and evidence-bound permission for this one
+   reconciliation; it does not grant general GitHub write permission. Card
+   implementation or delivery authorization alone is insufficient.
+3. **Local commit:** Synchronize local `main` to the reviewed merge SHA and
+   apply only the reviewed diff. Create one forward local commit whose sole
+   parent is that merge SHA. Do not amend, rewrite, or add another change.
+4. **Local validation:** On the clean committed local `main`, run the required
+   full local validation, including pytest, Harness, bootstrap, and secret
+   scan. Any failure stops closure.
+5. **Scope and identity verification:** Let `M` be the full verified merge
+   commit SHA and let `T` be the reviewed terminal candidate tree during
+   independent review; after commit, `T` is the full terminal commit `HEAD`.
+   The identity boundary is the two-tree comparison `M..T` (the base `M` and
+   endpoint `T`, not a commit-range listing). Reviewer and post-commit verifier
+   must run this same command, substituting only those two verified object IDs
+   and using the same Python 3 SHA-256 calculation:
+
+   ```bash
+   git -c diff.noprefix=false -c diff.mnemonicPrefix=false \
+     -c diff.srcPrefix=a/ -c diff.dstPrefix=b/ -c diff.orderFile=/dev/null \
+     -c core.quotePath=true diff --binary --full-index --no-ext-diff \
+     --no-textconv --no-renames --no-color --no-indent-heuristic \
+     --diff-algorithm=myers "$M" "$T" -- \
+     PROJECT_CONTROL.md TRAID_CARD_EVIDENCE_MAP.md |
+     python3 -c 'import hashlib,sys; print(hashlib.sha256(sys.stdin.buffer.read()).hexdigest())'
+   ```
+
+   The explicit `diff.noprefix=false` setting overrides a conflicting local
+   setting; the remaining options fix prefixes, path ordering, quoting,
+   external/text-conversion behavior, rename handling, color, and the text diff
+   algorithm. During review, `T` is the exact reviewed candidate tree object;
+   after commit, `T=HEAD`. The post-commit digest must equal the review digest.
+   Confirm the terminal commit has `M` as its sole parent and is the only
+   commit after it. Confirm the changed-path manifest for `M..T` lists exactly
+   the two permitted paths. Any extra commit, path, content, or mode difference
+   fails closed.
+6. **Authorized push:** Only after the preceding checks, use the separate
+   authorization for this exact terminal commit to push it to `origin/main`.
+   Do not bypass branch protection or use force push. If GitHub rules reject
+   the authorized direct push, stop; do not convert the exception into a PR or
+   another reconciliation cycle without new authorization and policy review.
+7. **Origin synchronization:** Fetch and verify local `main` equals
+   `origin/main`, the remote head is the exact terminal commit, and the
+   worktree is clean. Unexpected remote commits or divergence stop closure.
+8. **Hosted CI:** Verify the repository's required hosted workflow ran for
+   that exact terminal commit and its required `test` job passed, including
+   pytest and secret-scan steps, with no required check skipped, missing, or
+   unresolved. A local pass is not hosted-CI evidence.
+9. **Final closure verification:** Only after hosted CI passes, verify the
+   clean synchronized main state, historical audit classification, absence of
+   a new `CURRENT` record, and unchanged Card/authorization state.
+
+Keep the evidence trail outside canonical repository documents: record the
+review diff identity and findings, post-commit validation results, authorization
+reference, push/remote SHA, and hosted Actions run in GitHub review/discussion
+and Actions evidence associated with the delivered PR or a linked issue. Do
+not add these after-the-fact results to `PROJECT_CONTROL.md` or the Evidence
+Map, since that would create another reconciliation commit. Do not create a
+new `CURRENT` audit record for this terminal step.
+
+If scratch validation fails, discard only the scratch copy and stop. If local
+post-commit validation fails, preserve the commit and evidence, stop, and get
+separate authorization for recovery; never reset or amend to hide the failure.
+If push, synchronization, or hosted CI fails, stop and preserve the exact
+state. Completion requires all nine steps, clean synchronized `main`, passing
+local and hosted validation, truthful current state, and no `CURRENT` audit
+record for the delivered maintenance.
+
 Typical checks, when appropriate:
 
 ```bash
@@ -872,6 +977,13 @@ verified main
 → clean main
 ```
 
+Once the maintenance PR is merged and its exact merge SHA is verified, final
+state reconciliation may use only the exceptional terminal procedure in
+§21.1, with separate human authorization for that exact merge and two-file
+scope. It closes the delivered record as historical and does not create a new
+current maintenance audit record. This exception is not available for
+implementation, routine maintenance, or unresolved delivery work on `main`.
+
 While maintenance is active, `Active Card = NONE` and completed Card states
 remain `COMPLETE`. A maintenance record belongs in `PROJECT_CONTROL.md`; it is
 not a Roadmap Card and cannot authorize the next Card. It must identify a
@@ -883,7 +995,7 @@ Branch categories are:
 
 | Category | Base and state | Active Card | Delivery rule |
 |---|---|---|---|
-| `main` | verified integration branch; clean after delivery | NONE after Card closure | protected; merge and post-merge verification |
+| `main` | verified integration branch; clean after delivery | NONE after Card closure | PR merge and post-merge verification; terminal evidence-only exception in §21.1 |
 | `card/v1-cNN-*` | verified `main`; one approved Card | required | Card Phase 1 then approved Phase 2 |
 | `maintenance/*` | verified `main`; bounded post-delivery defect | NONE | maintenance authorization, focused/affected validation, hosted CI, approved merge |
 | `hotfix/*` | verified `main`; urgent bounded defect when needed | NONE | same maintenance controls, with urgency recorded |
@@ -895,6 +1007,13 @@ verified base and allowed dirty state, reject missing/mismatched records and
 out-of-scope changes, and preserve `Active Card = NONE` and no next-Card
 authorization. This generic enforcement is covered by maintenance regression
 tests. Hosted CI remains a separate external gate.
+
+These are repository workflow requirements. They do not establish that GitHub
+branch protection or rulesets are enabled. Actual platform enforcement is
+`NOT_VERIFIED` unless checked through GitHub for the relevant repository and
+branch. No platform setting is changed by this workflow document. The
+§21.1 exception is usable only if the exact authorized push is permitted; a
+platform rejection is a stop condition, never a reason to bypass controls.
 
 ## 35. External Actions and Egress
 
