@@ -1,5 +1,7 @@
 from dataclasses import replace
 
+import pytest
+
 from traid.harness.lifecycle import (
     BLOCKED,
     COMPLETE,
@@ -141,12 +143,28 @@ def test_complete_without_current_learning_record_is_blocked() -> None:
     assert "COMPLETE_WITHOUT_COMPLETE_LEARNING_RECORD" in result.reason_codes
 
 
-def test_complete_with_dirty_tree_when_clean_expected_is_blocked() -> None:
+def test_clean_required_with_dirty_tree_is_blocked() -> None:
     result = evaluate_state_consistency(
-        replace(complete_facts(), expected_working_tree_clean=True, actual_working_tree_clean=False)
+        replace(complete_facts(), working_tree_policy="CLEAN", actual_working_tree_clean=False)
     )
     assert not result.passed
     assert "WORKING_TREE_STATE_MISMATCH" in result.reason_codes
+
+
+@pytest.mark.parametrize("actual_clean", [True, False])
+def test_dirty_allowed_does_not_require_a_dirty_tree(actual_clean: bool) -> None:
+    result = evaluate_state_consistency(
+        replace(complete_facts(), working_tree_policy="DIRTY_ALLOWED", actual_working_tree_clean=actual_clean)
+    )
+    assert result.passed
+
+
+def test_unknown_working_tree_policy_is_blocked() -> None:
+    result = evaluate_state_consistency(
+        replace(complete_facts(), working_tree_policy="CLEAN_EXPECTED_AFTER_COMMIT")
+    )
+    assert not result.passed
+    assert "WORKING_TREE_POLICY_INVALID" in result.reason_codes
 
 
 def test_not_started_requires_explicit_start_authorization() -> None:

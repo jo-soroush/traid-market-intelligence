@@ -2191,7 +2191,7 @@ Failures: test_completed_card_summary_must_include_all_completed_cards; test_com
 Independent root-cause result: TEST_FIXTURE_DEFECT — the production checker derives expected completed Cards from the canonical status table and is correct; the three tests hard-coded C01-C05 summaries and unchecked literal replacements, so their intended scenarios disappeared after C06 became COMPLETE
 Preserved reconciliation draft: the pre-existing PROJECT_CONTROL.md and TRAID_CARD_EVIDENCE_MAP.md diff was backed up outside Git at `/private/tmp/traid-c06-postmerge-reconciliation.patch`; SHA-256 `727be2e3064920b5094648c54e2ae42c496253ae1438164b11f587d57a0879fc`; bytes matched the working diff before branch creation and remain available through this bounded maintenance
 Maintenance base/branch: base 1c40b3a5b0c801d303d71053c411427767d671c1; `maintenance/c06-post-merge-summary-fixture`; Active Card NONE; C01-C06 COMPLETE; C07 NOT_STARTED / NOT_GRANTED
-Authorized scope: tests/test_harness_consistency.py, PROJECT_CONTROL.md, TRAID_CARD_EVIDENCE_MAP.md. Production checker and C06 product implementation are not in scope.
+Authorized scope at the time of this historical candidate: tests/test_harness_consistency.py, PROJECT_CONTROL.md, and TRAID_CARD_EVIDENCE_MAP.md. Under that authorization, production checker changes and C06 product implementation changes were outside scope.
 Fixture correction: read the Card table using production `parse_card_table`, derive completed/non-completed IDs, construct both summary fields with bounded one-match substitutions, and assert the positive baseline has no summary issue before each negative mutation. All scenarios call production `current_state_issues`.
 Lifecycle coverage: synthetic pre-reconciliation state with C06 READY_FOR_HUMAN_REVIEW; reconciled state with C06 COMPLETE; and a future state that marks the first NOT_STARTED Card COMPLETE and rebuilds both summaries dynamically.
 Neighbor fixture review: the nearby `test_live_current_head_claim_is_rejected` was changed without authorization while repairing the completed-Card fixtures. It has been restored exactly to its merged-base implementation; the completed-Card summary corrections remain. The historical-summary consistency test remains live by design; maintenance-scope scenarios declare their allowed paths explicitly.
@@ -2208,11 +2208,11 @@ Python compilation: PASS — `.venv/bin/python -m compileall -q src scripts test
 Import/health: PASS — imported `traid.main` and `traid.harness.lifecycle.evaluate_pre_card_readiness`; `/health` returned HTTP 200, status=ok, service=traid, version=0.1.0, environment=development.
 pip check: PASS — no broken requirements found.
 git diff --check: PASS — no whitespace errors.
-Validation limitation: hosted CI has not run for this maintenance candidate; no delivery action was authorized or performed.
+At the pre-delivery candidate freeze, hosted CI had not run for the maintenance candidate and delivery had not been authorized or performed.
 Previous candidate independent audit: FAIL — F1 MAJOR (unauthorized neighboring test change), F2 MINOR (premature post-merge validation claim), and F3 MINOR (two unnecessary historical-text edits); the previous candidate digest and findings are preserved in the historical audit record below.
 Remediation: F1 restored `test_live_current_head_claim_is_rejected` exactly from merged base while retaining the completed-Card fixture repair; F2 separated verified PR/hosted-CI/squash-merge facts from blocked post-merge validation and incomplete final reconciliation; F3 restored the PR #9 status sentence and AEVS §25 introduction exactly from merged base.
-Current independent audit: NOT_RUN for the remediated candidate; no independent candidate verdict is claimed. Delivery: NOT_GRANTED / NOT_PERFORMED; hosted maintenance CI NOT_VERIFIED; final reconciliation INCOMPLETE.
-Out-of-scope observation: section-4-specific normalization behavior remains a separate future maintenance observation; no production checker modification is authorized or planned.
+At the prior candidate freeze, independent audit was NOT_RUN for the remediated candidate; no independent verdict was claimed at that checkpoint. The subsequent audit and delivery facts are recorded separately below.
+Historical authorization note: when this candidate was prepared, its maintenance authorization did not permit a production checker modification. The section-4-specific normalization behavior remains a separate future maintenance observation.
 ```
 
 
@@ -5870,10 +5870,10 @@ Limitations: this failed audit applies only to the candidate identity recorded a
 Verdict: FAIL — bounded maintenance audit; remediation required
 ```
 
-### Current Maintenance Re-Audit Record
+### Historical Maintenance Re-Audit Record
 
 ```text
-Record Classification: CURRENT
+Record Classification: HISTORICAL
 Maintenance Task ID: MAINT-C06-POST-MERGE-SUMMARY-FIXTURE
 Status: PASS
 Candidate Type: WORKTREE
@@ -5891,9 +5891,55 @@ Limitations: post-merge reconciliation remains pending until this maintenance is
 Verdict: PASS — MAINTENANCE_REAUDIT_PASS_READY_FOR_HUMAN_DELIVERY_REVIEW
 ```
 
-The historical record preserves the failed audit and its exact candidate identity.
-The current record binds only the corrected summary-fixture maintenance candidate.
-Earlier AEVS and C06 audit records retain their own identities and findings.
+The historical records preserve the failed audit and its exact candidate identity, plus the successful audit bound to the exact delivered fixture-correction candidate. The latter PASS does not cover the later governance-state correction. Earlier AEVS and C06 audit records retain their own identities and findings.
+
+### Current Maintenance Re-Audit Record
+
+```text
+Record Classification: CURRENT
+Maintenance Task ID: MAINT-C06-POST-MERGE-SUMMARY-FIXTURE
+Status: PASS
+Candidate Type: WORKTREE
+Branch: maintenance/c06-post-merge-summary-fixture
+Base SHA: 1c40b3a5b0c801d303d71053c411427767d671c1
+Candidate Diff SHA-256: 726e1c94b5e4fda696e887449a42d4c34bf4befe2bd2862c96d5f042e8bda5dd
+Untracked Files: NONE
+Verifier context: Claude Code independent bounded audit; PASS supplied for this exact final candidate identity
+Canonical inputs reviewed: maintenance authorization, current PROJECT_CONTROL state, Evidence Map, Harness/Git Workflow rules, prior audit findings, and the exact candidate diff
+Evidence reviewed: both Harness root fixes; synthetic full-history, squash, and depth-one candidate-identity tests; dirty/staged/committed identity stability; scope and fail-closed protections; full pytest result of 349 passed
+Findings: NONE — the two historical authorization statements were corrected to identify their original scope and timing
+Unresolved blockers: NONE
+Gap dispositions: NONE
+Limitations: this audit applies only to the frozen candidate identity above; hosted CI for the new delivery commit and post-merge validation/reconciliation remain pending
+Verdict: PASS — MAINTENANCE_REAUDIT_PASS_READY_FOR_HUMAN_DELIVERY_REVIEW
+Delivery authorization/performance: NOT_GRANTED / NOT_PERFORMED — this bounded identity remediation authorizes no commit, push, PR update, or merge
+```
+
+### Post-Commit Governance-State Mismatch and Correction
+
+```text
+Observed committed state: branch maintenance/c06-post-merge-summary-fixture at a3598cdb212c867e8676d758465bb106148a16ce; clean worktree; upstream origin/maintenance/c06-post-merge-summary-fixture; PR #11 open at that head. Two observed hosted c01-baseline/test checks completed with SUCCESS for that PR head.
+Root cause: the Harness converted the `DIRTY_ALLOWED` declaration to `expected_working_tree_clean=False`, then required equality with actual cleanliness. That made a clean committed tree fail with WORKING_TREE_STATE_MISMATCH. `DIRTY_ALLOWED` means clean or dirty is permitted; it does not require dirt. The separate stale upstream declaration was also corrected in the pending governance candidate.
+Prior state-correction candidate: WORKTREE Diff SHA-256 855e430821679d03eb6a7bf0a38df23b0a095c8f899785ddcb1ea4e15b5351f0; not independently audited, not committed, and superseded by this authorized follow-up.
+Human-authorized scope supplement: this instruction explicitly authorizes a narrow working-tree policy correction in the Harness checker/lifecycle evaluator, focused tests, and documentation. It does not authorize unrelated checker behavior, product code, dependencies, delivery, or PR #11 changes. The earlier fixture-maintenance scope was narrower; this supplement is recorded explicitly rather than inferred.
+Audit applicability: the original maintenance PASS remains historical evidence for Diff SHA-256 2977bdc01e2899bd71d713e3cdc39ea1c670babee4fa91530c1bbc9d8d532769. The new implementation materially changes Harness behavior and requires independent audit. Current candidate audit remains NOT_RUN.
+Correction-candidate validation: focused Harness/maintenance/lifecycle/alignment tests PASS — 186 passed; full pytest PASS — 343 passed with 2 existing Starlette/AnyIO deprecation warnings. Harness PASS on the current authorized dirty maintenance branch; bootstrap PASS_WITH_1_WARNINGS — 20 PASS, 1 expected dirty-worktree warning, 0 FAIL. Secret scan PASS; Python compilation PASS; import smoke and FastAPI /health PASS — HTTP 200, status=ok; pip check PASS; git diff --check PASS.
+Before/after proof: in an isolated synthetic maintenance repository with a valid authorization and a clean tree declared DIRTY_ALLOWED, the committed pre-fix Harness returned WORKING_TREE_STATE_MISMATCH; the corrected production Harness returned PASS. The production Harness also passed with an authorized in-scope dirty change, then passed again after committing that same scoped change and confirming the scratch tree was clean. CLEAN plus dirty returned WORKING_TREE_STATE_MISMATCH.
+Negative controls: out-of-scope dirty path returned MAINTENANCE_OUT_OF_SCOPE; absent maintenance record returned MAINTENANCE_RECORD_MISSING; idle main with dirty uncommitted content returned UNAUTHORIZED_DIRTY_WORKTREE; invalid working-tree vocabulary returned WORKING_TREE_POLICY_INVALID; wrong branch/base and mismatched candidate identity remain rejected by focused production-checker tests. Existing Active Card activation protection remains passing.
+Bounded mutation checks: PASS — the DIRTY_ALLOWED-as-dirty-required mutant was rejected by the clean-tree regression; a scope-check bypass mutant made the unauthorized-path scenario pass and was detected by its expected-failure regression; a maintenance authorization-check bypass mutant made the missing-record scenario pass and was detected by its expected-failure regression. Mutant files remained outside the repository and synthetic Git histories.
+Candidate identity root cause: the worktree helper used the recorded Base SHA as the comparison point for staged content/mode. When HEAD had advanced beyond that base, the index's unchanged HEAD version appeared divergent. During dirty → git add → commit, the digest therefore changed when the index caught up to the worktree. The corrected helper still includes Base SHA in the frozen identity but compares divergent index bytes/modes with HEAD; an index version equal to the worktree adds no duplicate staged component, while a genuinely partial stage remains bound.
+Candidate identity regressions: PASS — synthetic HEAD-ahead-of-base candidate retained one digest through dirty, fully staged, and clean committed states; genuine partial staging changed identity; the base-equals-HEAD case remained stable; tracked content/mode and untracked content changes remained identity-sensitive. A disposable reconstruction of the earlier successful maintenance candidate reproduced its recorded historical digest exactly. A synthetic maintenance repository with a populated CURRENT / NOT_RUN audit record passed the production Harness before and after fully staging and making a disposable clean commit.
+Previous helper regression proof: PASS — loading the exact pre-fix checker from the branch base produced different digests before and after fully staging when HEAD had a post-Base change to the same path; the corrected checker produced equal digests. Historical audit records remain unchanged and applicable only to their recorded candidates.
+Validation for candidate identity remediation: 8 focused identity/current-audit tests PASS; related Harness, maintenance, and lifecycle modules PASS — 179 passed at that run; full pytest PASS — 349 passed with 2 existing dependency deprecation warnings. Harness PASS; bootstrap PASS_WITH_1_WARNINGS — 20 PASS, 1 expected dirty-tree warning, 0 FAIL; secret scan PASS; Python compilation PASS; import smoke PASS; FastAPI /health PASS — HTTP 200; pip check PASS; git diff --check PASS.
+Disposable real-candidate transition: PASS — the actual authorized tracked candidate files and CURRENT / NOT_RUN audit record were copied to an isolated clone. Production Harness PASS with authorized dirty state; candidate SHA-256 remained stable after staging and after a disposable clean commit; production Harness PASS on the clean committed state. Negative probes BLOCKED as expected: an unauthorized file produced MAINTENANCE_OUT_OF_SCOPE and candidate mismatch; a mismatched recorded digest produced AUDITED_CANDIDATE_CHANGED:Candidate Diff SHA-256. The original repository received no commit.
+Current candidate audit: NOT_RUN — the identity algorithm and regression tests are a material candidate change requiring bounded independent review. The exact frozen digest is recorded in the Current Maintenance Re-Audit Record above.
+Current delivery authority: NOT_GRANTED / NOT_PERFORMED; PR #11 remains untouched. The stale earlier wording “GRANTED CONDITIONALLY / NOT_PERFORMED” was corrected because the current bounded instruction grants no delivery actions.
+Delivery state: no corrective commit, push, PR update, or merge has occurred. PR #11 still points to a3598cdb212c867e8676d758465bb106148a16ce; hosted CI for the correction is NOT_VERIFIED. C06 final post-merge validation and reconciliation remain INCOMPLETE.
+Operational state: C01-C06 COMPLETE; Active Card NONE; C07 NOT_STARTED / NOT_GRANTED; D-OI-001 DEFERRED; Hyperliquid OI UNVERIFIED FOR CANONICAL USE.
+Latest bounded audit-finding remediation: F1 replaces the repository-history-dependent test with disposable synthetic Git histories and calls the production `worktree_candidate_identity` function. The scenario covers HEAD ahead of Base, dirty-to-staged-to-committed stability, a separately generated squash candidate, and a depth-one clone without the Base object; it uses no project commit SHA or Safe Resume prose. F2 updates only current maintenance wording to describe the DIRTY_ALLOWED lifecycle correction, HEAD-relative index comparison, and synthetic test accurately; delivery remains NOT_GRANTED and current independent audit remains NOT_RUN.
+Validation for this latest remediation: the replacement test passes and internally reproduces full synthetic history, a simulated squash candidate, and a file:// depth-one clone without the Base object. Focused identity regressions: PASS — 7 passed. Full pytest: PASS — 349 passed, 2 existing Starlette/AnyIO deprecation warnings. Production Harness: PASS. Bootstrap: PASS_WITH_1_WARNINGS — 20 PASS, 1 dirty-worktree warning, 0 FAIL. Secret scan: PASS. `git diff --check`: PASS. The old Base-relative algorithm was restored only in an isolated scratch clone; the replacement test failed at the dirty-to-staged identity assertion as expected, proving mutation detection. A separate scratch clone of the actual candidate passed production Harness while dirty, after staging, and after a disposable clean commit. No commit or delivery action occurred in the source repository.
+Current audit: NOT_RUN for the final candidate; delivery permissions remain NOT_GRANTED / NOT_PERFORMED. The prior audit PASS remains historical and applies only to its recorded candidate identity.
+```
 
 ### Previous Candidate Validation Evidence
 

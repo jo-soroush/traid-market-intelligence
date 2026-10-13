@@ -644,6 +644,14 @@ Verdict: pending
     return tmp_path, base
 
 
+def _advance_candidate_head(repo: Path) -> None:
+    """Create a disposable commit after the candidate Base SHA."""
+    (repo / "AGENTS.md").write_text("tracked content committed after the base\n")
+    env = {**os.environ, "GIT_AUTHOR_NAME": "test", "GIT_AUTHOR_EMAIL": "test@example.invalid", "GIT_COMMITTER_NAME": "test", "GIT_COMMITTER_EMAIL": "test@example.invalid"}
+    subprocess.run(["git", "add", "AGENTS.md", "CLAUDE.md"], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-qm", "advance fixture HEAD"], cwd=repo, check=True, env=env)
+
+
 def test_frozen_worktree_identity_is_reproducible_and_binds_untracked_content(tmp_path: Path) -> None:
     repo, base = _candidate_fixture(tmp_path)
     frozen = consistency.worktree_candidate_identity(repo, base)
@@ -653,6 +661,14 @@ def test_frozen_worktree_identity_is_reproducible_and_binds_untracked_content(tm
     assert consistency.candidate_applicability_issues(frozen, frozen) == ()
     (repo / "CLAUDE.md").write_text("changed non-canonical route\n")
     assert consistency.candidate_applicability_issues(frozen, consistency.worktree_candidate_identity(repo, base))
+
+
+def test_tracked_worktree_content_change_changes_candidate_identity(tmp_path: Path) -> None:
+    repo, base = _candidate_fixture(tmp_path)
+    frozen = consistency.worktree_candidate_identity(repo, base)
+    (repo / "AGENTS.md").write_text("material tracked governance change\n")
+    changed = consistency.worktree_candidate_identity(repo, base)
+    assert changed["Candidate Diff SHA-256"] != frozen["Candidate Diff SHA-256"]
 
 
 def test_evidence_only_audit_recording_does_not_invalidate_frozen_candidate(tmp_path: Path) -> None:
@@ -756,6 +772,112 @@ def test_tracked_mode_and_divergent_index_are_bound_to_candidate(tmp_path: Path)
     subprocess.run(["git", "reset", "-q", "--", "AGENTS.md"], cwd=repo, check=True)
     without_index = consistency.worktree_candidate_identity(repo, base)
     assert with_index["Candidate Diff SHA-256"] != without_index["Candidate Diff SHA-256"]
+
+
+def test_candidate_identity_is_stable_when_head_ahead_of_base_across_stage_and_commit(tmp_path: Path) -> None:
+    repo, base = _candidate_fixture(tmp_path)
+    _advance_candidate_head(repo)
+    assert _git(repo, "rev-parse", "HEAD") != base
+
+    target = repo / "AGENTS.md"
+    target.write_text("authorized complete candidate change\n")
+    dirty = consistency.worktree_candidate_identity(repo, base)
+
+    subprocess.run(["git", "add", "AGENTS.md"], cwd=repo, check=True)
+    staged = consistency.worktree_candidate_identity(repo, base)
+    assert staged["Candidate Diff SHA-256"] == dirty["Candidate Diff SHA-256"]
+
+    env = {**os.environ, "GIT_AUTHOR_NAME": "test", "GIT_AUTHOR_EMAIL": "test@example.invalid", "GIT_COMMITTER_NAME": "test", "GIT_COMMITTER_EMAIL": "test@example.invalid"}
+    subprocess.run(["git", "commit", "-qm", "commit identical candidate"], cwd=repo, check=True, env=env)
+    committed = consistency.worktree_candidate_identity(repo, base)
+    assert not _git(repo, "status", "--porcelain")
+    assert committed["Candidate Diff SHA-256"] == dirty["Candidate Diff SHA-256"]
+    assert consistency.candidate_applicability_issues(dirty, committed) == ()
+
+
+def test_partial_staging_is_bound_relative_to_head_not_older_base(tmp_path: Path) -> None:
+    repo, base = _candidate_fixture(tmp_path)
+    _advance_candidate_head(repo)
+    target = repo / "AGENTS.md"
+    target.write_text("staged version\n")
+    subprocess.run(["git", "add", "AGENTS.md"], cwd=repo, check=True)
+    target.write_text("different unstaged version\n")
+    partial = consistency.worktree_candidate_identity(repo, base)
+
+    subprocess.run(["git", "reset", "-q", "--", "AGENTS.md"], cwd=repo, check=True)
+    unstaged_only = consistency.worktree_candidate_identity(repo, base)
+    assert partial["Candidate Diff SHA-256"] != unstaged_only["Candidate Diff SHA-256"]
+
+
+def test_base_equals_head_preserves_preexisting_audit_identity_semantics(tmp_path: Path) -> None:
+    repo, base = _candidate_fixture(tmp_path)
+    assert _git(repo, "rev-parse", "HEAD") == base
+    (repo / "CLAUDE.md").write_text("frozen historical candidate\n")
+    first = consistency.worktree_candidate_identity(repo, base)
+    second = consistency.worktree_candidate_identity(repo, base)
+    assert first == second
+    assert first["Base SHA"] == base
+    assert first["Untracked Files"] == "CLAUDE.md"
+
+
+def test_preserved_historical_maintenance_audit_identity_is_reproducible(tmp_path: Path) -> None:
+    """Reproduce a frozen identity from disposable history, including shallow squash history."""
+    branch = "maintenance/synthetic-audit-history"
+    final_content = "historical candidate content\n"
+    env = {
+        **os.environ,
+        "GIT_AUTHOR_NAME": "synthetic test",
+        "GIT_AUTHOR_EMAIL": "synthetic@example.invalid",
+        "GIT_COMMITTER_NAME": "synthetic test",
+        "GIT_COMMITTER_EMAIL": "synthetic@example.invalid",
+    }
+
+    def commit(repo: Path, message: str) -> None:
+        subprocess.run(["git", "add", "governance.txt"], cwd=repo, check=True)
+        subprocess.run(["git", "commit", "-qm", message], cwd=repo, check=True, env=env)
+
+    base_repo = tmp_path / "synthetic-base"
+    base_repo.mkdir()
+    subprocess.run(["git", "init", "-q", "-b", "main"], cwd=base_repo, check=True)
+    (base_repo / "governance.txt").write_text("synthetic base\n")
+    commit(base_repo, "synthetic base")
+    base_sha = _git(base_repo, "rev-parse", "HEAD")
+
+    full_repo = tmp_path / "synthetic-full-history"
+    subprocess.run(["git", "clone", "-q", "--no-hardlinks", str(base_repo), str(full_repo)], check=True)
+    subprocess.run(["git", "switch", "-q", "-c", branch], cwd=full_repo, check=True)
+    (full_repo / "governance.txt").write_text("intermediate post-base HEAD\n")
+    commit(full_repo, "advance synthetic HEAD beyond base")
+    assert _git(full_repo, "rev-parse", "HEAD") != base_sha
+    (full_repo / "governance.txt").write_text(final_content)
+
+    frozen = consistency.worktree_candidate_identity(full_repo, base_sha)
+    assert frozen["Branch"] == branch
+    staged = subprocess.run(["git", "add", "governance.txt"], cwd=full_repo, check=False)
+    assert staged.returncode == 0
+    assert consistency.worktree_candidate_identity(full_repo, base_sha) == frozen
+    subprocess.run(["git", "commit", "-qm", "commit synthetic candidate"], cwd=full_repo, check=True, env=env)
+    assert consistency.worktree_candidate_identity(full_repo, base_sha) == frozen
+    assert not _git(full_repo, "status", "--porcelain")
+
+    # A separate one-commit candidate tree represents the same change after a squash merge.
+    squash_repo = tmp_path / "synthetic-squash"
+    subprocess.run(["git", "clone", "-q", "--no-hardlinks", str(base_repo), str(squash_repo)], check=True)
+    (squash_repo / "governance.txt").write_text(final_content)
+    commit(squash_repo, "synthetic squash merge")
+    subprocess.run(["git", "switch", "-q", "-c", branch], cwd=squash_repo, check=True)
+    squash_identity = consistency.worktree_candidate_identity(squash_repo, base_sha)
+    assert squash_identity == frozen
+
+    # A file:// depth-one clone has the same candidate tree but lacks the base object.
+    shallow_repo = tmp_path / "synthetic-shallow"
+    subprocess.run([
+        "git", "clone", "-q", "--depth", "1", "--branch", branch,
+        f"file://{squash_repo}", str(shallow_repo),
+    ], check=True)
+    base_object = subprocess.run(["git", "cat-file", "-e", base_sha], cwd=shallow_repo, check=False)
+    assert base_object.returncode != 0, "the depth-one clone must not contain the base commit object"
+    assert consistency.worktree_candidate_identity(shallow_repo, base_sha) == frozen
 
 
 def _maintenance_audit_scenario(
