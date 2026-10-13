@@ -109,12 +109,12 @@ Implementation: COMPLETE — V1-C01, V1-C02, V1-C03, V1-C04, V1-C05, and V1-C06 
 Source Code: PRESENT — C01 baseline, C02 canonical domain contracts, C03 boundary, C04 provider adapter, C05 quality layer, and C06 historical data/replay foundation
 Tests: PRESENT — C01 through C06 focused, regression, and Harness tests
 Git Repository: INITIALIZED
-Git Branch: maintenance/c06-post-merge-reconciliation
-Git Checkpoint: e8ce5af0b548819d8b37711ff0e5185c7d306512 — verified PR #11 merge on main and base for bounded reconciliation
-Git Upstream: NONE — local reconciliation branch; no remote or push is authorized
+Git Branch: main
+Git Checkpoint: 622d7848bb00cdd0d1c3a877844b1c3099230f75 — historical PR #12 policy merge; terminal reconciliation base
+Git Upstream: origin/main — runtime synchronization is derived from Git
 Git Remote: origin — https://github.com/jo-soroush/traid-market-intelligence.git
-Git Safe Checkpoint: VERIFIED — PR #11 merge e8ce5af0b548819d8b37711ff0e5185c7d306512; prior reconciliation history preserved
-Working Tree: DIRTY_ALLOWED — authorized changes within the current recorded maintenance scope may be present; a clean tree is also valid
+Git Safe Checkpoint: VERIFIED — historical PR #12 merge 622d7848bb00cdd0d1c3a877844b1c3099230f75; prior reconciliation history preserved
+Working Tree: CLEAN
 V1-C01: COMPLETE
 V1-C01 Authorization: START_GRANTED; DELIVERY_GRANTED; DELIVERY_COMPLETED
 V1-C02: COMPLETE
@@ -134,16 +134,16 @@ Git delivery claims require their own executed evidence.
 
 C01-C06 implementation and approved delivery evidence are recorded. PR #11 is
 merged at e8ce5af0b548819d8b37711ff0e5185c7d306512 with successful hosted CI.
-The local post-merge reconciliation candidate passed the required validation
-listed below; final main-state reconciliation awaits independent review and
-authorized delivery. No Card is active and C07 remains unauthorized.
+The reconciliation policy was delivered by PR #12 at
+622d7848bb00cdd0d1c3a877844b1c3099230f75. Its delivered audit is HISTORICAL;
+maintenance is closed. No Card is active and C07 remains unauthorized.
 
 ### Current Maintenance Record
 
 ```text
 Maintenance Task ID: MAINT-C06-POST-MERGE-RECONCILIATION-PR11
 Title: PR #11 C06 post-merge governance reconciliation
-Status: READY_FOR_HUMAN_REVIEW — local reconciliation candidate validated; independent audit NOT_RUN; delivery NOT_GRANTED
+Status: CLOSED / DELIVERED / VERIFIED — reconciliation policy delivered by PR #12
 Reason: PR #11 has merged, and its delivered CURRENT audit record must be retired while final post-merge verification and operational state are reconciled truthfully
 Originating Evidence: PR #11 merged at e8ce5af0b548819d8b37711ff0e5185c7d306512; merge and hosted CI observed through GitHub
 Base Commit: e8ce5af0b548819d8b37711ff0e5185c7d306512 — verified PR #11 merge on origin/main
@@ -153,8 +153,8 @@ Prohibited Scope: product code, Harness/checker, tests, CI, dependencies, C01-C0
 Expected Areas: GIT_WORKFLOW.md, PROJECT_CONTROL.md, TRAID_CARD_EVIDENCE_MAP.md
 Required Validation: PASS — `.venv/bin/pytest -q` 349 passed with 2 existing deprecation warnings; `python scripts/harness_consistency_check.py` PASS; `bash scripts/session_bootstrap.sh` PASS_WITH_1_WARNINGS (20 PASS, 1 expected dirty-tree warning, 0 FAIL); `bash scripts/check_secrets.sh` PASS; `git diff --check` PASS
 External Git Permissions: NOT_GRANTED — this instruction authorizes local branch creation, governance edits, and validation only
-Closure Evidence: PR #11 merge SHA and both successful hosted checks are recorded in TRAID_CARD_EVIDENCE_MAP.md. The policy candidate passes local tests and checks listed above. A disposable scratch clone proved the merge-then-terminal-close sequence, including a fail-closed pre-reconciliation main state and final clean/synchronized main Harness PASS; this is policy simulation evidence only. Independent audit is NOT_RUN; no commit, push, PR, merge, direct-main reconciliation, or final live main-state reconciliation is claimed.
-Safe Resume: this candidate's local validation is complete; obtain bounded independent review, then stop pending separate human delivery authorization. Keep Active Card NONE, C01-C06 COMPLETE, C07 NOT_STARTED / NOT_GRANTED, and D-OI-001 DEFERRED.
+Closure Evidence: PR #11 merge SHA and hosted checks remain recorded in TRAID_CARD_EVIDENCE_MAP.md. The policy candidate passed the recorded local validation and independent delta review with exact WORKTREE Diff SHA-256 e586669b9e5a5df9ab839e0e1bb9a52099f474bb77420fc38e918d985e47434b. PR #12 delivered the policy at 622d7848bb00cdd0d1c3a877844b1c3099230f75. The delivered audit is HISTORICAL with its exact PASS evidence preserved. Earlier disposable-clone results remain policy simulation evidence only; terminal review, delivery, and validation evidence is retained outside canonical documents under GIT_WORKFLOW.md §21.1.
+Safe Resume: no active maintenance; this policy task is closed. Keep Active Card NONE, C01-C06 COMPLETE, C07 NOT_STARTED / NOT_GRANTED, and D-OI-001 DEFERRED. Terminal reconciliation follows only the separately authorized GIT_WORKFLOW.md §21.1 procedure.
 Allowed Paths: GIT_WORKFLOW.md, PROJECT_CONTROL.md, TRAID_CARD_EVIDENCE_MAP.md
 ```
 
@@ -165,7 +165,7 @@ Allowed Paths: GIT_WORKFLOW.md, PROJECT_CONTROL.md, TRAID_CARD_EVIDENCE_MAP.md
 ```text
 Maintenance Task ID: MAINT-C06-POST-MERGE-SUMMARY-FIXTURE
 Title: C06 post-merge summary-fixture, Harness state, and candidate identity maintenance
-Status: CLOSED / DELIVERED / VERIFIED — PR #11 delivery and its hosted checks are verified; the separate final governance reconciliation candidate is validated locally and awaits review/delivery
+Status: CLOSED / DELIVERED / VERIFIED — PR #11 delivery and its hosted checks are verified; reconciliation policy delivered by PR #12
 Reason: post-merge pytest reported 325 passed and 3 failures in completed-Card summary scenarios; subsequent audit findings concerned governance test fixtures and truthful state reconciliation
 Originating Evidence: PR #10 squash merge `1c40b3a5b0c801d303d71053c411427767d671c1`; post-merge pytest result and independent Claude Code root-cause analysis
 Base Commit: 1c40b3a5b0c801d303d71053c411427767d671c1 — verified C06 merge on synchronized main
@@ -176,8 +176,8 @@ Prohibited Scope: C01-C06 product changes, C07 work, financial guardrails, OI se
 Expected Areas: tests/test_harness_consistency.py, scripts/harness_consistency_check.py, src/traid/harness/lifecycle.py, PROJECT_CONTROL.md, TRAID_CARD_EVIDENCE_MAP.md, TRAID_ENGINEERING_HARNESS.md, tests/test_lifecycle.py, tests/test_maintenance_harness.py
 Required Validation: historical maintenance test, identity, Harness, and repository validation requirements are preserved in TRAID_CARD_EVIDENCE_MAP.md
 External Git Permissions: COMPLETED for PR #11 only — authorized branch push and PR delivery completed; no further external action is authorized by this historical record
-Closure Evidence: maintenance commit a3598cdb212c867e8676d758465bb106148a16ce was delivered through PR #11; PR #11 merged at e8ce5af0b548819d8b37711ff0e5185c7d306512. Both hosted c01-baseline test checks passed for PR head de2179c5c19575d05695dd11f2b19c342bbdee47. Its independent audit PASS remains bound to WORKTREE Diff SHA-256 726e1c94b5e4fda696e887449a42d4c34bf4befe2bd2862c96d5f042e8bda5dd. The separate final reconciliation candidate passed 349 pytest tests, Harness, secret scan, diff check, and bootstrap with 20 PASS / 1 expected dirty-tree warning / 0 FAIL; independent review and delivery of that candidate remain pending.
-Safe Resume: no further work under this closed maintenance record; final governance reconciliation proceeds only under the separately authorized task above. C01-C06 COMPLETE, Active Card NONE, C07 NOT_STARTED / NOT_GRANTED, and D-OI-001 DEFERRED.
+Closure Evidence: maintenance commit a3598cdb212c867e8676d758465bb106148a16ce was delivered through PR #11; PR #11 merged at e8ce5af0b548819d8b37711ff0e5185c7d306512. Both hosted c01-baseline test checks passed for PR head de2179c5c19575d05695dd11f2b19c342bbdee47. Its independent audit PASS remains bound to WORKTREE Diff SHA-256 726e1c94b5e4fda696e887449a42d4c34bf4befe2bd2862c96d5f042e8bda5dd. The subsequent reconciliation policy candidate passed 349 pytest tests, Harness, secret scan, diff check, and bootstrap with 20 PASS / 1 expected dirty-tree warning / 0 FAIL; independent delta review PASS and PR #12 policy delivery are preserved in the Evidence Map.
+Safe Resume: no further work under this closed maintenance record; terminal reconciliation follows GIT_WORKFLOW.md §21.1 only under separate authorization. C01-C06 COMPLETE, Active Card NONE, C07 NOT_STARTED / NOT_GRANTED, and D-OI-001 DEFERRED.
 Allowed Paths: tests/test_harness_consistency.py, tests/test_maintenance_harness.py, tests/test_lifecycle.py, scripts/harness_consistency_check.py, src/traid/harness/lifecycle.py, PROJECT_CONTROL.md, TRAID_CARD_EVIDENCE_MAP.md, TRAID_ENGINEERING_HARNESS.md
 ```
 
@@ -484,7 +484,7 @@ Blockers: final post-merge governance verification is being completed under MAIN
 Known Limitations: R1 boundary regression-test gap remains; provider publication time, historical revisions/backfills, funding cadence/continuity, and redistribution rights are unverified
 Human Start Approval: GRANTED — explicit V1-C06 implementation authorization in this request
 Human Delivery Approval: GRANTED — explicit C06 controlled-delivery authorization
-Delivery Verified: YES — PR #10 merged with hosted PR CI PASS at `1c40b3a5b0c801d303d71053c411427767d671c1`; PR #11 governance maintenance merged with hosted CI PASS at `e8ce5af0b548819d8b37711ff0e5185c7d306512`. The required final governance reconciliation is being validated on its separate maintenance branch and is not yet complete; C07 remains NOT_GRANTED.
+Delivery Verified: YES — PR #10 merged with hosted PR CI PASS at `1c40b3a5b0c801d303d71053c411427767d671c1`; PR #11 governance maintenance merged with hosted CI PASS at `e8ce5af0b548819d8b37711ff0e5185c7d306512`. PR #12 delivered the reconciliation policy at `622d7848bb00cdd0d1c3a877844b1c3099230f75`; its audit is HISTORICAL and maintenance is closed. C07 remains NOT_GRANTED.
 ```
 
 ## 7. Authorization Ledger
@@ -944,7 +944,7 @@ CARD_QUALITY_GATE: PASS — C06 developer validation and exact Exit Gate proven;
 Focused tests: 52 C06 tests passed; 328 full tests passed with 2 dependency warnings before delivery; post-merge run had 325 passed and 3 failed in summary fixtures
 Evidence updated: YES — C06 implementation, real-data acceptance, failure diagnosis, learning, and Exit Gate recorded
 Learning Record: COMPLETE — C06 fields recorded in Evidence Map
-Remaining issue: corrected maintenance candidate awaits bounded independent audit and authorized delivery before final clean-main reconciliation; no C06 product defect identified; C06 R1 remains accepted for delivery; provider publication latency, revisions, funding cadence, and redistribution rights remain unverified
+Remaining issue: no active maintenance; PR #11 fixture correction and PR #12 reconciliation policy are delivered; no C06 product defect identified; C06 R1 remains accepted for delivery; provider publication latency, revisions, funding cadence, and redistribution rights remain unverified
 ```
 
 ---
@@ -967,10 +967,10 @@ Key Demonstrated Lesson:
 Current:
 
 ```text
-Latest Evidence Update: C06 POST-MERGE GOVERNANCE FIXTURE MAINTENANCE — PR #10 merge recorded; 325 tests passed and 3 summary fixture tests failed
+Latest Evidence Update: C06 POST-MERGE GOVERNANCE CLOSURE — PR #10, PR #11, and PR #12 delivery recorded; original 325 passed / 3 summary-fixture failures preserved as history
 Evidence Card: V1-C06
-Evidence Status: MAINTENANCE_IN_PROGRESS — C06 delivery remains complete; post-merge governance verification/reconciliation is pending
-Critical Missing Proof: bounded independent audit and later authorized maintenance delivery/reconciliation; current candidate validation passes
+Evidence Status: COMPLETE — C06 delivery remains complete; delivered maintenance audits are HISTORICAL; no active maintenance
+Critical Missing Proof: NONE for delivered C06 and maintenance policy; terminal procedure evidence is retained externally under GIT_WORKFLOW.md §21.1
 Learning Record Status: COMPLETE — C06 learning fields recorded in Evidence Map
 Key Demonstrated Lesson: historical event time, receipt time, and inferred replay availability require distinct contracts
 ```
@@ -994,9 +994,9 @@ Current:
 
 ```text
 Checkpoint Type: POST_MERGE_RECONCILIATION
-Branch: maintenance/c06-post-merge-summary-fixture
-Commit/State: 1c40b3a5b0c801d303d71053c411427767d671c1 — verified C06 squash merge and maintenance base
-Validation: PASS — maintenance candidate full pytest 333 passed; merge-checkpoint main's earlier 325 passed / 3 failed is retained as historical failure evidence; final post-delivery main validation remains pending
+Branch: main
+Commit/State: 622d7848bb00cdd0d1c3a877844b1c3099230f75 — historical PR #12 policy merge and terminal base
+Validation: historical maintenance validation PASS — 349 tests; original 325 passed / 3 failed and intermediate 333 passed remain historical evidence; terminal validation is recorded externally under GIT_WORKFLOW.md §21.1
 Rollback Path: forward corrective governance commit or revert; no history rewrite
 ```
 
@@ -1029,10 +1029,10 @@ PR State: MERGED — both hosted c01-baseline/test checks PASS
 Human Review: APPROVED — explicit C06 controlled-delivery authorization
 Merge Approval: GRANTED — explicit C06 controlled-delivery authorization
 Merge: VERIFIED — `1c40b3a5b0c801d303d71053c411427767d671c1` squash merge on main
-Post-Merge Verification: ORIGINAL MAIN CHECKPOINT BLOCKED — 325 passed / 3 summary-fixture failures; corrected maintenance candidate passes 333 tests; final synchronized-main reconciliation remains pending delivery
+Post-Merge Verification: original 325 passed / 3 summary-fixture failures preserved as history; PR #11 correction and PR #12 reconciliation policy delivered; recorded policy candidate validation 349 passed; terminal validation and synchronization evidence is retained externally under GIT_WORKFLOW.md §21.1
 ```
 
-The block above records the verified C04 delivery and current integrated
+The block above records the verified C06 delivery and current integrated
 repository state. Runtime branch, HEAD, remote, and worktree facts are derived
 from Git when validated.
 
@@ -1288,16 +1288,15 @@ when proof is absent.
 
 ```text
 Safe Resume:
-PR #11 merged at e8ce5af0b548819d8b37711ff0e5185c7d306512; both hosted checks
-passed for its verified head. The delivered maintenance audit is HISTORICAL and
-preserved in TRAID_CARD_EVIDENCE_MAP.md. The separate governance-only
-reconciliation candidate on maintenance/c06-post-merge-reconciliation passed
-local validation; its independent audit is NOT_RUN and delivery is NOT_GRANTED.
-Stop for bounded independent review and separate human delivery authorization.
-Do not commit, push, create/update a PR, or merge under this authorization.
-C01-C06 remain COMPLETE, Active Card is NONE, C07 is NOT_STARTED / NOT_GRANTED,
-and D-OI-001 remains DEFERRED; Hyperliquid OI remains UNVERIFIED FOR CANONICAL
-USE.
+C06 and its post-delivery maintenance are complete. PR #11 delivered the fixture
+correction; PR #12 delivered the reconciliation policy at historical checkpoint
+622d7848bb00cdd0d1c3a877844b1c3099230f75. Delivered maintenance audits are
+HISTORICAL with their exact evidence preserved. No active maintenance remains.
+Terminal review, authorization, validation, and delivery evidence is retained
+outside canonical documents under GIT_WORKFLOW.md §21.1.
+STOP. C01-C06 remain COMPLETE, Active Card is NONE, C07 is NOT_STARTED /
+NOT_GRANTED, and D-OI-001 remains DEFERRED; Hyperliquid OI remains UNVERIFIED
+FOR CANONICAL USE.
 Next Roadmap Card: V1-C07
 
 Implementation Card: NONE
@@ -1314,10 +1313,9 @@ V1-C06 Authorization: START_GRANTED; DELIVERY_GRANTED; DELIVERY_COMPLETED
 Current resume point:
 
 ```text
-PR #11 and its successful hosted CI are recorded. The bounded post-merge
-governance reconciliation candidate passed local validation; stop for its
-independent audit, which remains NOT_RUN, and delivery authorization, which
-remains NOT_GRANTED.
+PR #11 and its successful hosted CI are recorded. PR #12 delivered the
+reconciliation policy; its audit is HISTORICAL and maintenance is closed.
+STOP. Terminal evidence is retained externally under GIT_WORKFLOW.md §21.1.
 Active Card remains NONE; C01-C06 are COMPLETE; C07 is NOT_STARTED / NOT_GRANTED
 and must not start. D-OI-001 remains DEFERRED and Hyperliquid OI remains
 UNVERIFIED FOR CANONICAL USE.

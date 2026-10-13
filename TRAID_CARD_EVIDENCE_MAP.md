@@ -5926,14 +5926,14 @@ Hosted CI: PASS — both observed c01-baseline test checks completed with SUCCES
 Merge method: squash
 Merge SHA: e8ce5af0b548819d8b37711ff0e5185c7d306512
 Audit record transition: the exact PASS record above is now HISTORICAL; its WORKTREE identity, findings, and verdict are preserved
-Final post-merge reconciliation: LOCAL_CANDIDATE_VALIDATION_PASS — 349 pytest passed with 2 existing deprecation warnings; Harness PASS; bootstrap 20 PASS / 1 expected dirty-tree warning / 0 FAIL; secret scan PASS; diff check PASS. Independent review and final governance PR delivery remain pending, so final main-state reconciliation is not claimed complete.
+Historical policy-candidate validation: PASS — 349 pytest passed with 2 existing deprecation warnings; Harness PASS; bootstrap 20 PASS / 1 expected dirty-tree warning / 0 FAIL; secret scan PASS; diff check PASS. Independent delta review PASS is preserved below; PR #12 delivered the reconciliation policy at 622d7848bb00cdd0d1c3a877844b1c3099230f75. Terminal review and delivery evidence is retained externally under GIT_WORKFLOW.md §21.1.
 Operational state: C01-C06 COMPLETE; Active Card NONE; C07 NOT_STARTED / NOT_GRANTED; D-OI-001 DEFERRED; Hyperliquid OI UNVERIFIED FOR CANONICAL USE
 ```
 
-### Current Maintenance Re-Audit Record
+### Historical Maintenance Re-Audit Record
 
 ```text
-Record Classification: CURRENT
+Record Classification: HISTORICAL
 Maintenance Task ID: MAINT-C06-POST-MERGE-RECONCILIATION-PR11
 Status: PASS
 Candidate Type: WORKTREE
@@ -5949,7 +5949,7 @@ Unresolved blockers: NONE
 Gap dispositions: NONE
 Limitations: this is a delta review reusing the previous PASS for unchanged policy content; merging this policy PR does not perform or authorize the terminal reconciliation. Actual GitHub branch-protection/ruleset enforcement remains NOT_VERIFIED.
 Verdict: PASS — TRAID_FINAL_DELTA: PASS; approved policy candidate for delivery
-Delivery authorization/performance: AUTHORIZED / NOT_PERFORMED — current human authorization covers this policy candidate through conditional squash merge; terminal reconciliation remains separately unauthorized
+Delivery authorization/performance: COMPLETED for PR #12 — policy delivered at 622d7848bb00cdd0d1c3a877844b1c3099230f75; the original PASS remains bound only to the recorded WORKTREE candidate. Terminal reconciliation requires separate authorization under GIT_WORKFLOW.md §21.1.
 ```
 
 ### Post-Commit Governance-State Mismatch and Correction
