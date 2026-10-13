@@ -552,12 +552,12 @@ def worktree_candidate_identity(repo: Path, base_sha: str) -> dict[str, str]:
         _hash_part(digest, b"worktree", worktree)
         _hash_part(digest, b"worktree mode", worktree_mode)
         if staged != worktree or index_mode != worktree_mode:
-            base = subprocess.run(["git", "show", f"{base_sha}:{path}"], cwd=repo, capture_output=True, check=False)
-            baseline = b"FILE\0" + base.stdout if base.returncode == 0 else b"DELETED"
-            baseline = _normalize_audit_recording(path, baseline) if path == "TRAID_CARD_EVIDENCE_MAP.md" and base.returncode == 0 else baseline
-            base_row = subprocess.check_output(["git", "ls-tree", base_sha, "--", path], cwd=repo).splitlines()
-            base_mode = base_row[0].split(b" ", 1)[0] if base_row else b"000000"
-            if staged != baseline or index_mode != base_mode:
+            head = subprocess.run(["git", "show", f"HEAD:{path}"], cwd=repo, capture_output=True, check=False)
+            head_content = b"FILE\0" + head.stdout if head.returncode == 0 else b"DELETED"
+            head_content = _normalize_audit_recording(path, head_content) if path == "TRAID_CARD_EVIDENCE_MAP.md" and head.returncode == 0 else head_content
+            head_row = subprocess.check_output(["git", "ls-tree", "HEAD", "--", path], cwd=repo).splitlines()
+            head_mode = head_row[0].split(b" ", 1)[0] if head_row else b"000000"
+            if staged != head_content or index_mode != head_mode:
                 _hash_part(digest, b"divergent index", staged)
                 _hash_part(digest, b"divergent index mode", index_mode)
     return {"Candidate Type": "WORKTREE", "Branch": branch, "Base SHA": base_sha,
@@ -944,6 +944,8 @@ def main() -> int:
         for line in subprocess.check_output(["git", "status", "--porcelain", "--untracked-files=all"], text=True).splitlines()
         if line
     )
+    clean = not changed_paths
+    working_tree_policy = expected_tree.group(1).split(" —", 1)[0].strip() if expected_tree else ""
     maintenance_issues = maintenance_consistency_issues(control, branch, head, changed_paths)
     maintenance_record = _maintenance_record(control)
     task_match = re.search(r"^Maintenance Task ID:[ \t]*([^\n]+)$", maintenance_record, re.MULTILINE)
@@ -954,6 +956,9 @@ def main() -> int:
     if maintenance_issues:
         print(f"HARNESS_CONSISTENCY: BLOCKED: {', '.join(maintenance_issues)}")
         return 1
+    if not clean and active_card == "NONE" and not (branch.startswith("maintenance/") or branch.startswith("hotfix/")):
+        print("HARNESS_CONSISTENCY: BLOCKED: UNAUTHORIZED_DIRTY_WORKTREE")
+        return 1
     current_issues = current_state_issues(control, evidence, head)
     if current_issues:
         print(f"HARNESS_CONSISTENCY: BLOCKED: {', '.join(current_issues)}")
@@ -963,7 +968,6 @@ def main() -> int:
         print(f"HARNESS_CONSISTENCY: BLOCKED: {', '.join(contract_map_issues)}")
         return 1
     checkpoint = bool(expected_head and subprocess.run(["git", "cat-file", "-e", f"{expected_head.group(1)}^{{commit}}"], check=False).returncode == 0 and subprocess.run(["git", "merge-base", "--is-ancestor", expected_head.group(1), head], check=False).returncode == 0)
-    clean = not subprocess.check_output(["git", "status", "--porcelain"], text=True).strip()
     documentation_issues = tuple(
         issue for record in state.cards for issue in card_documentation_issues(evidence, record)
     )
@@ -989,7 +993,7 @@ def main() -> int:
         learning_status="COMPLETE" if complete else "", safe_resume_valid=safe_resume_valid, delivery_recorded=state.delivery_verified,
         evidence_delivery_recorded=state.delivery_verified if complete else True, learning_record_complete=not learning_issues,
         stale_completion_rationale="implementation has not started under this redesigned Evidence Map" in evidence,
-        expected_working_tree_clean=bool(expected_tree and not expected_tree.group(1).startswith("DIRTY_ALLOWED")),
+        working_tree_policy=working_tree_policy,
         actual_working_tree_clean=clean, active_card_exists=active_card == "NONE" or current_record is not None,
         active_card_start_authorized=state.active_start_authorized,
         active_card_state_valid=active_card == "NONE" or (current_record is not None and current_record.state in ACTIVE_STATES),

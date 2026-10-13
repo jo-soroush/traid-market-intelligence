@@ -251,43 +251,152 @@ def test_closed_maintenance_pending_text_is_rejected() -> None:
     assert "CLOSED_MAINTENANCE_HAS_PENDING_TEXT" in issues
 
 
-def test_completed_card_summary_must_include_all_completed_cards() -> None:
-    control = CONTROL.read_text().replace(
-        "V1-C01, V1-C02, V1-C03, V1-C04, and V1-C05 implementation",
-        "V1-C01 and V1-C02 implementation",
-        1,
+def _set_synthetic_card_state(control: str, card_id: str, state: str) -> str:
+    assert card_id in {record.card_id for record in consistency.parse_card_table(control)}
+    assert state in {"COMPLETE", "READY_FOR_HUMAN_REVIEW", "NOT_STARTED"}
+
+    def update_row(match: re.Match[str]) -> str:
+        fields = [field.strip() for field in match.group(0).strip().strip("|").split("|")]
+        assert fields[0] == card_id
+        fields[2] = state
+        fields[3] = "YES" if state in {"COMPLETE", "READY_FOR_HUMAN_REVIEW"} else "NO"
+        fields[4] = "PASS" if state in {"COMPLETE", "READY_FOR_HUMAN_REVIEW"} else "NOT_RUN"
+        fields[5] = state if state in {"COMPLETE", "READY_FOR_HUMAN_REVIEW"} else "PENDING"
+        return "| " + " | ".join(fields) + " |"
+
+    control, count = re.subn(
+        rf"^\| {re.escape(card_id)} \|[^\n]*$", update_row, control,
+        count=1, flags=re.MULTILINE,
     )
-    issues = consistency.current_state_issues(control, EVIDENCE.read_text(), _git(ROOT, "rev-parse", "HEAD"))
-    assert "COMPLETED_CARD_SUMMARY_MISMATCH:IMPLEMENTATION" in issues
+    assert count == 1
+    return control
 
 
-def test_completed_card_summary_rejects_extra_noncomplete_card() -> None:
-    control = CONTROL.read_text().replace(
-        "Completed Cards: V1-C01, V1-C02, V1-C03, V1-C04, V1-C05",
-        "Completed Cards: V1-C01, V1-C02, V1-C03, V1-C04, V1-C05, V1-C06",
-        1,
-    )
-    issues = consistency.current_state_issues(control, EVIDENCE.read_text(), _git(ROOT, "rev-parse", "HEAD"))
-    assert "COMPLETED_CARD_SUMMARY_MISMATCH:ROADMAP_POSITION" in issues
-
-
-def test_completed_card_summary_accepts_future_dynamically_completed_card() -> None:
-    control = CONTROL.read_text()
-    control = re.sub(
-        r"^\| V1-C27 \|([^|]+)\| NOT_STARTED \| NO \|",
-        r"| V1-C27 |\1| COMPLETE | YES |",
+def _replace_completed_summaries(
+    control: str,
+    implementation_ids: tuple[str, ...],
+    roadmap_ids: tuple[str, ...],
+) -> str:
+    implementation = ", ".join(implementation_ids)
+    roadmap = ", ".join(roadmap_ids)
+    control, implementation_count = re.subn(
+        r"^Implementation: COMPLETE\s+—.*$",
+        f"Implementation: COMPLETE — {implementation}",
         control,
         count=1,
         flags=re.MULTILINE,
     )
-    control = control.replace("V1-C04, and V1-C05 implementation", "V1-C04, V1-C05, and V1-C27 implementation", 1)
-    control = control.replace(
-        "Completed Cards: V1-C01, V1-C02, V1-C03, V1-C04, V1-C05",
-        "Completed Cards: V1-C01, V1-C02, V1-C03, V1-C04, V1-C05, V1-C27",
-        1,
+    control, roadmap_count = re.subn(
+        r"^Completed Cards:.*$",
+        f"Completed Cards: {roadmap}",
+        control,
+        count=1,
+        flags=re.MULTILINE,
     )
-    issues = consistency.current_state_issues(control, EVIDENCE.read_text(), _git(ROOT, "rev-parse", "HEAD"))
+    assert implementation_count == 1
+    assert roadmap_count == 1
+    return control
+
+
+def _completed_summary_scenario(
+    state: str,
+    control: str | None = None,
+) -> tuple[str, tuple[str, ...], tuple[str, ...], str | None]:
+    """Construct an explicit lifecycle scenario; the production parser owns expected status."""
+    control = CONTROL.read_text() if control is None else control
+    records = consistency.parse_card_table(control)
+    card_order = tuple(record.card_id for record in records)
+    c06_index = card_order.index("V1-C06")
+    previously_completed = tuple(
+        record.card_id for record in records[:c06_index]
+        if record.state == "COMPLETE"
+    )
+    assert previously_completed
+    for record in records:
+        target_state = "COMPLETE" if record.card_id in previously_completed else "NOT_STARTED"
+        control = _set_synthetic_card_state(control, record.card_id, target_state)
+    future_card: str | None = None
+    if state == "merged_c06_pre_reconciliation":
+        # The merged candidate preceded the operational reconciliation that marked C06 COMPLETE.
+        control = _set_synthetic_card_state(control, "V1-C06", "READY_FOR_HUMAN_REVIEW")
+    elif state == "c06_complete_reconciliation":
+        control = _set_synthetic_card_state(control, "V1-C06", "COMPLETE")
+    elif state == "later_card_complete":
+        control = _set_synthetic_card_state(control, "V1-C06", "COMPLETE")
+        future_card = next(record.card_id for record in records[c06_index + 1:])
+        control = _set_synthetic_card_state(control, future_card, "COMPLETE")
+    else:
+        raise AssertionError(f"unknown synthetic lifecycle scenario: {state}")
+
+    completed = tuple(
+        record.card_id for record in consistency.parse_card_table(control)
+        if record.state == "COMPLETE"
+    )
+    not_completed = tuple(
+        record.card_id for record in consistency.parse_card_table(control)
+        if record.state != "COMPLETE"
+    )
+    assert completed
+    control = _replace_completed_summaries(control, completed, completed)
+    summary_issues = tuple(
+        issue for issue in consistency.current_state_issues(
+            control, "", _git(ROOT, "rev-parse", "HEAD")
+        ) if "COMPLETED_CARD_SUMMARY" in issue
+    )
+    assert not summary_issues
+    return control, completed, not_completed, future_card
+
+
+SUMMARY_LIFECYCLE_SCENARIOS = (
+    "merged_c06_pre_reconciliation",
+    "c06_complete_reconciliation",
+    "later_card_complete",
+)
+
+
+@pytest.mark.parametrize("scenario", SUMMARY_LIFECYCLE_SCENARIOS)
+def test_completed_card_summary_must_include_all_completed_cards(scenario: str) -> None:
+    control, completed, _, _ = _completed_summary_scenario(scenario)
+    missing_card = completed[-1]
+    reduced = tuple(card_id for card_id in completed if card_id != missing_card)
+    control = _replace_completed_summaries(control, reduced, completed)
+    issues = consistency.current_state_issues(control, "", _git(ROOT, "rev-parse", "HEAD"))
+    assert "COMPLETED_CARD_SUMMARY_MISMATCH:IMPLEMENTATION" in issues
+    assert "COMPLETED_CARD_SUMMARY_MISMATCH:ROADMAP_POSITION" not in issues
+
+
+@pytest.mark.parametrize("scenario", SUMMARY_LIFECYCLE_SCENARIOS)
+def test_completed_card_summary_rejects_extra_noncomplete_card(scenario: str) -> None:
+    control, completed, not_completed, _ = _completed_summary_scenario(scenario)
+    extra_card = not_completed[0]
+    control = _replace_completed_summaries(control, completed, (*completed, extra_card))
+    issues = consistency.current_state_issues(control, "", _git(ROOT, "rev-parse", "HEAD"))
+    assert "COMPLETED_CARD_SUMMARY_MISMATCH:ROADMAP_POSITION" in issues
+    assert "COMPLETED_CARD_SUMMARY_MISMATCH:IMPLEMENTATION" not in issues
+
+
+def test_completed_card_summary_accepts_future_dynamically_completed_card() -> None:
+    control, completed, _, future_card = _completed_summary_scenario("later_card_complete")
+    assert future_card is not None and future_card in completed
+    issues = consistency.current_state_issues(control, "", _git(ROOT, "rev-parse", "HEAD"))
     assert not any("COMPLETED_CARD_SUMMARY" in issue for issue in issues)
+
+
+def test_completed_card_summary_scenarios_ignore_live_prose_changes() -> None:
+    control, count = re.subn(
+        r"implementation, validation, and approved delivery are verified",
+        "implementation and delivery evidence are recorded",
+        CONTROL.read_text(),
+        count=1,
+    )
+    assert count == 1
+    control, completed, _, _ = _completed_summary_scenario("c06_complete_reconciliation", control)
+    assert completed
+    assert not any(
+        "COMPLETED_CARD_SUMMARY" in issue for issue in consistency.current_state_issues(
+            control, "", _git(ROOT, "rev-parse", "HEAD")
+        )
+    )
 
 
 def test_historical_completed_sets_do_not_create_current_summary_failure() -> None:
@@ -535,6 +644,14 @@ Verdict: pending
     return tmp_path, base
 
 
+def _advance_candidate_head(repo: Path) -> None:
+    """Create a disposable commit after the candidate Base SHA."""
+    (repo / "AGENTS.md").write_text("tracked content committed after the base\n")
+    env = {**os.environ, "GIT_AUTHOR_NAME": "test", "GIT_AUTHOR_EMAIL": "test@example.invalid", "GIT_COMMITTER_NAME": "test", "GIT_COMMITTER_EMAIL": "test@example.invalid"}
+    subprocess.run(["git", "add", "AGENTS.md", "CLAUDE.md"], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-qm", "advance fixture HEAD"], cwd=repo, check=True, env=env)
+
+
 def test_frozen_worktree_identity_is_reproducible_and_binds_untracked_content(tmp_path: Path) -> None:
     repo, base = _candidate_fixture(tmp_path)
     frozen = consistency.worktree_candidate_identity(repo, base)
@@ -544,6 +661,14 @@ def test_frozen_worktree_identity_is_reproducible_and_binds_untracked_content(tm
     assert consistency.candidate_applicability_issues(frozen, frozen) == ()
     (repo / "CLAUDE.md").write_text("changed non-canonical route\n")
     assert consistency.candidate_applicability_issues(frozen, consistency.worktree_candidate_identity(repo, base))
+
+
+def test_tracked_worktree_content_change_changes_candidate_identity(tmp_path: Path) -> None:
+    repo, base = _candidate_fixture(tmp_path)
+    frozen = consistency.worktree_candidate_identity(repo, base)
+    (repo / "AGENTS.md").write_text("material tracked governance change\n")
+    changed = consistency.worktree_candidate_identity(repo, base)
+    assert changed["Candidate Diff SHA-256"] != frozen["Candidate Diff SHA-256"]
 
 
 def test_evidence_only_audit_recording_does_not_invalidate_frozen_candidate(tmp_path: Path) -> None:
@@ -647,6 +772,112 @@ def test_tracked_mode_and_divergent_index_are_bound_to_candidate(tmp_path: Path)
     subprocess.run(["git", "reset", "-q", "--", "AGENTS.md"], cwd=repo, check=True)
     without_index = consistency.worktree_candidate_identity(repo, base)
     assert with_index["Candidate Diff SHA-256"] != without_index["Candidate Diff SHA-256"]
+
+
+def test_candidate_identity_is_stable_when_head_ahead_of_base_across_stage_and_commit(tmp_path: Path) -> None:
+    repo, base = _candidate_fixture(tmp_path)
+    _advance_candidate_head(repo)
+    assert _git(repo, "rev-parse", "HEAD") != base
+
+    target = repo / "AGENTS.md"
+    target.write_text("authorized complete candidate change\n")
+    dirty = consistency.worktree_candidate_identity(repo, base)
+
+    subprocess.run(["git", "add", "AGENTS.md"], cwd=repo, check=True)
+    staged = consistency.worktree_candidate_identity(repo, base)
+    assert staged["Candidate Diff SHA-256"] == dirty["Candidate Diff SHA-256"]
+
+    env = {**os.environ, "GIT_AUTHOR_NAME": "test", "GIT_AUTHOR_EMAIL": "test@example.invalid", "GIT_COMMITTER_NAME": "test", "GIT_COMMITTER_EMAIL": "test@example.invalid"}
+    subprocess.run(["git", "commit", "-qm", "commit identical candidate"], cwd=repo, check=True, env=env)
+    committed = consistency.worktree_candidate_identity(repo, base)
+    assert not _git(repo, "status", "--porcelain")
+    assert committed["Candidate Diff SHA-256"] == dirty["Candidate Diff SHA-256"]
+    assert consistency.candidate_applicability_issues(dirty, committed) == ()
+
+
+def test_partial_staging_is_bound_relative_to_head_not_older_base(tmp_path: Path) -> None:
+    repo, base = _candidate_fixture(tmp_path)
+    _advance_candidate_head(repo)
+    target = repo / "AGENTS.md"
+    target.write_text("staged version\n")
+    subprocess.run(["git", "add", "AGENTS.md"], cwd=repo, check=True)
+    target.write_text("different unstaged version\n")
+    partial = consistency.worktree_candidate_identity(repo, base)
+
+    subprocess.run(["git", "reset", "-q", "--", "AGENTS.md"], cwd=repo, check=True)
+    unstaged_only = consistency.worktree_candidate_identity(repo, base)
+    assert partial["Candidate Diff SHA-256"] != unstaged_only["Candidate Diff SHA-256"]
+
+
+def test_base_equals_head_preserves_preexisting_audit_identity_semantics(tmp_path: Path) -> None:
+    repo, base = _candidate_fixture(tmp_path)
+    assert _git(repo, "rev-parse", "HEAD") == base
+    (repo / "CLAUDE.md").write_text("frozen historical candidate\n")
+    first = consistency.worktree_candidate_identity(repo, base)
+    second = consistency.worktree_candidate_identity(repo, base)
+    assert first == second
+    assert first["Base SHA"] == base
+    assert first["Untracked Files"] == "CLAUDE.md"
+
+
+def test_preserved_historical_maintenance_audit_identity_is_reproducible(tmp_path: Path) -> None:
+    """Reproduce a frozen identity from disposable history, including shallow squash history."""
+    branch = "maintenance/synthetic-audit-history"
+    final_content = "historical candidate content\n"
+    env = {
+        **os.environ,
+        "GIT_AUTHOR_NAME": "synthetic test",
+        "GIT_AUTHOR_EMAIL": "synthetic@example.invalid",
+        "GIT_COMMITTER_NAME": "synthetic test",
+        "GIT_COMMITTER_EMAIL": "synthetic@example.invalid",
+    }
+
+    def commit(repo: Path, message: str) -> None:
+        subprocess.run(["git", "add", "governance.txt"], cwd=repo, check=True)
+        subprocess.run(["git", "commit", "-qm", message], cwd=repo, check=True, env=env)
+
+    base_repo = tmp_path / "synthetic-base"
+    base_repo.mkdir()
+    subprocess.run(["git", "init", "-q", "-b", "main"], cwd=base_repo, check=True)
+    (base_repo / "governance.txt").write_text("synthetic base\n")
+    commit(base_repo, "synthetic base")
+    base_sha = _git(base_repo, "rev-parse", "HEAD")
+
+    full_repo = tmp_path / "synthetic-full-history"
+    subprocess.run(["git", "clone", "-q", "--no-hardlinks", str(base_repo), str(full_repo)], check=True)
+    subprocess.run(["git", "switch", "-q", "-c", branch], cwd=full_repo, check=True)
+    (full_repo / "governance.txt").write_text("intermediate post-base HEAD\n")
+    commit(full_repo, "advance synthetic HEAD beyond base")
+    assert _git(full_repo, "rev-parse", "HEAD") != base_sha
+    (full_repo / "governance.txt").write_text(final_content)
+
+    frozen = consistency.worktree_candidate_identity(full_repo, base_sha)
+    assert frozen["Branch"] == branch
+    staged = subprocess.run(["git", "add", "governance.txt"], cwd=full_repo, check=False)
+    assert staged.returncode == 0
+    assert consistency.worktree_candidate_identity(full_repo, base_sha) == frozen
+    subprocess.run(["git", "commit", "-qm", "commit synthetic candidate"], cwd=full_repo, check=True, env=env)
+    assert consistency.worktree_candidate_identity(full_repo, base_sha) == frozen
+    assert not _git(full_repo, "status", "--porcelain")
+
+    # A separate one-commit candidate tree represents the same change after a squash merge.
+    squash_repo = tmp_path / "synthetic-squash"
+    subprocess.run(["git", "clone", "-q", "--no-hardlinks", str(base_repo), str(squash_repo)], check=True)
+    (squash_repo / "governance.txt").write_text(final_content)
+    commit(squash_repo, "synthetic squash merge")
+    subprocess.run(["git", "switch", "-q", "-c", branch], cwd=squash_repo, check=True)
+    squash_identity = consistency.worktree_candidate_identity(squash_repo, base_sha)
+    assert squash_identity == frozen
+
+    # A file:// depth-one clone has the same candidate tree but lacks the base object.
+    shallow_repo = tmp_path / "synthetic-shallow"
+    subprocess.run([
+        "git", "clone", "-q", "--depth", "1", "--branch", branch,
+        f"file://{squash_repo}", str(shallow_repo),
+    ], check=True)
+    base_object = subprocess.run(["git", "cat-file", "-e", base_sha], cwd=shallow_repo, check=False)
+    assert base_object.returncode != 0, "the depth-one clone must not contain the base commit object"
+    assert consistency.worktree_candidate_identity(shallow_repo, base_sha) == frozen
 
 
 def _maintenance_audit_scenario(

@@ -4,12 +4,18 @@ import os
 import re
 import subprocess
 import sys
+import importlib.util
 from pathlib import Path
 
 import pytest
 
 ROOT = Path(__file__).parents[1]
 CHECKER = ROOT / "scripts" / "harness_consistency_check.py"
+SPEC = importlib.util.spec_from_file_location("maintenance_harness_checker", CHECKER)
+assert SPEC and SPEC.loader
+consistency = importlib.util.module_from_spec(SPEC)
+sys.modules[SPEC.name] = consistency
+SPEC.loader.exec_module(consistency)
 
 
 def _git(cwd: Path, *args: str) -> str:
@@ -71,6 +77,7 @@ def _maintenance_fixture(
     branch: str,
     *,
     dirty_path: str | None = None,
+    working_tree_state: str | None = None,
     allowed_paths: tuple[str, ...] = (
         "PROJECT_CONTROL.md", "TRAID_CARD_EVIDENCE_MAP.md", "TRAID_ENGINEERING_HARNESS.md",
         "GIT_WORKFLOW.md", "scripts/harness_consistency_check.py", "tests/test_harness_consistency.py",
@@ -110,7 +117,7 @@ def _maintenance_fixture(
         count=1, flags=re.MULTILINE | re.DOTALL,
     )
     assert count == 1
-    working_tree = "DIRTY_ALLOWED" if dirty_path else "CLEAN"
+    working_tree = working_tree_state or ("DIRTY_ALLOWED" if dirty_path else "CLEAN")
     control = re.sub(r"^Working Tree: .+$", f"Working Tree: {working_tree}", control, count=1, flags=re.MULTILINE)
     (tmp_path / "PROJECT_CONTROL.md").write_text(control)
     (tmp_path / "TRAID_CARD_EVIDENCE_MAP.md").write_text(evidence)
@@ -137,6 +144,91 @@ def _maintenance_fixture(
     return tmp_path
 
 
+def _add_current_audit_record(repo: Path) -> str:
+    evidence_path = repo / "TRAID_CARD_EVIDENCE_MAP.md"
+    evidence = evidence_path.read_text()
+    evidence = re.sub(
+        r"^### (?:Current|Historical) Maintenance Re-Audit Record\n.*?(?=^### |^## |\Z)",
+        "",
+        evidence,
+        flags=re.MULTILINE | re.DOTALL,
+    )
+    section = re.search(r"^## 25\.[^\n]*\n", evidence, re.MULTILINE)
+    assert section, "synthetic repository must retain the canonical AEVS evidence owner"
+    base_short = re.search(
+        r"^### Current Maintenance Record\n.*?^Base Commit: ([0-9a-f]{7,40})\b",
+        (repo / "PROJECT_CONTROL.md").read_text(), re.MULTILINE | re.DOTALL,
+    )
+    assert base_short, "maintenance fixture must declare its own base commit"
+    base = _git(repo, "rev-parse", base_short.group(1))
+    record = """### Current Maintenance Re-Audit Record
+
+```text
+Record Classification: CURRENT
+Maintenance Task ID: TEST-MAINTENANCE-FIXTURE
+Status: NOT_RUN
+Candidate Type: WORKTREE
+Branch: BRANCH
+Base SHA: BASE_SHA
+Candidate Diff SHA-256: pending
+Untracked Files: pending
+Verifier context: NOT_RUN
+Canonical inputs reviewed: NOT_RUN
+Evidence reviewed: NOT_RUN
+Findings: NOT_RUN
+Unresolved blockers: NOT_RUN
+Gap dispositions: NOT_RUN
+Limitations: audit not run
+Verdict: NOT_RUN
+```
+
+""".replace("BRANCH", _git(repo, "branch", "--show-current")).replace("BASE_SHA", base)
+    end_of_owner = re.search(r"^# 20\. Final Evidence Principle", evidence, re.MULTILINE)
+    assert end_of_owner and section.start() < end_of_owner.start()
+    evidence = evidence[:end_of_owner.start()] + "\n" + record + evidence[end_of_owner.start():]
+    evidence_path.write_text(evidence)
+    identity = consistency.worktree_candidate_identity(repo, base)
+    evidence = evidence.replace("Candidate Diff SHA-256: pending", f"Candidate Diff SHA-256: {identity['Candidate Diff SHA-256']}", 1)
+    evidence = evidence.replace("Untracked Files: pending", f"Untracked Files: {identity['Untracked Files']}", 1)
+    evidence_path.write_text(evidence)
+    return base
+
+
+def test_real_current_audit_record_survives_dirty_stage_and_clean_commit(tmp_path: Path) -> None:
+    fixture = _maintenance_fixture(
+        tmp_path,
+        "maintenance/current-audit-transition",
+        working_tree_state="DIRTY_ALLOWED",
+        allowed_paths=("PROJECT_CONTROL.md", "TRAID_CARD_EVIDENCE_MAP.md", "TRAID_ENGINEERING_HARNESS.md"),
+    )
+    harness_doc = fixture / "TRAID_ENGINEERING_HARNESS.md"
+    harness_doc.write_text("baseline tracked harness content\n")
+    subprocess.run(["git", "add", "TRAID_ENGINEERING_HARNESS.md"], cwd=fixture, check=True)
+    env = {**os.environ, "GIT_AUTHOR_NAME": "test", "GIT_AUTHOR_EMAIL": "test@example.invalid", "GIT_COMMITTER_NAME": "test", "GIT_COMMITTER_EMAIL": "test@example.invalid"}
+    subprocess.run(["git", "commit", "-qm", "add tracked maintenance fixture path"], cwd=fixture, check=True, env=env)
+    harness_doc.write_text("authorized dirty harness content\n")
+    base = _add_current_audit_record(fixture)
+    record = (fixture / "TRAID_CARD_EVIDENCE_MAP.md").read_text()
+    current_identity = consistency.worktree_candidate_identity(fixture, base)
+    assert consistency.current_maintenance_candidate_issues(
+        record, _git(fixture, "branch", "--show-current"), fixture, "TEST-MAINTENANCE-FIXTURE"
+    ) == ()
+
+    dirty_result = _run_checker(fixture)
+    assert dirty_result.returncode == 0, dirty_result.stdout + dirty_result.stderr
+
+    subprocess.run(["git", "add", "PROJECT_CONTROL.md", "TRAID_CARD_EVIDENCE_MAP.md", "TRAID_ENGINEERING_HARNESS.md"], cwd=fixture, check=True)
+    staged_identity = consistency.worktree_candidate_identity(fixture, base)
+    assert staged_identity["Candidate Diff SHA-256"] == current_identity["Candidate Diff SHA-256"]
+
+    subprocess.run(["git", "commit", "-qm", "commit current audit candidate"], cwd=fixture, check=True, env=env)
+    assert not _git(fixture, "status", "--porcelain")
+    committed_identity = consistency.worktree_candidate_identity(fixture, base)
+    assert committed_identity["Candidate Diff SHA-256"] == current_identity["Candidate Diff SHA-256"]
+    clean_result = _run_checker(fixture)
+    assert clean_result.returncode == 0, clean_result.stdout + clean_result.stderr
+
+
 def test_authorized_maintenance_branch_with_in_scope_dirty_file_passes(tmp_path: Path) -> None:
     dirty_path = "tests/test_maintenance_harness.py"
     fixture = _maintenance_fixture(
@@ -147,6 +239,141 @@ def test_authorized_maintenance_branch_with_in_scope_dirty_file_passes(tmp_path:
     )
     result = _run_checker(fixture)
     assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_authorized_maintenance_branch_with_clean_tree_and_dirty_allowed_passes(tmp_path: Path) -> None:
+    fixture = _maintenance_fixture(
+        tmp_path,
+        "maintenance/clean-dirty-allowed",
+        working_tree_state="DIRTY_ALLOWED",
+    )
+    result = _run_checker(fixture)
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_authorized_dirty_change_then_clean_commit_passes_both_states(tmp_path: Path) -> None:
+    dirty_path = "tests/test_maintenance_harness.py"
+    fixture = _maintenance_fixture(
+        tmp_path,
+        "maintenance/dirty-to-clean-transition",
+        dirty_path=dirty_path,
+        working_tree_state="DIRTY_ALLOWED",
+        allowed_paths=("PROJECT_CONTROL.md", dirty_path),
+    )
+    dirty_result = _run_checker(fixture)
+    assert dirty_result.returncode == 0, dirty_result.stdout + dirty_result.stderr
+
+    target = fixture / dirty_path
+    assert target.read_text() == "authorized maintenance fixture\n"
+    subprocess.run(["git", "add", "PROJECT_CONTROL.md", dirty_path], cwd=fixture, check=True)
+    env = {
+        **os.environ,
+        "GIT_AUTHOR_NAME": "test",
+        "GIT_AUTHOR_EMAIL": "test@example.invalid",
+        "GIT_COMMITTER_NAME": "test",
+        "GIT_COMMITTER_EMAIL": "test@example.invalid",
+    }
+    subprocess.run(["git", "commit", "-qm", "authorized fixture change"], cwd=fixture, check=True, env=env)
+    assert not _git(fixture, "status", "--porcelain")
+    clean_result = _run_checker(fixture)
+    assert clean_result.returncode == 0, clean_result.stdout + clean_result.stderr
+
+
+def test_clean_required_rejects_authorized_but_dirty_maintenance_tree(tmp_path: Path) -> None:
+    fixture = _maintenance_fixture(
+        tmp_path,
+        "maintenance/clean-required-dirty",
+        dirty_path="tests/test_maintenance_harness.py",
+        working_tree_state="CLEAN",
+        allowed_paths=("PROJECT_CONTROL.md", "tests/test_maintenance_harness.py"),
+    )
+    result = _run_checker(fixture)
+    assert result.returncode != 0
+    assert "WORKING_TREE_STATE_MISMATCH" in result.stdout
+
+
+def test_dirty_allowed_without_maintenance_authorization_fails_closed(tmp_path: Path) -> None:
+    fixture = _maintenance_fixture(
+        tmp_path,
+        "maintenance/missing-authorization",
+        working_tree_state="DIRTY_ALLOWED",
+    )
+    control_path = fixture / "PROJECT_CONTROL.md"
+    control = control_path.read_text()
+    control, count = re.subn(
+        r"^### Current Maintenance Record\n.*?(?=^---$)",
+        "",
+        control,
+        count=1,
+        flags=re.MULTILINE | re.DOTALL,
+    )
+    assert count == 1
+    control_path.write_text(control)
+    result = _run_checker(fixture)
+    assert result.returncode != 0
+    assert "MAINTENANCE_RECORD_MISSING" in result.stdout
+
+
+def test_dirty_allowed_on_idle_main_with_uncommitted_file_is_unauthorized(tmp_path: Path) -> None:
+    fixture = _maintenance_fixture(
+        tmp_path,
+        "main",
+        dirty_path="tests/unapproved.py",
+        working_tree_state="DIRTY_ALLOWED",
+        allowed_paths=("PROJECT_CONTROL.md", "tests/unapproved.py"),
+    )
+    result = _run_checker(fixture)
+    assert result.returncode != 0
+    assert "UNAUTHORIZED_DIRTY_WORKTREE" in result.stdout
+
+
+def test_unknown_working_tree_state_is_rejected(tmp_path: Path) -> None:
+    fixture = _maintenance_fixture(
+        tmp_path,
+        "maintenance/unknown-working-tree-state",
+        working_tree_state="DIRTY_REQUIRED",
+    )
+    result = _run_checker(fixture)
+    assert result.returncode != 0
+    assert "WORKING_TREE_POLICY_INVALID" in result.stdout
+
+
+def test_dirty_allowed_does_not_bypass_mismatched_audit_identity(tmp_path: Path) -> None:
+    fixture = _maintenance_fixture(
+        tmp_path,
+        "maintenance/mismatched-audit-identity",
+        working_tree_state="DIRTY_ALLOWED",
+    )
+    base = _git(fixture, "rev-parse", "HEAD")
+    evidence_path = fixture / "TRAID_CARD_EVIDENCE_MAP.md"
+    evidence = evidence_path.read_text()
+    evidence += """
+
+### Current Maintenance Re-Audit Record
+
+```text
+Record Classification: CURRENT
+Maintenance Task ID: TEST-MAINTENANCE-FIXTURE
+Status: NOT_RUN
+Candidate Type: WORKTREE
+Branch: maintenance/mismatched-audit-identity
+Base SHA: BASE_SHA
+Candidate Diff SHA-256: 0000000000000000000000000000000000000000000000000000000000000000
+Untracked Files: NONE
+Verifier context: NOT_RUN
+Canonical inputs reviewed: NOT_RUN
+Evidence reviewed: NOT_RUN
+Findings: NOT_RUN
+Unresolved blockers: NOT_RUN
+Gap dispositions: NOT_RUN
+Limitations: audit not run
+Verdict: NOT_RUN
+```
+""".replace("BASE_SHA", base)
+    evidence_path.write_text(evidence)
+    result = _run_checker(fixture)
+    assert result.returncode != 0
+    assert "AUDITED_CANDIDATE_CHANGED:Candidate Diff SHA-256" in result.stdout
 
 
 def test_authorized_maintenance_branch_with_clean_state_passes(tmp_path: Path) -> None:
@@ -186,7 +413,7 @@ def test_maintenance_fixture_has_idle_card_precondition_and_fails_if_activated(t
     ],
 )
 def test_invalid_maintenance_record_blocks(tmp_path: Path, branch: str, mutator, reason: str) -> None:
-    fixture = _maintenance_fixture(tmp_path, branch)
+    fixture = _maintenance_fixture(tmp_path, branch, working_tree_state="DIRTY_ALLOWED")
     control_path = fixture / "PROJECT_CONTROL.md"
     control_path.write_text(mutator(control_path.read_text()))
     result = _run_checker(fixture)

@@ -102,7 +102,7 @@ class LifecycleFacts:
     evidence_delivery_recorded: bool = True
     learning_record_complete: bool = True
     stale_completion_rationale: bool = False
-    expected_working_tree_clean: bool = True
+    working_tree_policy: str = "CLEAN"
     actual_working_tree_clean: bool = True
     start_authorized: bool = False
     mandatory_failure: bool = False
@@ -176,8 +176,10 @@ def evaluate_state_consistency(facts: LifecycleFacts) -> GateResult:
         reasons.append("GIT_BRANCH_STATE_MISMATCH")
     if facts.expected_head and facts.actual_head != facts.expected_head and facts.head_checkpoint_verified is not True:
         reasons.append("GIT_HEAD_STATE_MISMATCH")
-    if facts.expected_working_tree_clean != facts.actual_working_tree_clean:
+    if facts.working_tree_policy == "CLEAN" and not facts.actual_working_tree_clean:
         reasons.append("WORKING_TREE_STATE_MISMATCH")
+    elif facts.working_tree_policy not in {"CLEAN", "DIRTY_ALLOWED"}:
+        reasons.append("WORKING_TREE_POLICY_INVALID")
     if facts.pending_not_applicable:
         reasons.append("PENDING_NOT_APPLICABLE_MISMATCH")
     if facts.next_card_requested and not facts.next_card_start_approval:

@@ -1373,10 +1373,17 @@ Bind each verdict to a strict candidate identity. A committed candidate uses
 `Candidate Type: COMMIT`, branch, full Candidate Commit SHA, and full Base SHA.
 An uncommitted candidate uses `Candidate Type: WORKTREE`, branch, full Base
 SHA, 64-hex Candidate Diff SHA-256, and an explicit Untracked Files list or
-`NONE`. The worktree digest includes effective tracked content, divergent
-staged content, and untracked candidate content. Compute it with the Harness
-checker helper against the recorded base; a vague branch/head label is not an
-identity. `NOT_RUN` at review readiness still needs the frozen identity.
+`NONE`. The Base SHA remains part of the frozen identity as the verified
+ancestry boundary. For each path, the digest binds effective worktree content
+and mode; it additionally binds index content and mode only when the staged
+version diverges from both the worktree and `HEAD`. Compare that staged
+version with `HEAD`, not the older Base SHA, so an unchanged index does not
+look like a new partial stage after `HEAD` advances. Fully staging and then
+committing the same worktree content therefore preserves the digest, while a
+genuinely partial stage remains bound. Untracked candidate content and its
+manifest are included. Compute it with the Harness checker helper; a vague
+branch/head label is not an identity. `NOT_RUN` at review readiness still
+needs the frozen identity.
 
 The independent verifier audits that exact candidate read-only and produces
 observed results outside the candidate. A separately authorized execution role
@@ -2214,6 +2221,15 @@ an authorized `maintenance/*`/`hotfix/*` record, matching branch, verified
 base ancestry, and allowed changed paths; it preserves no Active Card and
 rejects unauthorized dirty state. Regression tests cover future maintenance
 branch names and invalid records. Hosted CI remains an external gate.
+
+The Project Control `Working Tree` values have distinct semantics: `CLEAN`
+requires an actually clean tree; `DIRTY_ALLOWED` permits either a clean tree or
+authorized uncommitted changes. `DIRTY_ALLOWED` never authorizes arbitrary
+changes. On maintenance/hotfix branches, the current maintenance record,
+branch/base checks, and Allowed Paths remain mandatory when the tree is dirty.
+On an idle non-maintenance branch, dirty state without an authorized active
+Card or maintenance workflow is rejected. The working-tree policy check must
+not require a dirty tree merely because `DIRTY_ALLOWED` is declared.
 
 ## 66. Evidence and Failure Remediation Contract
 
