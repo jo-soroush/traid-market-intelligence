@@ -6174,6 +6174,63 @@ Terminal evidence boundary: scratch/independent review, exact terminal diff iden
 Operational state: C01-C06 COMPLETE; Active Card NONE; C07 NOT_STARTED / NOT_GRANTED; D-OI-001 DEFERRED; Hyperliquid OI UNVERIFIED FOR CANONICAL USE
 ```
 
+### Post-Merge Lifecycle Maintenance — MAINT-POST-MERGE-LIFECYCLE
+
+```text
+State: READY_FOR_HUMAN_REVIEW — local self-validation PASS; independent Claude review NOT_RUN; delivery NOT_GRANTED
+Base: a63435bc6f8d4672cc2bcfc5d664ebd647134e6b
+Branch: maintenance/post-merge-lifecycle
+Authorization: human SIMPLIFY POST-MERGE WORKFLOW authorizes local implementation and validation of the minimum Harness/tests/CI/workflow changes; no commit/push/PR/merge
+Contract map: production checker owns document/Git/task/candidate validation; lifecycle module owns generic branch/state facts; session bootstrap consumes the checker; Actions currently runs pytest and secret scan without a live Harness or merge simulation
+Risk map: ancestry alone is insufficient; recompute the reviewed candidate with recorded branch/base; require task and branch equality, resolved audit, explicit delivery authorization, clean main and allowed commit scope; preserve failure history and closed records; missing history fails closed
+Readiness: PASS — Python 3.13.12, Git 2.50.1, existing pytest/environment and local scratch support verified; no services, secrets, external tools or dependencies required
+Content alignment: PASS — separately authorized governance maintenance, not a Roadmap Card; no C06/PR13 reopening, financial or product changes, or C07 work
+Roadmap alignment: PASS — C01-C06 COMPLETE, Active Card NONE, C07 NOT_GRANTED, D-OI-001 DEFERRED
+Starting evidence: inspected Claude proto.py, forge.py, task2.py and rca/shallow scratch Git histories. Prototype accepts base ancestry on main while bypassing worktree identity; forgery experiments distinguish mutable self-attestation from external branch protection. These experiments are reference-only, not implementation or independent acceptance evidence.
+Design: derive integration context read-only on clean main only after validating the same reviewed worktree digest using the recorded branch; the stored CURRENT audit remains a frozen snapshot and is historical/inert at runtime. On the next separately authorized maintenance task or normal authorized Card startup, archive the previous snapshot in that same normal PR. Require CI to validate both the actual branch and a disposable squash merge with full Git history.
+Security boundary: detects accidental candidate/task/branch/authorization drift. In-repository attestations cannot authenticate Claude/human review or prevent a malicious main writer from forging metadata and recomputing hashes or replacing checks. No GitHub protection/settings claim is made; external human review and delivery authority remain mandatory.
+Validation: PASS — initial focused integration cases 21 passed; expanded focused cases 25 passed; changed/conflicting-base probes 2 passed; hidden-path regression 1 passed after correction. Final full suite 399 passed with 2 existing Starlette/AnyIO deprecation warnings, including all 29 integration cases; existing focused Harness/lifecycle/maintenance suite 179 passed. Production Harness PASS; bootstrap 20 PASS / 1 expected authorized dirty-tree warning / 0 FAIL; actual bash -x secret scan executed git grep, no-match status 1, scanner exit 0; YAML parsed successfully; git diff and staged diff checks PASS. Two isolated mutations removing identity or authorization validation were each detected by a targeted failing acceptance test. The original candidate was not mutated.
+CI simulation: actual implementation copied to a clean disposable branch commit with explicitly synthetic Claude-review/human-authorization metadata; source Harness PASS, actual secret scan PASS, production CI runner built a disposable squash commit and integrated-main Harness PASS without source writes. Tests also demonstrate pre-merge denial for absent approval, bad source branch, conflicts/moved base, missing history, malformed/changed candidates and unresolved review gaps. Hosted execution and GitHub protection settings remain NOT_VERIFIED for this local-only change.
+Self-review: exact eight-file scope; eight prior closed maintenance record bodies and all historical audit blocks preserved; no product/dependency/financial changes, C06/PR13 reopening or C07 authorization; main and source HEAD unchanged at a63435bc6f8d4672cc2bcfc5d664ebd647134e6b. New files staged so actual tracked scanning includes them; no original repository commit or egress.
+Learning/failure evidence: self-review identified that lstrip("./") on Allowed Paths removed the leading dot in .github but changed paths retained it. A dedicated legitimate hidden-CI-path squash test reproduced INTEGRATED_MAINTENANCE_OUT_OF_SCOPE. Corrected the new integration check to remove only the literal ./ prefix; no broader scope relaxation. Retest passed: legitimate hidden-CI-path squash regression 1 passed; corrected full suite 399 passed. No tests or production gates were weakened.
+Known limitations: hosted workflow/settings unverified for this local candidate; malicious direct-main prevention is not established by local checks
+Safe resume: local implementation and self-validation complete; STOP for independent Claude review of the frozen candidate. No commit/push/PR/merge or C07 work authorized.
+```
+
+### Bounded End-to-End Corrections — Local Self-Validation
+
+The independently reviewed earlier candidate e7c9b929aee649ef14c390761cd02023c1112581799f08046e006c256f82cd01 is superseded. The scratch report /private/tmp/traid-e2e-workflow/REPORT.md demonstrated stale event-base acceptance and contradictory PASS / NOT_RUN verdict acceptance. Applied only its bounded corrections, plus regression coverage and the same verdict check before delivery on the review branch. Existing independent review does not apply to this refreshed candidate.
+
+CI now fetches origin main and requires its current fetched SHA to equal the supplied integration base; missing target or stale base fails closed. Fetch/compare is not atomic with GitHub's later merge. Changed base/content requires refreshed candidate identity, independent review and human authorization within the existing task/PR, without predecessor closure delivery.
+
+The next separately authorized maintenance task OR normal authorized Card startup archives its predecessor within that normal branch/PR. Historical audit evidence is preserved, with no standalone archival PR. Source declarations are frozen snapshots; successful production Harness integration determines effective clean-main runtime state. Historical §21.1 references retain the original procedure at immutable a63435bc6f8d4672cc2bcfc5d664ebd647134e6b.
+
+Regression fixture correction: an initial fresh-remote test placed its bare origin inside the fixture working tree, causing checkout rejection after tracking remote files. Moved that disposable bare origin outside the fixture working tree; no production control changed.
+
+Refreshed validation: focused integration regressions 38 passed; full pytest 408 passed with 2 existing dependency warnings; final same-Card archival probe 1 passed; production Harness PASS; bootstrap 20 PASS / 1 expected dirty-tree warning / 0 FAIL; traced git grep executed, no-match exit 1, scanner PASS; six actual-candidate scratch scenarios PASS (normal CI/squash, same-Card startup, moved-main rejection plus refreshed review/authorization, contradictory verdict and restoration, immutable historical §21.1 reference). Diff checks PASS. Eight previous maintenance record bodies and seven historical audit bodies preserved; original HEAD/main unchanged. Scratch export initially lacked a local main branch, so downstream clones correctly failed closed on missing origin/main; exporting the known base main fixed only the fixture, and all six reruns passed. Synthetic review/authorization in temporary repositories provides no real approval. C06/PR13 closed records remain unchanged. Hosted CI, GitHub protection settings, and atomic merge enforcement remain UNKNOWN. Local controls detect accidental mismatches; malicious direct-main prevention is not proven.
+
+### Current Maintenance Re-Audit Record
+
+```text
+Record Classification: CURRENT
+Maintenance Task ID: MAINT-POST-MERGE-LIFECYCLE
+Status: PASS
+Candidate Type: WORKTREE
+Branch: maintenance/post-merge-lifecycle
+Base SHA: a63435bc6f8d4672cc2bcfc5d664ebd647134e6b
+Candidate Diff SHA-256: 0899a58ec95a1ff2c2deaace5814c6f2de09deaadc71e3be3753c25765f4cf27
+Untracked Files: NONE
+Verifier context: Independent Claude review TRAID_WORKFLOW_FINAL_REVIEW: PASS, reported by the human delivery authorization for candidate 0899a58ec95a1ff2c2deaace5814c6f2de09deaadc71e3be3753c25765f4cf27; not implementation self-review
+Canonical inputs reviewed: TRAID_WORKFLOW_FINAL_REVIEW reference supplied by human; applicable GIT_WORKFLOW §21.1, Harness maintenance contract and frozen candidate
+Evidence reviewed: Human-reported final independent review PASS for exact frozen candidate; local evidence /private/tmp/traid-remediation-report.md and scratch end-to-end validation
+Findings: NONE — no blocking findings reported with TRAID_WORKFLOW_FINAL_REVIEW: PASS; documented residual limits retained
+Unresolved blockers: NONE
+Gap dispositions: NONE
+Limitations: local proof only; hosted workflow and GitHub protection settings unverified; repository-authored attestations cannot authenticate review or prevent malicious main writers
+Verdict: PASS — TRAID_WORKFLOW_FINAL_REVIEW for exact candidate 0899a58ec95a1ff2c2deaace5814c6f2de09deaadc71e3be3753c25765f4cf27, as supplied by human
+Delivery authorization/performance: GRANTED / NOT_PERFORMED — human TRAID — AUTHORIZED POST-MERGE WORKFLOW DELIVERY explicitly authorizes commit, push, one PR and approved squash merge of this candidate; performance evidence to be published on that PR
+```
+
 # 20. Final Evidence Principle
 
 ```text

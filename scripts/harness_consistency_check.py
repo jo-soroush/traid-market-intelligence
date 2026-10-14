@@ -516,11 +516,19 @@ def _hash_part(digest: "hashlib._Hash", label: bytes, value: bytes) -> None:
     digest.update(len(label).to_bytes(8, "big") + label + len(value).to_bytes(8, "big") + value)
 
 
-def worktree_candidate_identity(repo: Path, base_sha: str) -> dict[str, str]:
-    """Bind branch/base, effective tracked content, divergent index content, and untracked files."""
+def worktree_candidate_identity(
+    repo: Path, base_sha: str, *, recorded_branch: str | None = None,
+) -> dict[str, str]:
+    """Bind branch/base, effective content/modes, partial index, and untracked files.
+
+    Only validated integration uses recorded_branch to reproduce the original
+    branch component after squash; it never skips content verification.
+    """
     if not FULL_GIT_SHA.fullmatch(base_sha):
         raise ValueError("CANDIDATE_BASE_SHA_INVALID")
-    branch = subprocess.check_output(["git", "branch", "--show-current"], cwd=repo, text=True).strip()
+    branch = recorded_branch if recorded_branch is not None else subprocess.check_output(
+        ["git", "branch", "--show-current"], cwd=repo, text=True,
+    ).strip()
     tracked = sorted(path.decode() for path in subprocess.check_output(["git", "ls-files", "-z"], cwd=repo).split(b"\0") if path)
     untracked = sorted(path.decode() for path in subprocess.check_output(["git", "ls-files", "--others", "--exclude-standard", "-z"], cwd=repo).split(b"\0") if path)
     digest = hashlib.sha256()
@@ -647,6 +655,8 @@ def current_maintenance_candidate_issues(
     branch: str,
     repo: Path,
     maintenance_task_id: str | None = None,
+    *,
+    recorded_branch: str | None = None,
 ) -> tuple[str, ...]:
     """Check that the active maintenance's current audit record binds this worktree."""
     records = _maintenance_audit_records(evidence)
@@ -668,7 +678,7 @@ def current_maintenance_candidate_issues(
     issues: list[str] = []
     if values.get("Candidate Type") != "WORKTREE":
         issues.append("MAINTENANCE_CANDIDATE_TYPE_INVALID")
-    if values.get("Branch") != branch:
+    if values.get("Branch") != (recorded_branch if recorded_branch is not None else branch):
         issues.append("MAINTENANCE_CANDIDATE_BRANCH_MISMATCH")
     if not FULL_GIT_SHA.fullmatch(values.get("Base SHA", "")):
         issues.append("MAINTENANCE_CANDIDATE_BASE_INVALID")
@@ -678,7 +688,7 @@ def current_maintenance_candidate_issues(
         issues.append("MAINTENANCE_CANDIDATE_UNTRACKED_INVALID")
     if issues:
         return tuple(issues)
-    actual = worktree_candidate_identity(repo, values["Base SHA"])
+    actual = worktree_candidate_identity(repo, values["Base SHA"], recorded_branch=recorded_branch)
     issues.extend(candidate_applicability_issues(values, actual))
     audit_status = re.search(r"^Status:[ \t]*([^\n]+)$", body, re.MULTILINE)
     if values["Untracked Files"] != actual["Untracked Files"] and audit_status and audit_status.group(1) == "NOT_RUN":
@@ -689,6 +699,83 @@ def current_maintenance_candidate_issues(
         if values["Candidate Diff SHA-256"] != actual["Candidate Diff SHA-256"]:
             issues.append("MAINTENANCE_CANDIDATE_UNTRACKED_MISMATCH")
     return tuple(issues)
+
+
+def integrated_maintenance_issues(
+    control: str, evidence: str, branch: str, repo: Path,
+) -> tuple[bool, tuple[str, ...]]:
+    """Validate an immutable branch snapshot on main; never infer review from ancestry alone.
+
+    This is an accidental-drift check, not authentication of in-repo attestations
+    or proof of GitHub delivery. A malicious main writer can forge those inputs.
+    """
+    current = [body for classification, body in _maintenance_audit_records(evidence)
+               if classification == "CURRENT"]
+    if branch != "main" or not current:
+        return False, ()
+    if len(current) != 1:
+        return False, ("MAINTENANCE_MULTIPLE_CURRENT_AUDIT_RECORDS",)
+    if len(re.findall(r"^### Current Maintenance Record$", control, re.MULTILINE)) != 1:
+        return False, ("INTEGRATED_MAINTENANCE_RECORD_INVALID",)
+    record = _maintenance_record(control)
+    body = current[0]
+
+    def value(text: str, field: str) -> str:
+        matches = re.findall(rf"^{re.escape(field)}:[ \t]*([^\n]*)$", text, re.MULTILINE)
+        return matches[0].strip() if len(matches) == 1 else ""
+
+    if any(not value(record, field) for field in MAINTENANCE_FIELDS):
+        return False, ("INTEGRATED_MAINTENANCE_RECORD_INVALID",)
+    # Normalized audit fields remain mutable result recording, so validate their
+    # structure and meaning as well as reproducing the content-bound digest.
+    audit_fields = ("Record Classification", "Maintenance Task ID", "Status", "Candidate Type",
+                    "Branch", "Base SHA", "Candidate Diff SHA-256", "Untracked Files",
+                    "Verifier context", "Canonical inputs reviewed", "Evidence reviewed",
+                    "Findings", "Unresolved blockers", "Gap dispositions", "Limitations",
+                    "Verdict", "Delivery authorization/performance")
+    if any(not value(body, field) for field in audit_fields):
+        return False, ("INTEGRATED_MAINTENANCE_AUDIT_INVALID",)
+    recorded = value(record, "Branch")
+    if not MAINTENANCE_BRANCH.fullmatch(recorded) or value(control, "Git Branch") != recorded:
+        return False, ("INTEGRATED_MAINTENANCE_BRANCH_MISMATCH",)
+    if value(body, "Branch") != recorded:
+        return False, ("MAINTENANCE_CANDIDATE_BRANCH_MISMATCH",)
+    if value(body, "Maintenance Task ID") != value(record, "Maintenance Task ID"):
+        return False, ("MAINTENANCE_AUDIT_TASK_ID_MISMATCH",)
+    status = value(record, "Status").split(" —", 1)[0]
+    if status not in {"READY_FOR_HUMAN_REVIEW", "READY_TO_DELIVER", "PUSHED", "CI_VERIFIED"}:
+        return False, ("INTEGRATED_MAINTENANCE_STAGE_INVALID",)
+    if re.match(r"^(?:NOT[ _]RUN|BLOCKED|FAIL|PENDING)\b", value(body, "Verdict"), re.IGNORECASE):
+        return False, ("MAINTENANCE_AUDIT_VERDICT_UNRESOLVED",)
+    authorization = value(body, "Delivery authorization/performance")
+    if not re.match(r"^(?:GRANTED|AUTHORIZED) / (?:NOT_PERFORMED|COMPLETED) — \S", authorization):
+        return False, ("MAINTENANCE_DELIVERY_AUTHORIZATION_MISSING",)
+    base = value(record, "Base Commit").split(" —", 1)[0]
+    if not FULL_GIT_SHA.fullmatch(base) or value(body, "Base SHA") != base:
+        return False, ("MAINTENANCE_CANDIDATE_BASE_MISMATCH",)
+    if subprocess.check_output(["git", "status", "--porcelain", "--untracked-files=all"], cwd=repo):
+        return False, ("UNAUTHORIZED_DIRTY_WORKTREE",)
+    head = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=repo, text=True).strip()
+    if head == base or subprocess.run(
+        ["git", "merge-base", "--is-ancestor", base, head], cwd=repo,
+        capture_output=True, check=False,
+    ).returncode != 0:
+        return False, ("MAINTENANCE_BASE_NOT_ANCESTOR",)
+    changed = subprocess.check_output(
+        ["git", "diff", "--name-only", "--no-renames", base, head], cwd=repo, text=True,
+    ).splitlines()
+    allowed = {path.strip().removeprefix("./") for path in value(record, "Allowed Paths").split(",")}
+    if not changed or any(path not in allowed for path in changed):
+        return False, ("INTEGRATED_MAINTENANCE_OUT_OF_SCOPE",)
+    issues = maintenance_audit_record_lifecycle_issues(control, evidence, recorded)
+    issues += current_maintenance_candidate_issues(
+        evidence, branch, repo, value(record, "Maintenance Task ID"), recorded_branch=recorded,
+    )
+    # Apply the existing resolved-audit gate even when the frozen record was
+    # reviewed at READY_FOR_HUMAN_REVIEW. No document is rewritten here.
+    delivery_record = re.sub(r"^Status:.*$", "Status: READY_TO_DELIVER", record, count=1, flags=re.MULTILINE)
+    issues += maintenance_delivery_audit_issues(control.replace(record, delivery_record, 1), evidence)
+    return not issues, tuple(dict.fromkeys(issues))
 
 
 def maintenance_delivery_audit_issues(control: str, evidence: str) -> tuple[str, ...]:
@@ -724,6 +811,10 @@ def maintenance_delivery_audit_issues(control: str, evidence: str) -> tuple[str,
         r"^(Status|Verifier context|Canonical inputs reviewed|Evidence reviewed|Findings|Unresolved blockers|Gap dispositions|Limitations|Verdict):[ \t]*([^\n]*)$",
         audit_body, re.MULTILINE,
     )}
+    if values.get("Status") in {"PASS", "PASS_WITH_GAPS"} and re.match(
+        r"^(?:NOT[ _]RUN|BLOCKED|FAIL|PENDING)\b", values.get("Verdict", ""), re.IGNORECASE,
+    ):
+        return ("MAINTENANCE_AUDIT_VERDICT_UNRESOLVED",)
     if maintenance_status in {"IN_PROGRESS", "READY_FOR_HUMAN_REVIEW"}:
         return () if values.get("Status") in INDEPENDENT_AUDIT_STATES else ("MAINTENANCE_AUDIT_STATUS_INVALID",)
     if maintenance_status not in MAINTENANCE_STATUSES:
@@ -947,12 +1038,17 @@ def main() -> int:
     clean = not changed_paths
     working_tree_policy = expected_tree.group(1).split(" —", 1)[0].strip() if expected_tree else ""
     maintenance_issues = maintenance_consistency_issues(control, branch, head, changed_paths)
+    integrated, integration_issues = integrated_maintenance_issues(control, evidence, branch, Path.cwd())
+    if integration_issues:
+        print(f"HARNESS_CONSISTENCY: BLOCKED: {', '.join(integration_issues)}")
+        return 1
     maintenance_record = _maintenance_record(control)
     task_match = re.search(r"^Maintenance Task ID:[ \t]*([^\n]+)$", maintenance_record, re.MULTILINE)
     maintenance_task_id = task_match.group(1).strip() if task_match else None
-    maintenance_issues += maintenance_audit_record_lifecycle_issues(control, evidence, branch)
-    maintenance_issues += current_maintenance_candidate_issues(evidence, branch, Path.cwd(), maintenance_task_id)
-    maintenance_issues += maintenance_delivery_audit_issues(control, evidence)
+    if not integrated:
+        maintenance_issues += maintenance_audit_record_lifecycle_issues(control, evidence, branch)
+        maintenance_issues += current_maintenance_candidate_issues(evidence, branch, Path.cwd(), maintenance_task_id)
+        maintenance_issues += maintenance_delivery_audit_issues(control, evidence)
     if maintenance_issues:
         print(f"HARNESS_CONSISTENCY: BLOCKED: {', '.join(maintenance_issues)}")
         return 1
@@ -986,7 +1082,8 @@ def main() -> int:
         card_id=current_card_id, card_state=current_record.state if current_record else "", active_card=active_card,
         quality_gate=quality.group(1) if quality else "", delivery_approval=state.delivery_approval,
         delivery_verified=state.delivery_verified, project_control_state=current_record.state if current_record else "",
-        evidence_state=evidence_state_value, expected_branch=expected_branch.group(1).strip() if expected_branch else "",
+        evidence_state=evidence_state_value,
+        expected_branch=branch if integrated else (expected_branch.group(1).strip() if expected_branch else ""),
         actual_branch=branch, expected_head=expected_head.group(1) if expected_head else "", actual_head=head,
         head_checkpoint_verified=checkpoint, test_state_verified=bool(test_state and test_state.group(1).startswith("VERIFIED")),
         quality_gate_state=control_quality.group(1) if control_quality else "", evidence_status=evidence_state_value,
@@ -1003,6 +1100,8 @@ def main() -> int:
     )
     result = evaluate_state_consistency(facts)
     if result.passed and not documentation_issues:
+        if integrated:
+            print("MAINTENANCE_RUNTIME: INTEGRATED / NO_ACTIVE_MAINTENANCE; AUDIT_RUNTIME: HISTORICAL")
         print("HARNESS_CONSISTENCY: PASS")
         return 0
     reasons = list(result.reason_codes) + list(documentation_issues)

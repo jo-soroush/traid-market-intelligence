@@ -37,6 +37,15 @@ Never invent a convenient state.
 
 ## 2. Current Project State
 
+Maintenance snapshot semantics: source-branch Git/authorization/status and
+Safe Resume declarations below are frozen review-time values. On clean main,
+only a successful production Harness integration check establishes effective
+INTEGRATED / NO_ACTIVE_MAINTENANCE with the old audit historical at runtime.
+Then follow the next work's separately authorized startup, archiving this
+snapshot in that same task/Card branch. Do not interpret frozen review-time
+STOP/delivery-not-granted text as a new terminal review requirement. A failed
+runtime check still means STOP. External hosted/delivery evidence is separate.
+
 ```text
 Project: TraID
 Target: V1
@@ -109,12 +118,12 @@ Implementation: COMPLETE — V1-C01, V1-C02, V1-C03, V1-C04, V1-C05, and V1-C06 
 Source Code: PRESENT — C01 baseline, C02 canonical domain contracts, C03 boundary, C04 provider adapter, C05 quality layer, and C06 historical data/replay foundation
 Tests: PRESENT — C01 through C06 focused, regression, and Harness tests
 Git Repository: INITIALIZED
-Git Branch: main
+Git Branch: maintenance/post-merge-lifecycle
 Git Checkpoint: 2e04a174096b60e2c3719d4d4d5ff6a92a442e3e — historical PR #13 merge; terminal reconciliation base
-Git Upstream: origin/main — runtime synchronization is derived from Git
+Git Upstream: NONE — local maintenance; delivery NOT_GRANTED
 Git Remote: origin — https://github.com/jo-soroush/traid-market-intelligence.git
 Git Safe Checkpoint: VERIFIED — historical PR #13 merge 2e04a174096b60e2c3719d4d4d5ff6a92a442e3e; prior reconciliation history preserved
-Working Tree: CLEAN
+Working Tree: DIRTY_ALLOWED — bounded post-merge lifecycle maintenance only
 V1-C01: COMPLETE
 V1-C01 Authorization: START_GRANTED; DELIVERY_GRANTED; DELIVERY_COMPLETED
 V1-C02: COMPLETE
@@ -138,9 +147,32 @@ The reconciliation policy was delivered by PR #12 at
 622d7848bb00cdd0d1c3a877844b1c3099230f75. Its delivered audit is HISTORICAL;
 C06 maintenance remains closed. PR #13 delivered the secret-scan fix at
 2e04a174096b60e2c3719d4d4d5ff6a92a442e3e; its audit is HISTORICAL and maintenance
-is closed. No Card or maintenance is active and C07 remains unauthorized.
+is closed. No Card is active; separate MAINT-POST-MERGE-LIFECYCLE maintenance is active.
+C07 remains unauthorized.
 
 ### Current Maintenance Record
+
+```text
+Maintenance Task ID: MAINT-POST-MERGE-LIFECYCLE
+Title: Reviewed maintenance integration without reconciliation commits
+Status: READY_FOR_HUMAN_REVIEW — local implementation/validation PASS; independent Claude review NOT_RUN; delivery NOT_GRANTED
+Reason: reviewed squash merges retain branch-bound candidate snapshots and CURRENT audit evidence, causing repeated main Harness failures and terminal governance deliveries
+Originating Evidence: PR13 post-merge failure and terminal closure history; Claude scratch prototype/forgery experiments in /private/tmp/claude-501/proto.py, forge.py and task2.py inspected as non-canonical starting evidence
+Base Commit: a63435bc6f8d4672cc2bcfc5d664ebd647134e6b — verified clean main checkpoint
+Branch: maintenance/post-merge-lifecycle
+Authorized Scope: minimum Harness, scratch squash simulation, regression tests, CI and canonical workflow/documentation changes to preserve reviewed candidate identity and authorization across maintenance squash merge without another reconciliation commit
+Prohibited Scope: C06 or PR13 reopening, changes to closed record bodies/history, product/financial behavior, C07 work, dependencies, real commits, push, PR, merge, direct-main edits
+Expected Areas: scripts/harness_consistency_check.py, scripts/check_maintenance_integration.py, tests/test_maintenance_integration.py, .github/workflows/ci.yml, GIT_WORKFLOW.md, TRAID_ENGINEERING_HARNESS.md, PROJECT_CONTROL.md, TRAID_CARD_EVIDENCE_MAP.md
+Required Validation: PASS — refreshed bounded corrections: 408 full tests including 38 integration cases; 6 actual-candidate scratch CI/squash/moved-main/Card/historical-reference scenarios; existing Harness/lifecycle focused regressions 179 passed; production Harness PASS; bootstrap 20 PASS / 1 expected dirty-tree warning / 0 FAIL; traced git grep scan PASS; actual-code source/squash CI simulation PASS using synthetic review/authorization; two safety-gate mutations detected; diff and preservation self-review PASS
+External Git Permissions: NOT_GRANTED — local branch, implementation and disposable scratch commits only; independent Claude review and separate human delivery authorization required
+Closure Evidence: implementation and local proof recorded in TRAID_CARD_EVIDENCE_MAP.md; initial hidden-path scope failure, diagnosis and passing regression retained; eight prior closed record bodies and historical audits unchanged; independent Claude review NOT_RUN; no delivery claimed
+Safe Resume: local self-validation complete; STOP for independent Claude review of the frozen WORKTREE candidate; C01-C06 COMPLETE, Active Card NONE, C07 NOT_GRANTED, D-OI-001 DEFERRED
+Allowed Paths: scripts/harness_consistency_check.py, scripts/check_maintenance_integration.py, tests/test_maintenance_integration.py, .github/workflows/ci.yml, GIT_WORKFLOW.md, TRAID_ENGINEERING_HARNESS.md, PROJECT_CONTROL.md, TRAID_CARD_EVIDENCE_MAP.md
+```
+
+---
+
+### Previous Maintenance Record
 
 ```text
 Maintenance Task ID: MAINT-SECRET-SCAN-FAIL-CLOSED
@@ -1321,7 +1353,9 @@ correction; PR #12 delivered the reconciliation policy at historical checkpoint
 HISTORICAL with their exact evidence preserved. C06 maintenance remains closed.
 PR #13 secret-scan maintenance is CLOSED / DELIVERED / VERIFIED at historical
 merge checkpoint 2e04a174096b60e2c3719d4d4d5ff6a92a442e3e. Its independently
-reviewed PASS audit is HISTORICAL; no active maintenance remains.
+reviewed PASS audit is HISTORICAL. Separate MAINT-POST-MERGE-LIFECYCLE local
+implementation and validation are authorized; independent Claude review and
+delivery remain NOT_GRANTED.
 Terminal review, authorization, validation, and delivery evidence is retained
 outside canonical documents under GIT_WORKFLOW.md §21.1.
 STOP. C01-C06 remain COMPLETE, Active Card is NONE, C07 is NOT_STARTED /
@@ -1330,7 +1364,7 @@ FOR CANONICAL USE.
 Next Roadmap Card: V1-C07
 
 Implementation Card: NONE
-Repository Write Authorization: no active maintenance or Card; C07 start NOT_GRANTED
+Repository Write Authorization: MAINT-POST-MERGE-LIFECYCLE bounded local maintenance only; no active Card; C07 start NOT_GRANTED
 Next Roadmap Card: V1-C07
 V1-C01 Authorization: START_GRANTED; DELIVERY_GRANTED; DELIVERY_COMPLETED
 V1-C02 Authorization: START_GRANTED; DELIVERY_GRANTED; DELIVERY_COMPLETED
@@ -1346,7 +1380,8 @@ Current resume point:
 PR #11 and its successful hosted CI are recorded. PR #12 delivered the
 reconciliation policy; its audit is HISTORICAL and maintenance is closed.
 PR #13 secret-scan maintenance is delivered and closed; its audit is HISTORICAL
-with exact PASS evidence preserved. No active maintenance remains. STOP.
+with exact PASS evidence preserved. Separate post-merge lifecycle maintenance
+is active; complete local verification and STOP for independent Claude review.
 Terminal evidence is retained externally under GIT_WORKFLOW.md §21.1.
 Active Card remains NONE; C01-C06 are COMPLETE; C07 is NOT_STARTED / NOT_GRANTED
 and must not start. D-OI-001 remains DEFERRED and Hyperliquid OI remains
