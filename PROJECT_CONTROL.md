@@ -37,6 +37,8 @@ Never invent a convenient state.
 
 ## 2. Current Project State
 
+Operational ownership: this section owns Active Card/State and next-Card eligibility; §30 owns Card rows; §7 owns Card authorization declarations; the Current active-Card record in §6 owns its approval details. Previous/delivered records and secondary summaries are snapshots, not additional live authorities. Maintenance scope belongs to its current record; its current audit receipt owns review/delivery evidence. Git owns actual branch, SHA, ancestry and worktree. A receipt cannot grant authority beyond explicit human approval.
+
 Maintenance snapshot semantics: source-branch Git/authorization/status and
 Safe Resume declarations below are frozen review-time values. On clean main,
 only a successful production Harness integration check establishes effective
@@ -52,7 +54,7 @@ Target: V1
 Project Phase: INTEGRATED / C06_COMPLETE
 Active Card: NONE
 Active Card State: NONE
-Last COMPLETE Card: V1-C06 — Historical Data & Replay Foundation
+Last COMPLETE Card: derived from the authoritative §30 table
 Next Roadmap Card: V1-C07 — Order Book & Liquidity Analytics
 Next Card Authorized: NO — C07 start NOT_GRANTED
 Implementation Authorization: V1-C06 START_GRANTED / DELIVERY_GRANTED / DELIVERY_COMPLETED; C07 NOT_GRANTED
@@ -105,7 +107,7 @@ are complete. Later-Card implementation remains unauthorized.
 
 ## 4. Repository / Git Reality
 
-Current verified filesystem state:
+Frozen filesystem/review snapshot (actual Git facts are queried at runtime):
 
 ```text
 Repository Path: /Users/jo.soroush/john/my_projhects/TraID
@@ -114,7 +116,7 @@ Canonical Harness Installation: VERIFIED
 Canonical Harness Files: 10 / 10 PRESENT
 Harness Structure: VERIFIED
 Research / Reconnaissance Organization: VERIFIED
-Implementation: COMPLETE — V1-C01, V1-C02, V1-C03, V1-C04, V1-C05, and V1-C06 implementation, validation, and approved delivery are verified in the canonical Card Status Table below
+Implementation: completion is derived from the canonical §30 Card Status Table; verification evidence belongs in the Evidence Map
 Source Code: PRESENT — C01 baseline, C02 canonical domain contracts, C03 boundary, C04 provider adapter, C05 quality layer, and C06 historical data/replay foundation
 Tests: PRESENT — C01 through C06 focused, regression, and Harness tests
 Git Repository: INITIALIZED
@@ -155,19 +157,20 @@ C07 remains unauthorized.
 ```text
 Maintenance Task ID: MAINT-POST-MERGE-LIFECYCLE
 Title: Reviewed maintenance integration without reconciliation commits
-Status: READY_FOR_HUMAN_REVIEW — local implementation/validation PASS; independent Claude review NOT_RUN; delivery NOT_GRANTED
+Status: READY_FOR_HUMAN_REVIEW — combined self-validation PASS; fresh independent Claude review PENDING; delivery NOT_GRANTED
 Reason: reviewed squash merges retain branch-bound candidate snapshots and CURRENT audit evidence, causing repeated main Harness failures and terminal governance deliveries
 Originating Evidence: PR13 post-merge failure and terminal closure history; Claude scratch prototype/forgery experiments in /private/tmp/claude-501/proto.py, forge.py and task2.py inspected as non-canonical starting evidence
 Base Commit: a63435bc6f8d4672cc2bcfc5d664ebd647134e6b — verified clean main checkpoint
 Branch: maintenance/post-merge-lifecycle
-Authorized Scope: minimum Harness, scratch squash simulation, regression tests, CI and canonical workflow/documentation changes to preserve reviewed candidate identity and authorization across maintenance squash merge without another reconciliation commit
+Authorized Scope: human CONSOLIDATED HARNESS ROOT-CAUSE REMEDIATION authorizes bounded F01 and F03-F07 correction and combined self-validation; preserve F02 integration model
 Prohibited Scope: C06 or PR13 reopening, changes to closed record bodies/history, product/financial behavior, C07 work, dependencies, real commits, push, PR, merge, direct-main edits
-Expected Areas: scripts/harness_consistency_check.py, scripts/check_maintenance_integration.py, tests/test_maintenance_integration.py, .github/workflows/ci.yml, GIT_WORKFLOW.md, TRAID_ENGINEERING_HARNESS.md, PROJECT_CONTROL.md, TRAID_CARD_EVIDENCE_MAP.md
-Required Validation: PASS — refreshed bounded corrections: 408 full tests including 38 integration cases; 6 actual-candidate scratch CI/squash/moved-main/Card/historical-reference scenarios; existing Harness/lifecycle focused regressions 179 passed; production Harness PASS; bootstrap 20 PASS / 1 expected dirty-tree warning / 0 FAIL; traced git grep scan PASS; actual-code source/squash CI simulation PASS using synthetic review/authorization; two safety-gate mutations detected; diff and preservation self-review PASS
-External Git Permissions: NOT_GRANTED — local branch, implementation and disposable scratch commits only; independent Claude review and separate human delivery authorization required
-Closure Evidence: implementation and local proof recorded in TRAID_CARD_EVIDENCE_MAP.md; initial hidden-path scope failure, diagnosis and passing regression retained; eight prior closed record bodies and historical audits unchanged; independent Claude review NOT_RUN; no delivery claimed
-Safe Resume: local self-validation complete; STOP for independent Claude review of the frozen WORKTREE candidate; C01-C06 COMPLETE, Active Card NONE, C07 NOT_GRANTED, D-OI-001 DEFERRED
-Allowed Paths: scripts/harness_consistency_check.py, scripts/check_maintenance_integration.py, tests/test_maintenance_integration.py, .github/workflows/ci.yml, GIT_WORKFLOW.md, TRAID_ENGINEERING_HARNESS.md, PROJECT_CONTROL.md, TRAID_CARD_EVIDENCE_MAP.md
+Inherited Candidate: scripts/check_maintenance_integration.py remains unchanged from reviewed PR14 commit ae14957b23a6098cdcea3bd3247e004cf03962eb; its inherited diff is retained in Allowed Paths, not authorized for new edits
+Expected Areas: .github/workflows/ci.yml, scripts/harness_consistency_check.py, src/traid/harness/lifecycle.py, scripts/check_tracked_secret_filenames.sh, tests/test_maintenance_integration.py, tests/test_harness_consistency.py, tests/test_lifecycle.py, tests/test_secret_filenames.py, PROJECT_CONTROL.md, TRAID_CARD_EVIDENCE_MAP.md, TRAID_ENGINEERING_HARNESS.md, GIT_WORKFLOW.md
+Required Validation: PASS — combined focused/full regressions, real Linux isolated packaging and repeated CI sequence, Harness/bootstrap/both scanners, squash/two-delivery/Card-start/stale-target simulations, mutation/scope and history checks; exact counts and limitations in current Evidence entry
+External Git Permissions: NOT_GRANTED — implementation and disposable scratch validation only; no original commit, push, PR change, merge or direct-main change
+Closure Evidence: PR14 original candidate delivered as ae14957b23a6098cdcea3bd3247e004cf03962eb; hosted Harness failed on build outputs; prior review preserved in Evidence; new candidate review PENDING
+Safe Resume: STOP for independent Claude review of the newly frozen WORKTREE candidate; no original commit, push, PR update or merge authorized; C01-C06 COMPLETE, Active Card NONE, C07 NOT_GRANTED, D-OI-001 DEFERRED
+Allowed Paths: scripts/check_maintenance_integration.py, .github/workflows/ci.yml, scripts/harness_consistency_check.py, src/traid/harness/lifecycle.py, scripts/check_tracked_secret_filenames.sh, tests/test_maintenance_integration.py, tests/test_harness_consistency.py, tests/test_lifecycle.py, tests/test_secret_filenames.py, PROJECT_CONTROL.md, TRAID_CARD_EVIDENCE_MAP.md, TRAID_ENGINEERING_HARNESS.md, GIT_WORKFLOW.md
 ```
 
 ---
@@ -549,6 +552,8 @@ Delivery Verified: YES — PR #10 merged with hosted PR CI PASS at `1c40b3a5b0c8
 ## 7. Authorization Ledger
 
 ```text
+V1-C01 Authorization: START_GRANTED; DELIVERY_GRANTED; DELIVERY_COMPLETED
+V1-C02 Authorization: START_GRANTED; DELIVERY_GRANTED; DELIVERY_COMPLETED
 Card Start: GRANTED — V1-C06 Phase 1 implementation
 Delivery Approval: GRANTED / COMPLETED — V1-C06 delivery verified
 Next Card: NOT_GRANTED — C07 and later remain unauthorized
@@ -562,10 +567,10 @@ Significant Technology Addition: NOT_GRANTED
 Sensitive Credential Use: NOT_GRANTED
 External Write/Action Capability: NOT_GRANTED
 Live Execution Capability: PROHIBITED IN V1
-Commit: GRANTED — `6c3f7d4` C03 implementation commit
-Push: GRANTED — C03 branch pushed and verified
-PR: GRANTED — PR #2
-Merge: GRANTED — squash merge `133d064` on main
+Historical Commit: GRANTED — `6c3f7d4` C03 implementation commit
+Historical Push: GRANTED — C03 branch pushed and verified
+Historical PR: GRANTED — PR #2
+Historical Merge: GRANTED — squash merge `133d064` on main
 Force Push/History Rewrite: NOT_GRANTED
 Deployment/Release: NOT_GRANTED
 ```
@@ -580,7 +585,7 @@ Routine reversible implementation is allowed only inside an explicitly approved 
 
 ```text
 Approved V1 Cards: 27
-Completed Cards: V1-C01, V1-C02, V1-C03, V1-C04, V1-C05, V1-C06
+Completed Cards: derived from the authoritative §30 table by Harness
 Active Card: NONE
 Next Roadmap Card: V1-C07 — available only after separate C07 start approval
 Later Cards: NOT AUTHORIZED
@@ -617,7 +622,7 @@ Never pre-authorize the next Card.
 ## 10. Current Blockers
 
 ```text
-B-001: None — C01 delivery approval, merge, and post-merge verification are complete.
+B-001: fresh independent review PENDING and delivery NOT_GRANTED for the changed candidate. Prior hosted failure and completed local remediation proof are in the maintenance Evidence entry.
 ```
 
 These are control blockers, not claims that the repository is broken.
@@ -959,10 +964,10 @@ Pass/Fail:
 Evidence Reference:
 ```
 
-Current:
+Current verification reference:
 
 ```text
-TraID repository test state: VERIFIED — bounded maintenance full suite 333 passed, 2 dependency deprecation warnings; the original post-merge run's 3 completed-Card summary fixture failures are fixed by synthetic table-derived scenarios
+TraID repository test state: VERIFIED — historical baseline proof remains in the Evidence Map; current remediation results are recorded once in its maintenance entry
 Harness consistency: PASS — production consistency checker on the active maintenance candidate
 Readiness gate: PASS — V1-C06 dependency/runtime/source preflight
 Secret scan: PASS

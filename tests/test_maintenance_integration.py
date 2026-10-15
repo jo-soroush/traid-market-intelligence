@@ -112,6 +112,10 @@ def test_reviewed_delivery_survives_integration_without_writes(tmp_path: Path, s
 @pytest.mark.parametrize(("field", "value", "reason"), [
     ("Status", "NOT_RUN", "MAINTENANCE_DELIVERY_WITHOUT_RESOLVED_AUDIT"),
     ("Status", "BLOCKED", "MAINTENANCE_DELIVERY_WITHOUT_RESOLVED_AUDIT"),
+    ("Verdict", "FAILED — failed review", "MAINTENANCE_AUDIT_VERDICT_UNRESOLVED"),
+    ("Verdict", "NOT_VERIFIED — unknown review", "MAINTENANCE_AUDIT_VERDICT_UNRESOLVED"),
+    ("Verdict", "UNRESOLVED — unresolved review", "MAINTENANCE_AUDIT_VERDICT_UNRESOLVED"),
+    ("Verdict", "UNKNOWN — unknown result", "MAINTENANCE_AUDIT_VERDICT_UNRESOLVED"),
     ("Verdict", "NOT_RUN — incomplete review", "MAINTENANCE_AUDIT_VERDICT_UNRESOLVED"),
     ("Verdict", "not run — incomplete review", "MAINTENANCE_AUDIT_VERDICT_UNRESOLVED"),
     ("Verdict", "BLOCKED — incomplete review", "MAINTENANCE_AUDIT_VERDICT_UNRESOLVED"),
@@ -410,3 +414,69 @@ def test_review_branch_rejects_pass_with_unresolved_verdict(tmp_path: Path) -> N
     result = _run_checker(repo)
     assert result.returncode != 0
     assert "MAINTENANCE_AUDIT_VERDICT_UNRESOLVED" in result.stdout
+
+
+def test_hidden_alias_cannot_enter_review_candidate_scope(tmp_path: Path) -> None:
+    repo, base, _ = candidate(tmp_path)
+    allowed = "scripts/harness_consistency_check.py"
+    p = repo / "PROJECT_CONTROL.md"
+    p.write_text(p.read_text().replace("Allowed Paths: PROJECT_CONTROL.md,", "Allowed Paths: " + allowed + ", PROJECT_CONTROL.md,"))
+    unexpected = repo / ".scripts" / "harness_consistency_check.py"
+    unexpected.parent.mkdir()
+    unexpected.write_text("unexpected source\n")
+    git(repo, "add", str(unexpected))
+    p = repo / "TRAID_CARD_EVIDENCE_MAP.md"
+    digest = consistency.worktree_candidate_identity(repo, base)["Candidate Diff SHA-256"]
+    p.write_text(re.sub(r"^Candidate Diff SHA-256:.*$", "Candidate Diff SHA-256: " + digest, p.read_text(), flags=re.M))
+    result = _run_checker(repo)
+    assert result.returncode != 0
+    assert "MAINTENANCE_OUT_OF_SCOPE:.scripts/harness_consistency_check.py" in result.stdout
+
+
+def _isolated_install_script() -> str:
+    workflow = (ROOT / ".github/workflows/ci.yml").read_text()
+    section = workflow.split("- name: Install from isolated committed source\n", 1)[1]
+    block = section.split("        run: |\n", 1)[1].split("      - ", 1)[0]
+    return "\n".join(line[10:] for line in block.splitlines() if line.strip())
+
+
+@pytest.mark.parametrize("mutation", [None, "tracked", "untracked", "checkout-build"])
+def test_ci_install_boundary_preserves_identity_without_hiding_changes(tmp_path: Path, mutation: str | None) -> None:
+    repo, base, _ = candidate(tmp_path)
+    tools = tmp_path.parent / (tmp_path.name + "-tools")
+    tools.mkdir()
+    runtime = tmp_path.parent / (tmp_path.name + "-runner-temp")
+    runtime.mkdir()
+    # Controlled builder models setuptools' output while executing the actual
+    # workflow shell. Real pip/setuptools installation is validated separately
+    # by the full CI simulation, so this regression needs no network or wheel.
+    wrapper = tools / "python"
+    wrapper.write_text(
+        f"#!{sys.executable}\n"
+        "import sys\nfrom pathlib import Path\n"
+        "assert sys.argv[1:4] == ['-m', 'pip', 'install']\n"
+        "source = Path(sys.argv[4].removesuffix('[dev]'))\n"
+        "assert (source / 'src/traid/main.py').is_file()\n"
+        "target = source / 'build/lib/traid/generated.py'\n"
+        "target.parent.mkdir(parents=True)\ntarget.write_text('# generated build output\\n')\n"
+    )
+    wrapper.chmod(0o755)
+    frozen = consistency.worktree_candidate_identity(repo, base)
+    env = {**os.environ, "PATH": str(tools) + os.pathsep + os.environ["PATH"], "RUNNER_TEMP": str(runtime)}
+    for _ in range(2):
+        result = subprocess.run(["bash", "-e", "-o", "pipefail", "-c", _isolated_install_script()], cwd=repo, env=env, capture_output=True, text=True)
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert not _git(repo, "status", "--porcelain")
+        assert consistency.worktree_candidate_identity(repo, base) == frozen
+        assert _run_checker(repo).returncode == 0
+    assert len(list(runtime.glob("*/build/lib/traid/generated.py"))) == 2
+    if mutation is None:
+        return
+    path = {"tracked": "proof.txt", "untracked": "src/traid/unexpected.py", "checkout-build": "build/lib/traid/unexpected.py"}[mutation]
+    target = repo / path
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text("unexpected candidate modification\n")
+    result = _run_checker(repo)
+    assert result.returncode != 0
+    assert "AUDITED_CANDIDATE_CHANGED" in result.stdout
+    assert target.exists()  # Validation must never clean away unexpected files.

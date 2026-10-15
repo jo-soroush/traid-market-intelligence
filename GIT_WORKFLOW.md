@@ -576,7 +576,10 @@ Before GitHub delivery:
    separate record and bounded allowed paths. Freeze the exact WORKTREE
    candidate using the production identity helper, including branch, full base
    SHA, content/modes and untracked manifest.
-2. Obtain independent Claude review of that frozen candidate. Record PASS (or
+2. Obtain independent Claude review of that frozen candidate. CURRENT maintenance
+   Verdict must begin with the explicit token PASS or PASS_WITH_GAPS followed by
+   whitespace or end-of-field; unknown/negative verdicts fail closed. Historical
+   receipts retain their original vocabulary and cannot authorize new work. Record PASS (or
    PASS_WITH_GAPS with explicit accepted dispositions and no blockers) only in
    the designated audit-result fields. An implementation self-review is not an
    independent review. Material changes require a new bounded Claude review.
@@ -909,13 +912,22 @@ NEXT CARD → SEPARATE HUMAN APPROVAL.
 The repository workflow is `.github/workflows/ci.yml`, named `c01-baseline`.
 It runs on `push` and `pull_request` on `ubuntu-latest`, checks out the exact source SHA with full
 history and selects the actual source branch, installs Python `3.13` and the
-project with `python -m pip install '.[dev]'`, then runs pytest, the actual
+project from an isolated committed-source copy, then runs pytest, the actual
 secret scanner and production Harness. Maintenance PRs targeting main also
 run a disposable squash-merge Harness check under §21.1. The workflow does not
 run session bootstrap, readiness, or a separate compilation command. CI
 selection uses event-provided branch/SHAs through quoted environment variables,
 not interpolated untrusted shell commands; checkout uses a SHA, not a moving
 branch name.
+
+Packaging boundary: the install step creates a temporary directory outside the
+verified checkout, exports `git archive HEAD` into it, and runs
+`python -m pip install "$build_source[dev]"` there. Setuptools output stays in
+that copy. The original checkout remains the subject of pytest, scanning,
+Harness and integration validation. Local CI simulation must execute this same
+workflow shell with an external Python environment and RUNNER_TEMP; an existing
+editable environment alone is not parity proof. Never ignore, delete or exempt
+unexpected checkout build/source files to make identity checks pass.
 
 Local success and hosted success are different facts:
 

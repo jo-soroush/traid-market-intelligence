@@ -40,7 +40,7 @@ def _valid_independent_audit(status: str = "PASS", kind: str = "WORKTREE") -> st
 - Unresolved blockers: NONE
 - Gap dispositions: ACCEPTED — minor documentation gap accepted with recorded rationale
 - Limitations: minor documentation gap remains visible to delivery review
-- Verdict: recommend delivery review
+- Verdict: PASS — recommend delivery review
 """
 
 
@@ -84,7 +84,7 @@ def test_all_30_learning_fields_are_required_and_nonempty() -> None:
 def test_current_c04_learning_record_uses_canonical_schema_and_matrix() -> None:
     section = EVIDENCE.read_text().split("## V1-C04 —", 1)[1].split("\n## V1-C05 —", 1)[0]
     section = "## V1-C04 —" + section
-    record = consistency.CardRecord("V1-C04", "Hyperliquid Provider Verification & Adapter", "READY_FOR_HUMAN_REVIEW", True)
+    record = consistency.CardRecord("V1-C04", "Hyperliquid Provider Verification & Adapter", "COMPLETE", True)
     assert consistency.card_documentation_issues(section, record) == ()
 
 
@@ -110,6 +110,7 @@ def test_not_started_card_pending_learning_is_allowed() -> None:
 def test_current_evidence_matrix_rejects_unresolved_status_but_allows_history() -> None:
     complete_fields = "\n".join(f"{field}: verified" for field in consistency.CANONICAL_LEARNING_RECORD_FIELDS)
     section = """## V1-C10 — Card 10
+**Status:** READY_FOR_HUMAN_REVIEW
 ### Learning Record
 """ + complete_fields + """
 ### Exit Gate Proof
@@ -129,6 +130,7 @@ Status: PASS
 
 def test_validation_checkpoint_requires_one_current_checkpoint() -> None:
     section = """## V1-C10 — Card 10
+**Status:** READY_FOR_HUMAN_REVIEW
 ### Learning Record
 """ + "\n".join(f"{field}: verified" for field in consistency.CANONICAL_LEARNING_RECORD_FIELDS) + """
 ### Exit Gate Proof
@@ -167,10 +169,16 @@ Verified
         f"| V1-C{i:02d} | {('Repository Baseline & Engineering Harness' if i == 1 else 'Canonical Domain Models' if i == 2 else f'Card {i:02d}')} | {'READY_FOR_HUMAN_REVIEW' if i == 1 else 'NOT_STARTED'} | {'YES' if i == 1 else 'NO'} | NOT_RUN | PENDING |"
         for i in range(1, 28)
     )
-    control = """Active Card: V1-C01 — Repository Baseline & Engineering Harness
+    control = """## 2. Current Project State
+Active Card: V1-C01 — Repository Baseline & Engineering Harness
 Active Card State: READY_FOR_HUMAN_REVIEW
 Next Roadmap Card: V1-C02 — Canonical Domain Models
 Next Card Authorized: NO
+## 3. Historical snapshot
+## 4. Repository / Git Reality
+Git Branch: test-branch
+Git Checkpoint: PLACEHOLDER
+Working Tree: DIRTY_ALLOWED
 ## 6. Active Card Record
 Human Start Approval: GRANTED — V1-C01
 Human Delivery Approval: NOT_GRANTED
@@ -187,6 +195,11 @@ V1-C01 Authorization: START_GRANTED; DELIVERY_NOT_GRANTED
 Implementation: IN_PROGRESS — no completed Cards
 ## 8. Roadmap Position
 Completed Cards: NONE
+## 20. Test / Evaluation State
+TraID repository test state: VERIFIED
+## 21. Card Quality Gate State
+CARD_QUALITY_GATE: PASS
+## 30. V1 Card Status Table
 """ + rows
     (tmp_path / "PROJECT_CONTROL.md").write_text(control)
     (tmp_path / "TRAID_CARD_EVIDENCE_MAP.md").write_text(evidence)
@@ -223,7 +236,7 @@ def test_actual_checker_detects_stale_recorded_head(tmp_path: Path) -> None:
     (tmp_path / "PROJECT_CONTROL.md").write_text(stale)
     result = _run_checker(tmp_path)
     assert result.returncode != 0
-    assert "GIT_HEAD_STATE_MISMATCH" in result.stdout
+    assert "GIT_CHECKPOINT_MISSING" in result.stdout
 
 
 def test_live_current_head_claim_is_rejected() -> None:
@@ -280,7 +293,7 @@ def _replace_completed_summaries(
     implementation = ", ".join(implementation_ids)
     roadmap = ", ".join(roadmap_ids)
     control, implementation_count = re.subn(
-        r"^Implementation: COMPLETE\s+—.*$",
+        r"^Implementation:.*$",
         f"Implementation: COMPLETE — {implementation}",
         control,
         count=1,
@@ -355,24 +368,25 @@ SUMMARY_LIFECYCLE_SCENARIOS = (
 
 
 @pytest.mark.parametrize("scenario", SUMMARY_LIFECYCLE_SCENARIOS)
-def test_completed_card_summary_must_include_all_completed_cards(scenario: str) -> None:
+def test_secondary_summary_cannot_hide_a_completed_card(scenario: str) -> None:
     control, completed, _, _ = _completed_summary_scenario(scenario)
     missing_card = completed[-1]
     reduced = tuple(card_id for card_id in completed if card_id != missing_card)
     control = _replace_completed_summaries(control, reduced, completed)
     issues = consistency.current_state_issues(control, "", _git(ROOT, "rev-parse", "HEAD"))
-    assert "COMPLETED_CARD_SUMMARY_MISMATCH:IMPLEMENTATION" in issues
-    assert "COMPLETED_CARD_SUMMARY_MISMATCH:ROADMAP_POSITION" not in issues
+    assert not any("COMPLETED_CARD_SUMMARY" in issue for issue in issues)
+    assert consistency.completed_card_ids(control) == completed
 
 
 @pytest.mark.parametrize("scenario", SUMMARY_LIFECYCLE_SCENARIOS)
-def test_completed_card_summary_rejects_extra_noncomplete_card(scenario: str) -> None:
+def test_secondary_summary_cannot_promote_an_incomplete_card(scenario: str) -> None:
     control, completed, not_completed, _ = _completed_summary_scenario(scenario)
     extra_card = not_completed[0]
     control = _replace_completed_summaries(control, completed, (*completed, extra_card))
     issues = consistency.current_state_issues(control, "", _git(ROOT, "rev-parse", "HEAD"))
-    assert "COMPLETED_CARD_SUMMARY_MISMATCH:ROADMAP_POSITION" in issues
-    assert "COMPLETED_CARD_SUMMARY_MISMATCH:IMPLEMENTATION" not in issues
+    assert not any("COMPLETED_CARD_SUMMARY" in issue for issue in issues)
+    assert consistency.completed_card_ids(control) == completed
+    assert extra_card not in consistency.completed_card_ids(control)
 
 
 def test_completed_card_summary_accepts_future_dynamically_completed_card() -> None:
@@ -384,8 +398,8 @@ def test_completed_card_summary_accepts_future_dynamically_completed_card() -> N
 
 def test_completed_card_summary_scenarios_ignore_live_prose_changes() -> None:
     control, count = re.subn(
-        r"implementation, validation, and approved delivery are verified",
-        "implementation and delivery evidence are recorded",
+        r"verification evidence belongs in the Evidence Map",
+        "implementation and delivery evidence remain in the Evidence Map",
         CONTROL.read_text(),
         count=1,
     )
@@ -903,7 +917,7 @@ def _maintenance_audit_scenario(
         f"Unresolved blockers: {blockers}",
         f"Gap dispositions: {gaps}",
         f"Limitations: {limitations}",
-        "Verdict: recommend delivery review",
+        "Verdict: PASS — synthetic affirmative review",
         "",
     ))
     return control, evidence
@@ -1037,7 +1051,8 @@ def _synthetic_safe_resume_control(completed: tuple[str, ...], safe_resume: str)
         rows.append(f"| {card_id} | Synthetic Card {number} | {state} | {approved} |")
     summary = ", ".join(completed) if completed else "NONE"
     return "\n".join((
-        "## 4. Repository / Git Reality", "", *rows, "",
+        "## 4. Repository / Git Reality", "",
+        "## 30. V1 Card Status Table", *rows, "",
         "## 8. Roadmap Position", f"Completed Cards: {summary}", "",
         "## 34. Current Safe Resume Point", safe_resume, "", "## 35. Next section", "",
     ))
@@ -1088,9 +1103,11 @@ def _state_fixture(active: str, state: str, *, start_approved: bool = True, next
         next_card = f"V1-C{number:02d}" if number <= 27 else "NONE"
     active_title = "NONE" if active == "NONE" else f"{active} — {CARD_TITLES[active]}"
     return "\n".join([
+        "## 2. Current Project State",
         f"Active Card: {active_title}",
-        *( [f"Active Card State: {state}"] if active != "NONE" else [] ),
+        f"Active Card State: {state if active != 'NONE' else 'NONE'}",
         f"Next Roadmap Card: {next_card} — {CARD_TITLES.get(next_card, '')}" if next_card != "NONE" else "Next Roadmap Card: NONE",
+        "## 3. Historical snapshot",
         "## 6. Active Card Record",
         f"Human Start Approval: {'GRANTED' if start_approved else 'NOT_GRANTED'}",
         "Human Delivery Approval: NOT_GRANTED",
@@ -1156,7 +1173,7 @@ def test_active_c02_ready_normalizes_titled_identity() -> None:
         (_state_fixture("V1-C02", "NOT_STARTED"), "ACTIVE_CARD_STATE_INVALID"),
         (_state_fixture("V1-C02", "COMPLETE"), "ACTIVE_CARD_STATE_INVALID"),
         (_state_fixture("V1-C03", "IN_PROGRESS", start_approved=False), "ACTIVE_CARD_START_APPROVAL_MISSING"),
-        (_state_fixture("V1-C10", "IN_PROGRESS") + "\nActive Card: V1-C11 — Card 11", "ACTIVE_CARD_DECLARATIONS_CONFLICT"),
+        (_state_fixture("V1-C10", "IN_PROGRESS").replace("## 3. Historical snapshot", "Active Card: V1-C11 — Card 11\n## 3. Historical snapshot", 1), "ACTIVE_CARD_DECLARATIONS_CONFLICT"),
         (_state_fixture("V1-C09", "IN_PROGRESS", next_card="V1-C09"), "NEXT_CARD_EQUALS_ACTIVE_CARD"),
         (_state_fixture("V1-C02", "READY_FOR_HUMAN_REVIEW", next_card="V1-C04"), "NEXT_ROADMAP_CARD_MISMATCH"),
         (_state_fixture("V1-C02", "READY_FOR_HUMAN_REVIEW").replace("V1-C02 — Card 02", "V1-C02 — Wrong Title"), "CARD_TITLE_MISMATCH:V1-C02"),
@@ -1201,3 +1218,66 @@ def test_generic_lifecycle_code_has_no_card_specific_bypass() -> None:
     assert "c02_not_started" not in source
     assert "c02_authorized" not in source
     assert not any(re.search(r"active.*V1-C\d{2}|V1-C\d{2}.*active", line, re.I) for line in source.splitlines())
+
+
+@pytest.mark.parametrize("historical", [
+    "Active Card: V1-C03 — Card 03\nActive Card State: COMPLETE",
+    "V1-C04 Authorization: START_NOT_GRANTED; DELIVERY_NOT_GRANTED",
+    "| V1-C04 | Historical Card | COMPLETE | YES |",
+])
+def test_historical_declarations_are_not_operational_owners(historical: str) -> None:
+    control = _state_fixture("V1-C04", "IN_PROGRESS") + "\n## 40. Previous record\n" + historical
+    assert not consistency.resolve_card_state(control).errors
+
+
+def test_idle_card_state_must_be_none() -> None:
+    control = _state_fixture("NONE", "NOT_STARTED").replace("Active Card State: NONE", "Active Card State: IN_PROGRESS")
+    assert "IDLE_ACTIVE_CARD_STATE_MISMATCH" in consistency.resolve_card_state(control).errors
+
+
+def test_conflicting_authorizations_in_primary_ledger_are_rejected() -> None:
+    control = _state_fixture("NONE", "NOT_STARTED").replace(
+        "V1-C01 Authorization: START_GRANTED; DELIVERY_COMPLETED",
+        "V1-C01 Authorization: START_GRANTED; DELIVERY_COMPLETED\nV1-C01 Authorization: DELIVERY_NOT_GRANTED",
+    )
+    assert "AUTHORIZATION_DECLARATIONS_CONFLICT:V1-C01" in consistency.resolve_card_state(control).errors
+
+
+def test_conflicting_active_approval_is_not_last_wins() -> None:
+    control = _state_fixture("V1-C04", "IN_PROGRESS").replace("Human Start Approval: GRANTED", "Human Start Approval: NOT_GRANTED\nHuman Start Approval: GRANTED")
+    assert "ACTIVE_CARD_AUTHORIZATION_DECLARATIONS_CONFLICT" in consistency.resolve_card_state(control).errors
+
+
+def test_completed_evidence_cannot_disagree_with_primary_card_state() -> None:
+    evidence = EVIDENCE.read_text()
+    section = consistency.card_evidence_section(evidence, "V1-C06").replace("**Status:** COMPLETE", "**Status:** IN_PROGRESS", 1)
+    issues = consistency.card_documentation_issues(section, consistency.CardRecord("V1-C06", "Historical Data & Replay Foundation", "COMPLETE", True))
+    assert "V1-C06:PROJECT_CONTROL_EVIDENCE_STATE_MISMATCH" in issues
+
+
+def test_completed_delivery_proof_is_checked_beyond_first_completed_card() -> None:
+    control = _state_fixture("NONE", "NOT_STARTED").replace("| V1-C02 | Card 02 | NOT_STARTED |", "| V1-C02 | Card 02 | COMPLETE |")
+    control = control.replace("Next Roadmap Card: V1-C02 — Card 02", "Next Roadmap Card: V1-C03 — Card 03")
+    assert "COMPLETE_WITHOUT_DELIVERY_VERIFICATION" in consistency.resolve_card_state(control).errors
+
+
+def test_historical_approval_cannot_authorize_current_card() -> None:
+    control = _state_fixture("V1-C04", "IN_PROGRESS").replace("Human Start Approval: GRANTED", "Human Start Approval: NOT_GRANTED")
+    control += "\n## 40. Previous Card\nHuman Start Approval: GRANTED\n"
+    assert "ACTIVE_CARD_START_APPROVAL_MISSING" in consistency.resolve_card_state(control).errors
+
+
+@pytest.mark.parametrize("verdict", ["FAILED", "NOT_VERIFIED", "UNRESOLVED", "NOT_RUN", "UNKNOWN"])
+def test_current_card_audit_needs_affirmative_verdict(verdict: str) -> None:
+    section = _valid_independent_audit().replace("Verdict: PASS — recommend delivery review", "Verdict: " + verdict)
+    issues = consistency.independent_audit_issues(section, consistency.CardRecord("V1-C10", "Card 10", "READY_FOR_HUMAN_REVIEW", True))
+    assert "V1-C10:INDEPENDENT_AUDIT_VERDICT_UNRESOLVED" in issues
+
+
+def test_conflicting_primary_quality_gates_are_rejected(tmp_path: Path) -> None:
+    repo, control, _ = _fixture(tmp_path)
+    current = control.replace("## 21. Card Quality Gate State\nCARD_QUALITY_GATE: PASS", "## 21. Card Quality Gate State\nCARD_QUALITY_GATE: PASS\nCARD_QUALITY_GATE: BLOCKED", 1)
+    (repo / "PROJECT_CONTROL.md").write_text(current)
+    result = _run_checker(repo)
+    assert result.returncode != 0
+    assert "CURRENT_FIELD_DECLARATIONS_CONFLICT:CARD_QUALITY_GATE" in result.stdout

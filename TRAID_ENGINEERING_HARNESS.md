@@ -2254,7 +2254,31 @@ historical/checkpoint SHA only with checkpoint semantics; it must not store a
 mutable exact `Current HEAD` claim. Historical SHAs may remain recorded without
 creating endless reconciliation commits. The checker queries Git for live facts,
 validates checkpoint existence/ancestry, and rejects contradictory current
-maintenance, completion-summary, safe-resume, or authorization state.
+maintenance, safe-resume, or authorization state. Completed-Card summaries are
+derived from the §30 primary table, not independently maintained prose.
+
+Operational parsing is scoped: PROJECT_CONTROL §2 owns Active Card/State and
+next eligibility, §30 owns Card rows, §7 owns Card authorization declarations,
+and the current record in §6 owns active approval details. Conflicting primary
+fields fail closed; historical delivered/previous records cannot authorize new
+work or conflict with current state. Every completed Card must agree with its
+Evidence status and retain delivery proof. Git snapshots and secondary summaries
+are references, not competing live owners. Evidence owns review receipts and
+historical execution results; only explicit human authority grants permission.
+
+Approval and performance differ: a review-ready Card may have human delivery
+approval while delivery remains unperformed/unverified. It remains READY until
+verified delivery permits COMPLETE; missing approval still blocks delivery, and
+premature verification or completion still blocks consistency.
+
+Current Card (before COMPLETE) and CURRENT maintenance audit verdicts require
+explicit affirmative PASS or
+PASS_WITH_GAPS tokens. Unknown, negative and unresolved verdicts fail closed;
+legacy HISTORICAL vocabulary remains valid under its original contract.
+Packaging runs outside the checked checkout under GIT_WORKFLOW §33. Neither
+candidate hashing nor untracked scope detection exempts generated checkout
+files. Content and filename secret scanners must distinguish successful no-match
+from command/tool errors; only the former may pass.
 
 For maintenance audit evidence, stored CURRENT/HISTORICAL classification binds
 a task's frozen review snapshot. On its source branch the current audit must
@@ -2269,8 +2293,8 @@ HISTORICAL audit state at runtime; no stored document changes or CI delivery
 claims occur. Failed or unreviewed records still fail closed on main.
 
 The next separately authorized task or Card archives the prior record/audit in
-its own normal PR while retaining history, then creates exactly one fresh
-current task/audit. Previous audits cannot authorize new work. Closed C06/PR13
+its own normal PR while retaining history, then creates the current record and
+audit required by that workflow. Previous audits cannot authorize new work. Closed C06/PR13
 records are not reopened. CI runs the exact source-branch Harness and, for
 maintenance PRs to main, a full-history disposable squash integration check.
 

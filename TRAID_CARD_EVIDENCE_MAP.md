@@ -6209,10 +6209,10 @@ Regression fixture correction: an initial fresh-remote test placed its bare orig
 
 Refreshed validation: focused integration regressions 38 passed; full pytest 408 passed with 2 existing dependency warnings; final same-Card archival probe 1 passed; production Harness PASS; bootstrap 20 PASS / 1 expected dirty-tree warning / 0 FAIL; traced git grep executed, no-match exit 1, scanner PASS; six actual-candidate scratch scenarios PASS (normal CI/squash, same-Card startup, moved-main rejection plus refreshed review/authorization, contradictory verdict and restoration, immutable historical §21.1 reference). Diff checks PASS. Eight previous maintenance record bodies and seven historical audit bodies preserved; original HEAD/main unchanged. Scratch export initially lacked a local main branch, so downstream clones correctly failed closed on missing origin/main; exporting the known base main fixed only the fixture, and all six reruns passed. Synthetic review/authorization in temporary repositories provides no real approval. C06/PR13 closed records remain unchanged. Hosted CI, GitHub protection settings, and atomic merge enforcement remain UNKNOWN. Local controls detect accidental mismatches; malicious direct-main prevention is not proven.
 
-### Current Maintenance Re-Audit Record
+### Historical Maintenance Re-Audit Record
 
 ```text
-Record Classification: CURRENT
+Record Classification: HISTORICAL
 Maintenance Task ID: MAINT-POST-MERGE-LIFECYCLE
 Status: PASS
 Candidate Type: WORKTREE
@@ -6229,6 +6229,41 @@ Gap dispositions: NONE
 Limitations: local proof only; hosted workflow and GitHub protection settings unverified; repository-authored attestations cannot authenticate review or prevent malicious main writers
 Verdict: PASS — TRAID_WORKFLOW_FINAL_REVIEW for exact candidate 0899a58ec95a1ff2c2deaace5814c6f2de09deaadc71e3be3753c25765f4cf27, as supplied by human
 Delivery authorization/performance: GRANTED / NOT_PERFORMED — human TRAID — AUTHORIZED POST-MERGE WORKFLOW DELIVERY explicitly authorizes commit, push, one PR and approved squash merge of this candidate; performance evidence to be published on that PR
+```
+
+### Consolidated Root-Cause Remediation — F01 and F03-F07
+
+Authorization: human CONSOLIDATED HARNESS ROOT-CAUSE REMEDIATION; bounded implementation and self-validation only. Existing task MAINT-POST-MERGE-LIFECYCLE and PR14 are retained; no new maintenance loop. No C07 authorization.
+Starting identity: clean maintenance/post-merge-lifecycle at ae14957b23a6098cdcea3bd3247e004cf03962eb; main/origin/main a63435bc6f8d4672cc2bcfc5d664ebd647134e6b. Previous reviewed WORKTREE 0899a58ec95a1ff2c2deaace5814c6f2de09deaadc71e3be3753c25765f4cf27 is superseded by changed source bytes; its exact PASS receipt is preserved above as historical.
+Failure evidence: PR14 run 38636091372 had 408 pytest PASS and scanner PASS, then Harness rejected build/lib paths with identity/untracked mismatch; integration was skipped. Read-only root-cause report PROVEN and reproduction evidence /private/tmp/traid-harness-audit/ establish F01 and F03-F07. No closed C06/PR13 record is reopened.
+Implementation: isolate package builds from committed source outside checked checkout; scope current Control/Card/authorization parsing and derive completion summaries; cross-check completed Card evidence; require affirmative current Card/maintenance verdicts while preserving completed/historical vocabulary; exact literal-prefix scope matching; distinguish approval from verified delivery; fail closed on filename scan errors. F02 strict integration identity and authorization checks retained. No ignore/hash/content-scanner weakening or new dependency.
+Validation: PASS — pre-freeze focused Harness/lifecycle/scanner/integration/maintenance regressions: 270 passed, plus the added primary-quality conflict regression passed. Full local regression then passed 436 tests with two existing dependency warnings; the final primary-quality conflict regression is additional. Pre-freeze Linux ARM64 / Python 3.13.15 validation used the existing Docker runtime, a fresh external venv and real pip/setuptools builds: two full CI cycles each had 436 passed (one existing dependency warning), clean source status, Harness PASS, bootstrap 21 PASS / 0 WARN / 0 FAIL, traced git grep and filename scanning PASS, freshly fetched file-only origin and production squash integration PASS. Linux baseline in-place installation reproduced the original failure before testing the correction. Final exact-candidate full results and frozen identity are retained in /private/tmp/traid-harness-remediation/ for independent verification.
+Transitions: actual combined implementation passed two successive synthetic maintenance deliveries with exactly two main squash commits and no closure commits; next hypothetical Card startup passed after predecessor archival within that same Card branch. Five end-to-end scenarios passed, including moved-main rejection/refreshed candidate, verdict integrity and historical §21.1 references. Synthetic approvals remain confined to scratch and are not real Claude review or human authorization.
+Mutation/self-review: seven isolated regressions detected restored F01, F03 history parsing, F03 evidence mismatch, F04 permissive verdict, F05 path alias, F06 approval conflation and F07 scanner error swallowing. Ordinary tracked/untracked source and checkout build/lib contamination remain blocked; valid hidden CI paths remain accepted. Candidate hashing/normalization, .gitignore, content scanner and integration runner are unchanged. Eight closed maintenance record bodies, prior historical audit bodies, the superseded PASS receipt and C01-C06 Evidence sections are preserved.
+Failure history: initial focused run had eight failures from legacy synthetic fixtures lacking owned sections/status/affirmative current verdict; fixtures were corrected to the new contract, retaining negative controls and historical vocabulary. Later stale-checkpoint test expected the old generic HEAD error; updated to require the more precise GIT_CHECKPOINT_MISSING failure. One reused external archival helper retained a Current heading for closed predecessor history, causing CLOSED_MAINTENANCE_HAS_PENDING_TEXT; changed only that disposable helper to the canonical Previous heading, then all five reruns passed. No gate was relaxed to hide a failure.
+Limitations: Linux validation is genuine local container execution, not a corrected GitHub Actions result; hosted correction NOT_RUN. Fetch/compare remains non-atomic with later GitHub merge. In-repository attestations do not authenticate reviewers or prove malicious-writer prevention. No original commit/push/PR change/merge, no new branch, no C06/PR13 reopening or real C07 work.
+Independent review: PENDING; delivery authorization NOT_GRANTED. Synthetic scratch approvals are not real approval. Hosted correction NOT_RUN.
+
+### Current Maintenance Re-Audit Record
+
+```text
+Record Classification: CURRENT
+Maintenance Task ID: MAINT-POST-MERGE-LIFECYCLE
+Status: PASS
+Candidate Type: WORKTREE
+Branch: maintenance/post-merge-lifecycle
+Base SHA: a63435bc6f8d4672cc2bcfc5d664ebd647134e6b
+Candidate Diff SHA-256: 95190b8d1c8bad683c30d2ffc24749807d6c41954f497aa25bee6c90fdf26259
+Untracked Files: NONE
+Verifier context: Claude Code — independent read-only audit; TRAID_HARNESS_INDEPENDENT_AUDIT: PASS; READY_FOR_HUMAN_DELIVERY_REVIEW
+Canonical inputs reviewed: Actual repository candidate, canonical ownership and delivery contracts, Harness lifecycle and unchanged F02 integration model
+Evidence reviewed: Independent full pytest: 437 passed, 2 dependency warnings; focused: 252 passed; Harness PASS; bootstrap 20 PASS / 1 expected dirty-tree WARN / 0 FAIL; actual scanners PASS; scratch scope, identity, lifecycle and mutation controls; Codex combined remediation evidence /private/tmp/traid-harness-remediation/REPORT.md
+Findings: No CRITICAL, HIGH or MEDIUM defects. AUD-01 LOW: leading affirmative verdict token permits contradictory trailing text; READY permits unresolved Status with affirmative Verdict, but delivery requires Status PASS. AUD-02 LOW pre-existing: COMPLETE Card verdict exemption retains legacy vocabulary. AUD-03 LOW by design: authorization copies outside primary Control §7 are not live checked authorities. AUD-04 LOW: 3 of 15 mutations survived; two equivalent mutants, third git archive HEAD replaced with isolated cp -R . does not prove committed-source export.
+Unresolved blockers: NONE
+Gap dispositions: AUD-01/AUD-02/AUD-03/AUD-04: nonblocking LOW observations preserved; no implementation changes authorized or made to address them during delivery
+Limitations: Claude did not execute Docker/Linux or hosted CI; package replay Python 3.11/offline local setuptools. Corrected hosted CI pending delivery. Merge freshness check is non-atomic; GitHub protections NOT_VERIFIED; repository attestations cannot authenticate human/reviewer identity. Approval on READY with unresolved AEVS audit not separately tested by reviewer.
+Verdict: PASS — READY_FOR_HUMAN_DELIVERY_REVIEW
+Delivery authorization/performance: GRANTED / NOT_PERFORMED — explicit user PR #14 controlled-delivery authorization: record genuine audit, commit, normal push existing maintenance branch, update existing PR #14 and inspect hosted CI only; MERGE NOT_GRANTED; no direct-main changes, new PR, new branch or C07
 ```
 
 # 20. Final Evidence Principle

@@ -23,7 +23,12 @@ jobs:
         with:
           python-version: '3.13'
       - run: python -m pip install --upgrade pip
-      - run: python -m pip install '.[dev]'
+      - name: Install from isolated committed source
+        run: |
+          set -euo pipefail
+          build_source="$(mktemp -d "$RUNNER_TEMP/traid-package.XXXXXX")"
+          git archive HEAD | tar -x -C "$build_source"
+          python -m pip install "$build_source[dev]"
       - run: pytest
       - run: bash scripts/check_secrets.sh
       - run: python scripts/harness_consistency_check.py
