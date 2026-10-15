@@ -253,13 +253,15 @@ def test_ancestor_checkpoint_is_accepted_without_head_equality() -> None:
 
 
 def test_closed_maintenance_pending_text_is_rejected() -> None:
-    control = re.sub(
-        r"(^### Current Maintenance Record\n.*?^Status: )[^\r\n]+$",
-        r"\g<1>CLOSED / DELIVERED / VERIFIED — validation pending completion",
-        CONTROL.read_text(),
-        count=1,
-        flags=re.MULTILINE | re.DOTALL,
-    )
+    # Own the invalid scenario rather than mutating a heading that disappears
+    # when the previous maintenance is archived in the next authorized Card.
+    control = CONTROL.read_text()
+    start = control.index("## 4. Repository / Git Reality")
+    end = control.index("## 5.", start)
+    section = re.sub(r"^### Current Maintenance Record\n.*?(?=^---$)", "",
+                     control[start:end], flags=re.MULTILINE | re.DOTALL)
+    section += "### Current Maintenance Record\n\n```text\nStatus: CLOSED / DELIVERED / VERIFIED — validation pending completion\n```\n\n"
+    control = control[:start] + section + control[end:]
     issues = consistency.current_state_issues(control, EVIDENCE.read_text(), _git(ROOT, "rev-parse", "HEAD"))
     assert "CLOSED_MAINTENANCE_HAS_PENDING_TEXT" in issues
 

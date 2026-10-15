@@ -52,6 +52,14 @@ def _idle_maintenance_scaffold(control: str, evidence: str) -> tuple[str, str]:
     control = re.sub(r"^Project Phase: .+$", "Project Phase: INTEGRATED / SYNTHETIC_IDLE", control, count=1, flags=re.MULTILINE)
     control = re.sub(r"^Card Start: .+$", "Card Start: NOT_GRANTED — synthetic maintenance fixture", control, count=1, flags=re.MULTILINE)
     control = re.sub(rf"^{re.escape(card_id)} Authorization: .+\n", "", control, flags=re.MULTILINE)
+    # Idle scenarios verify the already-completed predecessor, not the active
+    # Card's deliberately pending quality gate.
+    a = control.index("## 21. Card Quality Gate State")
+    b = control.index("## 22.", a)
+    section = re.sub(r"^CARD_QUALITY_GATE: (PASS|BLOCKED|NOT_RUN).*$",
+                     "CARD_QUALITY_GATE: PASS — synthetic completed predecessor",
+                     control[a:b], flags=re.MULTILINE)
+    control = control[:a] + section + control[b:]
     control, record_count = re.subn(
         r"^Current active-Card record:\n\n```text\n.*?^```\n",
         "", control, count=1, flags=re.MULTILINE | re.DOTALL,
@@ -116,7 +124,13 @@ def _maintenance_fixture(
         r"^### Current Maintenance Record\n.*?(?=^---$)", maintenance, control,
         count=1, flags=re.MULTILINE | re.DOTALL,
     )
-    assert count == 1
+    # A normal next Card archives the predecessor; fixture authorization must
+    # not depend on a live current-maintenance heading existing indefinitely.
+    if count == 0:
+        anchor = "## 5."
+        position = control.index(anchor)
+        control = control[:position] + maintenance + "\n---\n\n" + control[position:]
+    assert "### Current Maintenance Record" in control
     working_tree = working_tree_state or ("DIRTY_ALLOWED" if dirty_path else "CLEAN")
     control = re.sub(r"^Working Tree: .+$", f"Working Tree: {working_tree}", control, count=1, flags=re.MULTILINE)
     (tmp_path / "PROJECT_CONTROL.md").write_text(control)
