@@ -2220,161 +2220,200 @@ Historical authorization note: when this candidate was prepared, its maintenance
 
 ## V1-C07 — Order Book & Liquidity Analytics
 
-**Status:** NOT_STARTED
+**Status:** READY_FOR_HUMAN_REVIEW
 
-**Start Authorization:** NOT_GRANTED
+**Start Authorization:** GRANTED — explicit human V1-C07 start/implementation/self-audit instruction
 
-**Next Card Authorization:** NOT_GRANTED
+**Next Card Authorization:** NOT_GRANTED — C08 and later
 
 ### Contract / Risk Map
-- Repository/current-state reconciliation: Pending
-- Contract Map: Pending
-- Risk Map: Pending
-- Ownership map: Pending
-- Dependency proof: Pending
-- Future-Card leakage check: Pending
-- `ROADMAP_ALIGNMENT_GATE`: NOT_RUN
+READINESS_GATE: PASS. CONTENT_ALIGNMENT_GATE: PASS before ROADMAP_ALIGNMENT_GATE: PASS.
+Dependency: C05 COMPLETE; canonical OrderBookSnapshot/SourceProvenance and assess_quality inspected and reused. C01-C06 COMPLETE with delivered evidence. Clean synchronized main 82eb0644b1e9912cd1dc972c646b489f26d081c4; PR14 integrated with historical audit runtime and no active maintenance. Python 3.13.12 and existing pytest environment available; pure computation needs no network, credentials or service.
+Contract map: C04 normalizes provider books -> C02 canonical snapshot -> C05 policy/coverage/continuity/recovery evaluation at explicit evaluation_time -> C07 provider-neutral typed liquidity report. Provider mapping and C05 trust remain their existing owners. Git owns actual branch/SHA; Control owns current task; this section owns proof.
+Risk map: invalid/duplicate/crossed levels, zero denominators, stale/degraded data, ambiguous units, numeric cancellation, incomplete displayed depth and false execution claims. No Strategy, Risk, AI, live trading, C08/C09, provider semantic change, dependency or OI work.
 
 ### Implementation / Inspection
-- Files / symbols inspected: Pending
-- Files / symbols changed: Pending
-- Verified behavior: Pending
-- Architecture before → after: Pending
-- What remained unchanged: Pending
-- Known limitations / deferrals: Pending
+Inspected domain/models.py, providers/hyperliquid.py, exchange contracts, quality/models.py and evaluator.py, their tests, canonical C07 contract and guardrails.
+Changed implementation: src/traid/liquidity/analytics.py owns deterministic formulas, validation and typed report; __init__.py exports the C07 interface; tests/test_liquidity.py owns known-answer, negative, generated and differential fixtures. PROJECT_CONTROL.md and this Evidence Map record C07 startup, predecessor archival and proof. No existing product module or Harness rule changed.
+Architecture: canonical data + quality -> pure liquidity evidence; no execution or recommendation consumer introduced. Input models are revalidated to reject validation-bypass construction. Duplicate levels, nonpositive size, crossed/locked books, unsupported numeric range and source/snapshot timestamp mismatch make metrics unavailable and effective quality UNAVAILABLE/untrusted. Canonical invalid prices, negative sizes, missing levels and malformed objects raise typed-boundary validation errors, never plausible fallback values.
+C05 is evaluated again using explicit coverage, clock, versioned policy, continuity and recovery. Degraded/unavailable observations retain their complete assessment and no numerical metrics. One-sided/empty books retain explicit missing-side reasons; absent-side depth/imbalance is not neutral zero.
 
 ### Source / Provenance
-- Decision ID: Pending
-- Classification: Pending
-- Source project/repository: Pending
-- Commit/tag/branch: Pending
-- Exact source file/module/symbol: Pending
-- License: Pending
-- Runtime/semantic verification: Pending
-- TraID adaptation/rejection: Pending
-- Source evidence: Pending
+Classification: BUILD — original provider-neutral formulas defined below; no external code copied/adapted. Provider payload semantics remain in the unchanged C04 adapter. Exact SourceProvenance, symbol, snapshot timestamp, evaluation time, quality reasons and policy version are included in each report alongside immutable configuration and formula version c07-liquidity-1. Units are caller-declared base asset and quote currency; the canonical symbol is not used to guess a quote asset. Source scope is displayed snapshot only, not total market coverage. Remediation requires canonical config.symbol equality with book.symbol and explicitly exposes units_provider_verified=false plus UNITS_CALLER_ASSERTED_NOT_PROVIDER_VERIFIED; C05 observation trust is not unit verification.
+
+### Formula Contract
+Let b=max bid, a=min ask, M=(a+b)/2, p_i>0, q_i>0. Prices are quote/base; quantities base. Sorting normalizes input order; duplicate prices are rejected, not merged. Locked/crossed books are invalid. No two-sided spread/mid/imbalance is emitted without both sides.
+- Absolute spread = a-b (quote/base); relative spread = 10000*(a-b)/M (bps).
+- Configuration cardinality: at most 8 bands and 16 hypothetical orders; reject oversized requests, no truncation.
+- Cumulative side band w: abs(p_i-best_side)*10000 <= best_side*w, inclusive; explicitly configured strictly increasing 0<w<10000 bps. Each side has its own best anchor. Bands describe observed levels only; omitted price points are not assumed missing because sparse price grids are valid.
+- Base depth D=sum q_i; quote depth N=sum p_i*q_i. Empty observed side is unavailable, not zero. Known empty incremental rings on a present side have zero depth.
+- Imbalance = (D_bid-D_ask)/(D_bid+D_ask), dimensionless [-1,1], positive bid-heavy; no directional or probability interpretation. Positive levels ensure nonzero denominator when both sides exist.
+- Concentration HHI=sum(q_i/D)^2, dimensionless (0,1]. It is level concentration within the configured displayed band, not venue/participant concentration.
+- Ring density rho_j=(D_j-D_(j-1))/(w_j-w_(j-1)), base/bps, D_0=w_0=0. Decay ratio=rho_j/rho_(j-1), dimensionless; <1 means lower adjacent outward density. First band has no predecessor; zero previous density is explicitly unavailable. No temporal persistence inferred.
+- BUY consumes asks ascending; SELL consumes bids descending. Each ExecutionEstimate now records reference_price (best ask/bid respectively), including partial-liquidity estimates; unavailable observations/sides carry explicit unavailable benchmark reasons. Take min(remaining base, displayed size); quote=sum(take*price). Partial VWAP=quote/filled base. Full-size adverse slippage = VWAP-best_ask for BUY, best_bid-VWAP for SELL (quote/base); relative=10000*adverse/best_side (bps). Full-size values require the entire requested quantity; partial quote/quantity/VWAP remain marked hypothetical and explicitly insufficient. Missing side yields unavailable, not zero fill evidence.
+- Arithmetic: isolated Decimal ROUND_HALF_EVEN; 8192-digit intermediates preserve accumulation/cancellation across bounded inputs; report metrics round once to 50 significant digits. Inputs at most 50 digits, adjusted exponent +/-1000; at most 100000 total levels. Unsupported range returns explicit unavailable; invalid order/configuration raises validation error. No tick-size or execution precision claim. No fees, replenishment, latency, queue position, hidden liquidity, actual fill or inference of full-market completeness.
 
 ### Tests / Evaluation
-- Focused tests: Pending
-- Relevant regression tests: Pending
-- Card-specific evaluation / acceptance: Pending
-- Actual commands/runners: Pending
-- Actual results: Pending
-- Warnings: Pending
-- Environment/configuration: Pending
+Focused command: .venv/bin/python -m pytest -q tests/test_liquidity.py — 56 passed.
+Known-value fixture: bids (100,2),(99,3),(98,5); asks (102,2),(103,3),(104,5). Mid=101, spread=2 quote/base, spread=20000/101 bps. 100bps bid/ask depth=5/5 base, quote=497/513, imbalance=0, HHI=.52. 200bps depth=10/10, bid quote=987, HHI=.38, bid outward density ratio=1. Buy4 quote=410,VWAP=102.5; sell4 quote=398,VWAP=99.5, adverse=.5 both; sell=50bps. Buy12 fills displayed10 quote1033 VWAP103.3, full-size slippage unavailable.
+Hand fixtures check inclusive boundaries, asymmetric imbalance .5, thin/extreme/5000-level books, full/exact/partial exhaustion, both sides, zero-ring denominators and 50-digit numeric limits. Seeded generated tests check 100 books, invariant ranges/monotonicity and independent Fraction quote/VWAP reference; 50 generated negative sizes reject. Ambient Decimal precision/rounding and input permutations cannot change serialized results. Quality tests include exact5/15-second boundaries, missing source timestamp, unsupported/limited coverage, recovery and continuity risk. Validation-bypass, None levels, wrong capability, future evaluation, NaN/Infinity and nonpositive price/size reject.
+Combined final validation: .venv/bin/python -m pytest -q — 493 passed, 2 pre-existing fastapi/starlette/anyio deprecation warnings, 154.78s. Affected domain/provider/quality/C07 contracts: 134 passed; governance/Harness/maintenance regressions: 216 passed. Five isolated mutants (spread sign, inclusive band, quality bypass, slippage side and HHI power) all detected, with 1/2/9/5/1 failing tests respectively. Logs retained outside the repository at /private/tmp/traid-c07-*. Production Harness PASS; bootstrap 20 PASS / 1 expected dirty-worktree WARN / 0 FAIL; actual content and filename scanners PASS. git grep --no-index additionally scanned all three new untracked source/test files and completed with no match (exit 1); no untracked-source exclusion. Diff checks PASS. AST/import ownership and byte comparisons confirmed original product modules, Harness, workflows, guardrails and prior Card evidence unchanged.
 
 ### Financial / Data / AI / Risk / Security Evidence
-- Financial invariants: Pending
-- Data Quality / Provenance: Pending
-- AI boundary / fail-closed behavior: Pending
-- Risk Gate / bypass behavior: Pending
-- Anti-lookahead / replay integrity: Pending
-- Security / secrets / untrusted-input checks: Pending
-- Not-applicable items and justification: Pending
+G03-G07/G10/G17 preserved: canonical provider-neutral inputs, explicit units and reasons, no stale promotion or financial fallback; deterministic calculation with no AI/model calls. Explicit evaluation time cannot precede receipt; future source receipt is rejected by existing contracts. C07 has no trade, Strategy/Risk decision, provider I/O, historical backfill or credential path. D-OI-001 remains DEFERRED. Accounting fixtures concern hypothetical displayed costs, not actual trade accounting/backtesting.
 
 ### Failures / Diagnosis / Recovery
-- Failures observed: Pending
-- Root cause: Pending
-- Diagnosis: Pending
-- Fix/recovery: Pending
-- Regression proof: Pending
-- Remaining risk: Pending
+No C07 test failure observed in initial 52 or extended 56-case focused runs. First full run: 66 failed / 427 passed because maintenance test fixtures assumed a permanent Current Maintenance Record after normal predecessor archival. One closed-record negative test mutated a nonexistent heading; other scenarios failed setup at count==1. Minimal test-only correction creates each synthetic maintenance record when absent and constructs the closed-record negative input directly. The first fixture rerun then exposed its inherited active-Card BLOCKED quality gate (55 failed / 161 passed); the idle scaffold now explicitly supplies its own completed-predecessor PASS gate. Final 216 affected tests and all 493 tests passed. This changes fixture ownership, not production policy, and preserves the original rejection assertions. Additional changed files: tests/test_maintenance_harness.py and tests/test_harness_consistency.py; necessary affected-contract regression repair in the authorized C07 phase, no separate maintenance task. Self-review identified that default 50-digit intermediate accumulation could lose very small depth next to large sizes. Increased isolated intermediate precision to 8192 within explicit input bounds and added extreme dynamic-range regression; final outputs remain 50-digit approximations. Analytical invalidity now downgrades effective report quality as well as making metrics unavailable; original provenance and assessment reasons remain. No provider or financial contract was silently relaxed.
 
 ### Git / Repository
-- Branch: Pending
-- Start commit: Pending
-- Checkpoint commit: Pending
-- Push: Pending
-- Draft PR: Pending
-- Merge: Pending
-- `git diff` review: Pending
-- `git status` review: Pending
-- Secrets/generated artifacts/unrelated changes: Pending
+Branch: card/v1-c07-order-book-liquidity
+Start commit: 82eb0644b1e9912cd1dc972c646b489f26d081c4
+Checkpoint: uncommitted authorized C07 candidate; main untouched.
+Commit/push/PR/merge: NOT_GRANTED / NOT_PERFORMED.
+Predecessor: PR14 maintenance record archived as Previous and audit relabeled HISTORICAL in this normal C07 startup. Receipt body, digest, verdict and findings preserved; status transition records actual verified integration. Older closed bodies untouched. No standalone archival branch, commit or PR.
 
 ### Learning Record
+What We Wanted To Build: Deterministic typed displayed-liquidity evidence, not trade signals.
 
-What we built: Pending
+Why It Matters: Formulas without explicit windows, units and trust state can mislead users.
 
-Why we built it: Pending
+System Before This Card: C02 canonical snapshots, C04 normalization and C05 quality; no C07 metrics.
 
-Engineering problem: Pending
+Design Decision: Pure provider-neutral calculator with explicit configuration and in-call C05 evaluation.
 
-AI / Data / Financial concept: Pending
+Alternatives Considered: Provider-specific analytics, float arithmetic, externally supplied stale quality labels and silent partial fills.
 
-How it works: Pending
+Why We Chose This Approach: Reuse canonical ownership and prevent quality drift, unit inference and numerical ambiguity.
 
-Architecture before: Pending
+What We Implemented: Typed price/depth/imbalance/HHI/ring-density/slippage evidence and financial validation.
 
-Architecture after: Pending
+What We Built: Original deterministic C07 module and known-answer/negative/generated test suite.
 
-Important files and ownership: Pending
+Why We Built It: Expose observable liquidity with auditable semantics and explicit unavailability.
 
-Source / provenance: Pending
+Engineering problem: Bind calculations to current quality, provenance and a reproducible arithmetic policy.
 
-Tests / evaluations and actual results: Pending
+AI / Data / Financial concept: Displayed depth is evidence; imbalance is not direction and hypothetical VWAP is not a fill.
 
-Financial / data / security invariants: Pending
+How it works: Revalidate canonical inputs, assess quality, sort positive unique levels, compute configured metrics, return typed reasons.
 
-Problem(s) discovered: Pending
+Architecture before: Trusted/degraded canonical observations only.
 
-How we diagnosed / solved them: Pending
+Architecture after: Existing canonical and quality owners feed a new pure liquidity evidence module.
 
-Professional engineering lesson: Pending
+Important files and ownership: liquidity/analytics.py formulas and report; tests/test_liquidity.py financial oracle; Control checkpoint and Evidence proof.
 
-Student takeaway: Pending
+Source / provenance: BUILD, no copied code; exact canonical provenance retained, units explicitly supplied.
 
-Exit Gate proof: Pending
+Tests / evaluations and actual results: 56 focused, 134 affected contract, 216 governance regression and 493 full tests passed; five independent scratch mutants detected.
 
-What this enables next: Pending
+Financial / data / security invariants: No zero fallback, stale promotion, AI calculation, live execution or OI reinterpretation.
+
+Problems We Hit: Extreme quantity/price dynamic ranges can hide small contributions with ordinary Decimal precision.
+
+Root Cause: Finite significant-digit accumulation can round away contributions before later subtraction.
+
+How We Solved It: Bound input magnitudes and use 8192-digit isolated intermediates, then round report values to 50 digits.
+
+Why The Fix Is Correct: Bounded exponent span and input digits fit intermediate precision; dynamic-range, permutation and ambient-context regressions pass.
+
+What We Rejected: Globally changing Decimal context, claiming tick-level precision, counting missing-side liquidity as zero and full-fill claims from partial books.
+
+Problem(s) discovered: One-sided books cannot supply two-sided spread or normalized two-sided imbalance.
+
+How we diagnosed / solved them: Known-value and missing-side fixtures require explicit unavailable reasons and per-side preserved evidence.
+
+Known Limitations: Displayed snapshot only, caller-asserted units are never provider-verified; required symbol equality proves identity only, not quote/base semantics; no fees/latency/hidden liquidity; degraded observations intentionally have no metric values.
+
+Professional engineering lesson: Quality and units are part of the numerical result, not optional annotations.
+
+Student takeaway: Verify financial arithmetic independently and distinguish observed partial depth from hypothetical full execution.
+
+Exit Gate proof: Known fixtures, invalid/degraded matrix and deterministic generated references prove local metric semantics; all mandatory local checks passed; independent Claude review NOT_RUN and delivery NOT_GRANTED.
+
+What this enables next: Independent review of C07 only; no next Card or delivery authorized.
 
 ### Exit Gate Proof
-- Exact Card Exit Gate: Pending — re-read from `TRAID_CARD_SPECIFICATIONS.md`
-- Requirement-to-evidence mapping: Pending
-- Unproven requirements: Pending
-- Exact Exit Gate fully proven: NO
+Exact Card Exit Gate: Liquidity metrics match verified fixtures, preserve units/quality/provenance, handle edge cases, and remain deterministic.
+Requirement-to-evidence mapping: tests/test_liquidity.py known-price/depth/HHI/slippage fixtures; typed report metadata; invalid/degraded/one-sided matrices; seeded Fraction reference and hostile-context determinism tests.
+Exact Exit Gate fully proven: YES — corrected local proof: existing mathematical fixtures unchanged, canonical instrument equality fail-closed, caller-only unit trust explicit and not provider-certified, explicit slippage benchmark, bounded configuration, complete invalid/degraded/determinism regression. Original independent FAIL remains historical evidence; bounded re-audit PENDING.
 
 ### CARD_QUALITY_GATE
-
-Status: BLOCKED
-
+Status: PASS
 Card: V1-C07
+Focused/affected/full tests: PASS — actual results above
+Financial/quality/security/architecture invariants: PASS — fixture and scanner evidence above
+Learning record and failure history: recorded
+Unrelated product changes: NONE
+Known limitations: displayed data only; caller binds units; no hosted C07 validation; independent audit NOT_RUN; no delivery authorization
+Evidence updated: YES
+Project Control updated: YES
+Recommended status: READY_FOR_HUMAN_REVIEW
 
-Focused tests: Pending
+### Verification Technique Closure
 
-Relevant regression tests: Pending
+  deterministic invariant testing: REQUIRED — known-value formulas, units, quality and invalid-input fixtures
+    Execution: EXECUTED
+    Evidence: tests/test_liquidity.py — 56 passed; known-answer, generated, invalid/degraded and independent Fraction controls
+  property-based testing: REQUIRED — deterministic generated books exercise invariants without a new dependency
+    Execution: EXECUTED
+    Evidence: tests/test_liquidity.py — 56 passed; known-answer, generated, invalid/degraded and independent Fraction controls
+  failure injection: REQUIRED — degraded quality, empty sides and insufficient liquidity
+    Execution: EXECUTED
+    Evidence: tests/test_liquidity.py — 56 passed; known-answer, generated, invalid/degraded and independent Fraction controls
+  fuzzing: REQUIRED — bounded generated malformed and extreme numeric inputs
+    Execution: EXECUTED
+    Evidence: tests/test_liquidity.py — 56 passed; known-answer, generated, invalid/degraded and independent Fraction controls
+  mutation testing: REQUIRED — isolated formula and trust-gate mutants must fail regression
+    Execution: EXECUTED
+    Evidence: /private/tmp/traid-c07-mutations.json — 5/5 intentionally broken variants rejected by C07 tests
+  differential testing: REQUIRED — independent Fraction reference for slippage and depth
+    Execution: EXECUTED
+    Evidence: tests/test_liquidity.py — 56 passed; known-answer, generated, invalid/degraded and independent Fraction controls
+  adversarial testing: REQUIRED — validation bypass, duplicate/crossed levels and hostile Decimal context
+    Execution: EXECUTED
+    Evidence: tests/test_liquidity.py — 56 passed; known-answer, generated, invalid/degraded and independent Fraction controls
+  chaos testing: NOT_APPLICABLE — pure snapshot computation has no service or concurrency failure boundary
+  formal methods: NOT_APPLICABLE — bounded deterministic arithmetic verified by independent fixtures and invariants; no new proof tooling justified
 
-Card evaluation / acceptance: Pending
+### Independent Audit History — Original C07 Candidate
 
-Financial invariant tests: Pending
+Reviewer: Claude Code, actual read-only independent report TRAID_C07_INDEPENDENT_AUDIT: FAIL / CONSOLIDATED_REMEDIATION_REQUIRED. No invented signature or timestamp. Original reviewed WORKTREE: c9b3a80c8d5328975fda7ca1535f6240ab946c90c4099eab21baa8050f667250; branch card/v1-c07-order-book-liquidity; base 82eb0644b1e9912cd1dc972c646b489f26d081c4. Full report retained at /private/tmp/traid-c07-independent-audit.md from the genuine Claude transcript.
+AUD-01 MEDIUM/blocking: BTC snapshot plus ETH/EUR config yielded trusted C05 observation and EUR/ETH metrics without identity binding or machine-visible unit disclaimer. Independently reproduced before remediation. Audit also verified formulas against its independent Fraction reference on 300 books and full pytest493 PASS; those facts do not resolve AUD-01.
+AUD-02 LOW: zero-size levels conservatively invalidate the book; retained unchanged.
+AUD-03 LOW: unbounded band/order count; audit measured100000 levels/200 bands/50 orders at72 seconds on its environment.
+AUD-04 LOW/pre-existing: completed-Card authorization/deferral text checks while another Card is active have gaps; original Harness and governance test changes untouched in this remediation. Technical debt only; no maintenance task authorized.
+AUD-05 LOW: execution estimates lacked their own explicit benchmark despite report best prices; corrected below.
+Historical verdict remains FAIL. No independent PASS exists for the remediation.
 
-Data-quality / provenance tests: Pending
+### Consolidated Audit Remediation — AUD-01/AUD-03/AUD-05
 
-AI / Risk tests: Pending
+Authorization: explicit user C07 CONSOLIDATED AUDIT REMEDIATION; bounded local implementation/testing only, no delivery or Harness edits. Starting branch/HEAD and previous digest verified exactly, no staged changes or unexpected untracked files.
+AUD-01: required LiquidityConfig.symbol uses the existing CanonicalModel symbol normalization (trimmed nonempty string, no provider parsing/case alias). Reject wrong-type/missing/blank identities; revalidate bypassed model construction; exact comparison to validated book.symbol raises INSTRUMENT_IDENTITY_MISMATCH before metrics. No asset/currency conversion, quote inference or external lookup.
+Unit trust: required instrument equality proves requested snapshot identity only. base_asset/quote_currency remain explicit caller assertions because the canonical book contract has no verified unit mapping. Report.units_provider_verified is Literal[False], not a caller-settable certification. Required UNITS_CALLER_ASSERTED_NOT_PROVIDER_VERIFIED cannot be removed through normal report validation. Matching BTC with caller assertions ETH/EUR does NOT certify those units: labels retain their declared meaning with explicit unverified status. LIVE/trusted_for_current_use retains its exact C05 observation meaning; it never promotes unit semantics. Consumers requiring provider-authoritative financial units must reject this unverified unit status. This is disclosure, not a new provider-verification capability.
+AUD-03: maximum8 cumulative bands and16 independent hypothetical orders; enough for a small multiscale snapshot profile and multiple sizes on both sides, with no documented C07 requirement for unbounded grids. Existing100000-level cap retained. Concrete runtime complexity O(levels log levels + bands*levels + orders*levels), with fixed precision arithmetic; field bounds reject oversize without truncation. Positive/negative boundary and validation-bypass tests pass. Local100000-level/8-band/16-order sample:0.716s at narrow1-8bps; wide1000-8000bps sample33.993s. Not directly comparable to Claude's hardware/workload; no latency/SLA claim. Large accepted books remain computationally expensive; optimization is outside this bounded change.
+AUD-05: reference_price Metric added to each estimate; BUY best ask, SELL best bid, same quote/base units as report. Partial liquidity retains benchmark; missing side, invalid/degraded book produces unavailable reference with explicit reason. Formula unchanged.
+AUD-02 unchanged conservative zero-size fail-closed behavior. AUD-04 retained pre-existing technical debt; no Harness, governance test, financial guardrail, historical body or new maintenance change.
+Regression evidence: C07 focused70 passed; affected C02/C04/C05/C07 contracts148 passed. Four isolated mutants (symbol mismatch bypass, false provider-unit certification, omission of unit disclaimer and wrong execution benchmark) rejected by1/5/5/1 failing tests. AST comparison of _analyze proves existing formula implementation unchanged after removing only the new reference_price metadata keyword.
+Failure history: first focused rerun69 passed/1 failed because the inherited canonical string validator raised AttributeError on an integer symbol. Added a local strict string type check before the unchanged canonical normalization; malformed identity now yields explicit validation error,70 passed. A malformed synthetic model_construct fixture serialized nested dicts with a warning; rebuilt that invalid fixture with actual typed nested requests, retaining the missing-symbol rejection. No canonical model/Harness change.
+Final combined validation: full pytest507 passed/2 existing dependency warnings in149.81s, including the216 unchanged governance regressions; focused C07 tests70 passed; affected domain/provider/C05/C07 contracts148 passed. Production Harness PASS; bootstrap20 PASS/1 expected dirty-worktree WARN/0 FAIL. Actual traced content git grep and filename grep scans PASS; git grep --no-index additionally scanned all3 new source/test files, completed exit1/no-match. Architecture and git diff checks PASS. Prior frozen digest reproduced in a disposable clone after restoring exactly these4 remediation files, proving no other existing candidate byte changes. C01-C06, historical maintenance/audits and C08+ evidence preserved. Exact frozen-candidate final rerun and digest are retained outside Git at /private/tmp/traid-c07-remediation-*. Independent bounded re-audit PENDING; delivery NOT_GRANTED. Historical original FAIL is not a PASS or authorization for changed bytes.
 
-Security checks: Pending
+### Independent Audit
 
-Exit Gate proof: Pending
-
-Evidence updated: YES — initial empty evidence contract only; no implementation claim
-
-Project Control updated: Pending
-
-git diff reviewed: Pending
-
-git status reviewed: Pending
-
-Unrelated changes: Pending
-
-Secrets / generated artifacts check: Pending
-
-Known limitations: Pending
-
-Remaining issues: Card not started; no implementation evidence
-
-Recommended status: NOT_STARTED
-
-Human approval required before next Card: YES
-
+- Status: PASS
+- Candidate Type: WORKTREE
+- Branch: card/v1-c07-order-book-liquidity
+- Base SHA: 82eb0644b1e9912cd1dc972c646b489f26d081c4
+- Candidate Diff SHA-256: 433d000025974a91a19763b7c296abed77657543516fa5c901550ec33cc17e76
+- Untracked Files: src/traid/liquidity/__init__.py, src/traid/liquidity/analytics.py, tests/test_liquidity.py
+- Verifier context: Claude Code — genuine independent read-only final report TRAID_C07_BOUNDED_REAUDIT: PASS; READY_FOR_HUMAN_DELIVERY_REVIEW. Source: /Users/jo.soroush/.claude/projects/-Users-jo-soroush-john-my-projhects-TraID/977ea0b6-3784-4fc7-9edb-19c549bc7b7a.jsonl, assistant message UUID ca662ce9-0dad-44ad-9326-c6212743fd7e; full final report inspected directly for this authorized receipt. No invented reviewer signature or timestamp.
+- Canonical inputs reviewed: Report assesses C07 Exit Gate, C05 observation-quality boundary, unit semantics, actual implementation/tests, Evidence remediation/history and Control lifecycle/authorization; detailed per-file canonical read inventory not itemized in final report.
+- Evidence reviewed: Reviewer recomputed exact candidate before/after; scratch focused C07 70 passed; restored scratch full pytest 507 passed, 2 warnings, 147s; Harness PASS; bootstrap 20 PASS/1 WARN/0 FAIL; diff check exit 0; independent known-value reference/slippage, identity/revalidation, unit disclosure and bounds probes; six mutants rejected, constants-only bounds mutant survived. Initial full run overlapping mutation edits discarded; full rerun after restoration and analytics.py byte comparison used. Secret scan output reported PASS but scanner exit codes not captured; untracked-file ad-hoc scan no match. Distinct architecture/scope step and separate 148-test subset NOT_RUN.
+- Findings: AUD-01 resolved: exact symbol binding, immutable false provider-unit flag and required serializable disclaimer; AUD-03 functionally resolved: 8 bands/16 orders enforced including bypasses, no truncation; AUD-05 resolved: BUY best ask/SELL best bid benchmark, partial benchmark retained, unavailable reasons explicit. Non-blocking LOW: expensive accepted large books, tests do not pin literal bounds, report-level unit disclosure. AUD-02 conservative zero-size rejection unchanged; AUD-04 pre-existing governance debt retained. READY label observation non-blocking; reviewer could not establish its remediation timing.
+- Unresolved blockers: NONE
+- Gap dispositions: NON_BLOCKING — reviewer classifies performance, literal-bounds test weakness and report-level disclosure LOW; limitations retained without implementation changes. Original FAIL and remediation history remain unchanged; this PASS applies only to the new frozen candidate and does not rewrite historical verdicts.
+- Limitations: Caller-asserted unit semantics: provider units NOT_VERIFIED; consumers needing authoritative units must reject false verification status. Large-book performance: reviewer measured about49s for100000 levels/8 bands/16 orders concurrently with pytest, not an isolated benchmark or SLA. Bounds-test observations: MAX_BANDS/MAX_ORDERS mutations to80/160 survived all70 tests; Field-limit removal caught. Report-level unit disclosure: extracting a Metric loses report flag/disclaimer. Hosted CI NOT_RUN. Previous-candidate comparison: previous bytes and /private/tmp/traid-c07-remediation-* reports unavailable; four-file delta and historical formula equality not independently byte-verified; earlier300-case formula audit not repeated. Scanner exit codes not captured; distinct architecture/scope check and separate148-test subset not run. At audit time no delivery was authorized or performed. Subsequent explicit human C07 CONTROLLED GITHUB DELIVERY authorizes one commit, normal push, PR creation and hosted CI verification only; merge NOT_GRANTED, delivery not yet verified; C07 remains READY_FOR_HUMAN_REVIEW; C01-C06, C08 boundaries and D-OI-001 unchanged.
+- Verdict: PASS — TRAID_C07_BOUNDED_REAUDIT: PASS; READY_FOR_HUMAN_DELIVERY_REVIEW, as stated in the genuine final Claude report; Subsequent human authorization: TRAID — C07 CONTROLLED GITHUB DELIVERY; commit, normal push to origin/card/v1-c07-order-book-liquidity, one PR to main and hosted CI verification GRANTED / NOT_PERFORMED; merge, force push, direct-main changes, new maintenance and C08+ NOT_GRANTED. Frozen Control authorization declarations retain the pre-review snapshot; this receipt records the later bounded authority.
 
 ---
 
@@ -6244,10 +6283,10 @@ Failure history: initial focused run had eight failures from legacy synthetic fi
 Limitations: Linux validation is genuine local container execution, not a corrected GitHub Actions result; hosted correction NOT_RUN. Fetch/compare remains non-atomic with later GitHub merge. In-repository attestations do not authenticate reviewers or prove malicious-writer prevention. No original commit/push/PR change/merge, no new branch, no C06/PR13 reopening or real C07 work.
 Independent review: PENDING; delivery authorization NOT_GRANTED. Synthetic scratch approvals are not real approval. Hosted correction NOT_RUN.
 
-### Current Maintenance Re-Audit Record
+### Historical Maintenance Re-Audit Record
 
 ```text
-Record Classification: CURRENT
+Record Classification: HISTORICAL
 Maintenance Task ID: MAINT-POST-MERGE-LIFECYCLE
 Status: PASS
 Candidate Type: WORKTREE
