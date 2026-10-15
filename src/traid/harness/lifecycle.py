@@ -205,7 +205,7 @@ def evaluate_state_consistency(facts: LifecycleFacts) -> GateResult:
             reasons.append("READY_CARD_NOT_ACTIVE")
         if facts.quality_gate != "PASS":
             reasons.append("READY_CARD_QUALITY_GATE_NOT_PASS")
-        if facts.delivery_approval or facts.delivery_verified:
+        if facts.delivery_verified:
             reasons.append("READY_CARD_HAS_UNVERIFIED_DELIVERY_STATE")
 
     if facts.card_state == COMPLETE:

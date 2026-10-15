@@ -174,3 +174,17 @@ def test_filename_check_still_blocks_secret_files(tmp_path: Path, filename: str)
     assert result.returncode != 0
     assert "tracked secret-bearing filename detected" in result.stderr
     assert "secret scan passed" not in result.stdout
+
+
+@pytest.mark.parametrize("status", [2, 127, 141])
+def test_filename_scan_command_errors_never_report_pass(tmp_path: Path, status: int) -> None:
+    repo = secret_scan_repository(tmp_path)
+    tools = tmp_path / "tools"
+    tools.mkdir()
+    wrapper = tools / "grep"
+    wrapper.write_text(f"#!/bin/sh\nexit {status}\n")
+    wrapper.chmod(0o755)
+    result = run_secret_scan(repo, env={**os.environ, "PATH": str(tools) + os.pathsep + os.environ["PATH"]})
+    assert result.returncode != 0
+    assert f"scan command exited with status {status}" in result.stderr
+    assert "secret scan passed" not in result.stdout

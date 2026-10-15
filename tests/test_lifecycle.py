@@ -200,3 +200,15 @@ def test_blocked_and_deferred_cannot_silently_complete() -> None:
     assert "BLOCKED_STATE_CANNOT_PROGRESS_SILENTLY" in blocked.reason_codes
     assert not deferred.passed
     assert "DEFERRED_CANNOT_COMPLETE" in deferred.reason_codes
+
+
+def test_approved_ready_card_is_consistent_until_delivery_is_verified() -> None:
+    facts = replace(ready_facts(), delivery_approval=True)
+    assert evaluate_delivery_authority(facts).passed
+    assert evaluate_state_consistency(facts).passed
+
+
+def test_ready_card_cannot_claim_delivery_already_verified() -> None:
+    result = evaluate_state_consistency(replace(ready_facts(), delivery_approval=True, delivery_verified=True))
+    assert not result.passed
+    assert "READY_CARD_HAS_UNVERIFIED_DELIVERY_STATE" in result.reason_codes
