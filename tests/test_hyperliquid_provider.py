@@ -279,3 +279,23 @@ def test_invalid_or_missing_trade_side_is_rejected_on_both_paths(side):
 def test_one_malformed_side_rejects_the_whole_trade_batch():
     with pytest.raises(AdapterError):
         adapter({Capability.TRADES: [_record(tid=1), _record(side="?", tid=2)]}).trades("BTC")
+
+
+@pytest.mark.parametrize("tid", [None, True, False, 1.5, 7.0, -1, "7", "", [7], {"a": 7}, 2**50, 10**30, float("nan")])
+def test_invalid_trade_id_is_rejected_before_canonicalization_on_both_paths(tid):
+    record = _record(tid=tid)
+    if tid is None:
+        assert "tid" not in record
+    with pytest.raises(AdapterError) as error:
+        adapter({Capability.TRADES: [record]}).trades("BTC")
+    assert error.value.code in {AdapterErrorCode.PROVIDER_FAILURE, AdapterErrorCode.PROVIDER_DATA}
+    with pytest.raises(AdapterError) as error:
+        HyperliquidAdapter(clock=lambda: NOW).normalize_ws_message({"channel": "trades", "data": [record]})
+    assert error.value.code in {AdapterErrorCode.PROVIDER_FAILURE, AdapterErrorCode.PROVIDER_DATA}
+
+
+@pytest.mark.parametrize("tid", [0, 7, 891572595353560, 2**50 - 1])
+def test_valid_trade_ids_become_exact_decimal_source_ids_on_both_paths(tid):
+    rest = adapter({Capability.TRADES: [_record(tid=tid)]}).trades("BTC")
+    ws = HyperliquidAdapter(clock=lambda: NOW).normalize_ws_message({"channel": "trades", "data": [_record(tid=tid)]})
+    assert rest[0].provenance.source_id == ws[0].provenance.source_id == str(tid)

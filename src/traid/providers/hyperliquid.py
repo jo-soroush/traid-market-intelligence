@@ -69,6 +69,16 @@ def _aggressor_side(value: Any, capability: Capability) -> AggressorSide:
     return _AGGRESSOR_SIDES[value]
 
 
+_MAX_TRADE_ID = 2**50  # documented: tid is a 50-bit hash of (buyer_oid, seller_oid)
+
+
+def _trade_id(value: Any, capability: Capability) -> str:
+    """Canonical source id for a trade; tid is an integer in [0, 2**50), never a string/float/bool."""
+    if type(value) is not int or not 0 <= value < _MAX_TRADE_ID:
+        raise ProviderDataError("provider trade id is invalid", capability)
+    return str(value)
+
+
 class HyperliquidAdapter(ExchangeAdapter):
     """C04 adapter; raw provider dictionaries do not cross this class boundary."""
 
@@ -153,7 +163,7 @@ class HyperliquidAdapter(ExchangeAdapter):
         result: list[MarketTrade] = []
         for record in records:
             item = self._require_mapping(record, capability)
-            result.append(MarketTrade(symbol=item["coin"], side=_aggressor_side(item.get("side"), capability), price=_decimal(item["px"], capability, positive=True), quantity=_decimal(item["sz"], capability, positive=True), timestamp=_timestamp(item["time"], capability), provenance=SourceProvenance(source="hyperliquid", source_type="public_info", source_id=str(item["tid"]), source_timestamp=_timestamp(item["time"], capability), received_timestamp=received)))
+            result.append(MarketTrade(symbol=item["coin"], side=_aggressor_side(item.get("side"), capability), price=_decimal(item["px"], capability, positive=True), quantity=_decimal(item["sz"], capability, positive=True), timestamp=_timestamp(item["time"], capability), provenance=SourceProvenance(source="hyperliquid", source_type="public_info", source_id=_trade_id(item.get("tid"), capability), source_timestamp=_timestamp(item["time"], capability), received_timestamp=received)))
         return tuple(result)
 
     def _order_book(self, symbol: str) -> OrderBookSnapshot:
@@ -225,7 +235,7 @@ class HyperliquidAdapter(ExchangeAdapter):
                     quantity=_decimal(item["sz"], Capability.TRADES, positive=True),
                     side=_aggressor_side(item.get("side"), Capability.TRADES),
                     timestamp=(source_time := _timestamp(item["time"], Capability.TRADES)),
-                    provenance=SourceProvenance(source="hyperliquid", source_type="public_websocket", source_id=str(item["tid"]), source_timestamp=source_time, received_timestamp=received),
+                    provenance=SourceProvenance(source="hyperliquid", source_type="public_websocket", source_id=_trade_id(item.get("tid"), Capability.TRADES), source_timestamp=source_time, received_timestamp=received),
                 )
                 for record in records
             )

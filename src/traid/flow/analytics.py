@@ -13,8 +13,12 @@ Two aggregates are kept apart:
   inclusive at both ends. ``session_start`` is an explicit caller input; nothing
   is carried across it and no hidden state or wall clock is used.
 
-Identity: a trade is identified by ``(symbol, tid)`` where tid is
-``provenance.source_id``. Hyperliquid documents tid as a 50-bit hash of the
+Source: all trades in one analysis must come from one provenance ``source``
+(HTTP and WebSocket from the same provider share it); mixed sources make the
+report unavailable rather than merging or double counting venues.
+
+Identity: within that source a trade is identified by ``(symbol, tid)`` where
+tid is ``provenance.source_id``. Hyperliquid documents tid as a 50-bit hash of the
 buyer/seller order ids (neither monotonic nor guaranteed unique) and recommends
 (block_time, coin, tid) for a globally unique id. The payload carries no
 ``block_time`` field and ``time`` is NOT assumed to equal it, so ``time`` is
@@ -24,11 +28,17 @@ difference is a conflict that makes the report unavailable. tid is never used
 for ordering except as a deterministic tie-break.
 
 Event time is ``MarketTrade.timestamp`` (provider ``time``) and must equal
-``provenance.source_timestamp``. A trade dated after the evaluation time is
-future-dated and excluded; a trade received after the evaluation time is
-excluded as not yet known (no lookahead). A trade received more than
+``provenance.source_timestamp``. A trade received after the evaluation time is
+not yet known: it is counted and otherwise never read, so it cannot affect
+validation, identity, conflicts, quality or aggregates (no lookahead). This
+also covers future-dated trades, since receipt cannot precede event time. A
+trade received more than
 ``late_tolerance`` after its event time is late: it stays in its event-time
 window but the result is not trusted. Nothing is interpolated or backfilled.
+
+Provenance: a report names its source, source types, event-time range, first
+and last trade id, count, the newest trade's provenance and a SHA-256 digest of
+the canonical retained trade records, instead of copying every trade.
 
 Quality: provenance and identity are checked for every input trade; C05
 freshness, coverage, continuity and recovery are assessed on the newest
@@ -40,6 +50,7 @@ round once to 50 significant digits.
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+import hashlib
 from decimal import Context, Decimal, DecimalException, ROUND_HALF_EVEN, localcontext
 
 from pydantic import Field, field_validator, model_validator
@@ -56,6 +67,7 @@ CONTEXT = Context(prec=8192, rounding=ROUND_HALF_EVEN, Emin=-999999, Emax=999999
 OUTPUT = Context(prec=50, rounding=ROUND_HALF_EVEN, Emin=-999999, Emax=999999)
 ZERO = Decimal(0)
 MAX_TRADES = 100000
+DIGEST_ALGORITHM = "sha256-canonical-trades-v1"
 UNIT_LIMITATION = "UNITS_CALLER_ASSERTED_NOT_PROVIDER_VERIFIED"
 
 
@@ -96,6 +108,20 @@ class FlowConfig(CanonicalModel):
         return self
 
 
+class FlowProvenance(CanonicalModel):
+    """Compact, bounded reference to the trades that contributed to a report."""
+    source: str
+    source_types: tuple[str, ...]
+    contributing_trade_count: int = Field(ge=1)
+    earliest_event_time: datetime
+    latest_event_time: datetime
+    earliest_trade_id: str
+    latest_trade_id: str
+    newest_trade_provenance: SourceProvenance
+    input_digest: str = Field(pattern=r"^[0-9a-f]{64}$")
+    digest_algorithm: str = DIGEST_ALGORITHM
+
+
 class FlowReport(CanonicalModel):
     formula_version: str = FORMULA_VERSION
     symbol: str
@@ -105,7 +131,9 @@ class FlowReport(CanonicalModel):
     config: FlowConfig
     # None when no retained trade existed or input integrity failed first.
     quality: QualityAssessment | None
-    # True only if C05 trusts the input set and no late/future-dated trade was seen.
+    # True only if C05 trusts the input set and no late trade was retained.
+    # None whenever no retained trade contributed (unavailable before aggregation).
+    provenance: FlowProvenance | None
     trusted_for_current_use: bool
     reasons: tuple[str, ...]
     window_buy_volume: Metric
@@ -119,7 +147,6 @@ class FlowReport(CanonicalModel):
     input_trade_count: int
     duplicate_count: int
     late_count: int
-    future_dated_count: int
     not_yet_received_count: int
     units_provider_verified: bool = False
     limitations: tuple[str, ...] = (
@@ -137,6 +164,8 @@ class FlowReport(CanonicalModel):
             raise ValueError("flow units are never provider verified")
         if UNIT_LIMITATION not in self.limitations:
             raise ValueError("caller-asserted unit limitation must remain explicit")
+        if self.provenance is None and any(m.value is not None for m in self._metrics()):
+            raise ValueError("available flow metrics require contributing-trade provenance")
         if self.trusted_for_current_use:
             if self.quality is None or not self.quality.trusted_for_current_use or self.reasons:
                 raise ValueError("trusted flow requires trusted quality and no degradation reasons")
@@ -149,6 +178,25 @@ class FlowReport(CanonicalModel):
                 self.session_buy_volume, self.session_sell_volume, self.session_cvd)
 
 
+def _canonical_decimal(value: Decimal) -> str:
+    return format(CONTEXT.normalize(value), "f")
+
+
+def _flow_provenance(retained: list[MarketTrade], newest: MarketTrade) -> FlowProvenance:
+    """Bounded reference to the retained trades; retained is sorted by (time, tid)."""
+    lines = "\n".join(
+        f"{t.provenance.source_id}|{t.timestamp.isoformat()}|{t.side.value}|"
+        f"{_canonical_decimal(t.price)}|{_canonical_decimal(t.quantity)}" for t in retained)
+    return FlowProvenance(
+        source=newest.provenance.source,
+        source_types=tuple(sorted({t.provenance.source_type for t in retained})),
+        contributing_trade_count=len(retained),
+        earliest_event_time=retained[0].timestamp, latest_event_time=retained[-1].timestamp,
+        earliest_trade_id=retained[0].provenance.source_id, latest_trade_id=retained[-1].provenance.source_id,
+        newest_trade_provenance=newest.provenance,
+        input_digest=hashlib.sha256(lines.encode()).hexdigest())
+
+
 def analyze_flow(
     trades: tuple[MarketTrade, ...], *, config: FlowConfig, coverage: CapabilityCoverage,
     evaluation_time: datetime, policy: QualityPolicy, continuity: ContinuityStatus,
@@ -159,7 +207,7 @@ def analyze_flow(
     Malformed canonical input or a wrong instrument raises. Structurally valid
     but analytically unusable input (missing side/identity, conflicting
     duplicates, no trades, untrusted C05 quality) returns explicit unavailable
-    metrics. Late or future-dated trades keep values available but untrusted.
+    metrics. Late trades keep values available but untrusted.
     Input order does not matter. At most 100000 trades; larger input is rejected.
     """
     if not isinstance(trades, tuple) or not isinstance(config, FlowConfig):
@@ -172,16 +220,30 @@ def analyze_flow(
     if config.session_start > evaluation_time:
         raise ValueError("SESSION_START_AFTER_EVALUATION")
     window_start = evaluation_time - config.window
-    checked = []
+    # Records received after the evaluation time were unknowable then: they are
+    # counted but never validated or read, so they cannot alter this result.
+    not_yet = 0
+    known = []
     for trade in trades:
-        if not isinstance(trade, MarketTrade):
+        if not isinstance(trade, MarketTrade) or not isinstance(trade.provenance, SourceProvenance):
             raise ValueError("canonical MarketTrade required")
+        received = trade.provenance.received_timestamp
+        if not isinstance(received, datetime) or received.tzinfo is None or received.utcoffset() is None:
+            raise ValueError("canonical MarketTrade required")
+        if received > evaluation_time:
+            not_yet += 1
+        else:
+            known.append(trade)
+    checked = []
+    for trade in known:
         trade = MarketTrade.model_validate(trade.model_dump())
         if trade.symbol != config.symbol:
             raise ValueError("INSTRUMENT_IDENTITY_MISMATCH")
         checked.append(trade)
 
     blocking: set[str] = set()
+    if len({trade.provenance.source for trade in checked}) > 1:
+        blocking.add("MIXED_TRADE_SOURCES")
     for trade in checked:
         provenance = trade.provenance
         if trade.side is None:
@@ -212,33 +274,29 @@ def analyze_flow(
                 unique[tid] = trade
 
     lower = min(window_start, config.session_start)
-    future = not_yet = late = 0
+    late = 0
     retained: list[MarketTrade] = []
     for tid in sorted(unique):
         trade = unique[tid]
-        if trade.timestamp > evaluation_time:
-            future += 1
-        elif trade.provenance.received_timestamp > evaluation_time:
-            not_yet += 1
-        elif trade.timestamp >= lower:
+        if trade.timestamp >= lower:
             retained.append(trade)
             if trade.provenance.received_timestamp - trade.timestamp > config.late_tolerance:
                 late += 1
     retained.sort(key=lambda t: (t.timestamp, t.provenance.source_id))
 
-    def report(quality, reasons, metrics, window_count, session_count):
+    def report(quality, reasons, metrics, window_count, session_count, provenance=None):
         reasons = tuple(dict.fromkeys(reasons))
         trusted = (quality is not None and quality.trusted_for_current_use and not reasons
                    and all(m.value is not None for m in metrics))
         return FlowReport(
             symbol=config.symbol, evaluation_time=evaluation_time, window_start=window_start,
             session_start=config.session_start, config=config, quality=quality,
-            trusted_for_current_use=trusted, reasons=reasons,
+            provenance=provenance, trusted_for_current_use=trusted, reasons=reasons,
             window_buy_volume=metrics[0], window_sell_volume=metrics[1], window_net_delta=metrics[2],
             session_buy_volume=metrics[3], session_sell_volume=metrics[4], session_cvd=metrics[5],
             window_trade_count=window_count, session_trade_count=session_count,
-            input_trade_count=len(checked), duplicate_count=duplicates, late_count=late,
-            future_dated_count=future, not_yet_received_count=not_yet)
+            input_trade_count=len(trades), duplicate_count=duplicates, late_count=late,
+            not_yet_received_count=not_yet)
 
     def unavailable(reason):
         return (Metric(value=None, unit=config.base_asset, reason=reason),) * 6
@@ -246,23 +304,21 @@ def analyze_flow(
     if blocking:
         return report(None, sorted(blocking), unavailable(sorted(blocking)[0]), None, None)
     if not retained:
-        reasons = ["NO_TRADES_IN_RANGE"] + (["FUTURE_DATED_TRADES_EXCLUDED"] if future else [])
-        return report(None, reasons, unavailable("NO_TRADES_IN_RANGE"), None, None)
+        return report(None, ["NO_TRADES_IN_RANGE"], unavailable("NO_TRADES_IN_RANGE"), None, None)
 
     newest = retained[-1]
     quality = assess_quality(
         capability=Capability.TRADES, provenance=newest.provenance, coverage=coverage,
         evaluation_time=evaluation_time, policy=policy, continuity=continuity,
         recovery=recovery, canonical_valid=True)
+    contributing = _flow_provenance(retained, newest)
     if not quality.trusted_for_current_use:
         return report(quality, ["DATA_QUALITY_NOT_TRUSTED", *quality.reasons],
-                      unavailable("DATA_QUALITY_NOT_TRUSTED"), None, None)
+                      unavailable("DATA_QUALITY_NOT_TRUSTED"), None, None, contributing)
 
     reasons = []
     if late:
         reasons.append("LATE_TRADES_PRESENT")
-    if future:
-        reasons.append("FUTURE_DATED_TRADES_EXCLUDED")
     window = [t for t in retained if t.timestamp >= window_start]
     session = [t for t in retained if t.timestamp >= config.session_start]
     unit = config.base_asset
@@ -282,4 +338,4 @@ def analyze_flow(
     w, s = volumes(window, "WINDOW"), volumes(session, "SESSION")
     if any(m.value is None for m in (*w, *s)):
         reasons.append("AGGREGATE_UNAVAILABLE")
-    return report(quality, reasons, (*w, *s), len(window), len(session))
+    return report(quality, reasons, (*w, *s), len(window), len(session), contributing)

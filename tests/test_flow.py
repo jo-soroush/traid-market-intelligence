@@ -17,12 +17,12 @@ NOW = datetime(2026, 10, 15, 12, tzinfo=timezone.utc)
 BUY, SELL = AggressorSide.BUY, AggressorSide.SELL
 
 
-def trade(tid, side, qty, ago=1.0, lag=0.0, price="100", source_type="public_websocket", symbol="BTC"):
+def trade(tid, side, qty, ago=1.0, lag=0.0, price="100", source_type="public_websocket", symbol="BTC", source="fixture"):
     """A trade `ago` seconds before NOW, received `lag` seconds after its event time."""
     when = NOW - timedelta(seconds=ago)
     return MarketTrade(
         symbol=symbol, price=D(price), quantity=D(qty), side=side, timestamp=when,
-        provenance=SourceProvenance(source="fixture", source_type=source_type, source_id=tid,
+        provenance=SourceProvenance(source=source, source_type=source_type, source_id=tid,
                                     source_timestamp=when, received_timestamp=when + timedelta(seconds=lag)))
 
 
@@ -161,10 +161,10 @@ def test_lateness_within_tolerance_is_trusted():
     assert r.late_count == 0 and r.trusted_for_current_use and r.window_buy_volume.value == D("11")
 
 
-def test_future_dated_trade_is_excluded_and_flagged():
-    r = run(known() + [trade("future", BUY, "100", ago=-30)])
-    assert r.future_dated_count == 1 and r.window_buy_volume.value == D("4")
-    assert r.reasons == ("FUTURE_DATED_TRADES_EXCLUDED",) and not r.trusted_for_current_use
+def test_future_dated_trade_is_counted_but_never_read():
+    r = run(known() + [trade("future", BUY, "100", ago=-30)])  # event and receipt after evaluation
+    assert r.not_yet_received_count == 1 and r.window_buy_volume.value == D("4")
+    assert r.reasons == () and r.trusted_for_current_use
 
 
 def test_trade_not_yet_received_at_evaluation_is_excluded_without_lookahead():
@@ -258,3 +258,113 @@ def test_report_is_immutable_round_trips_and_cannot_claim_unearned_trust():
         FlowReport.model_validate({**r.model_dump(), "quality": None})
     with pytest.raises(ValidationError):
         FlowReport.model_validate({**r.model_dump(), "units_provider_verified": True})
+
+
+def stable(report):
+    """Everything a historical evaluation reports except the future-record tally."""
+    data = report.model_dump(mode="json")
+    for key in ("input_trade_count", "not_yet_received_count"):
+        data.pop(key)
+    return data
+
+
+FUTURE_RECORDS = {
+    "conflicting duplicate": lambda: [trade("t3", SELL, "99", ago=50, lag=50 + 3),
+                                       trade("t3", BUY, "3", ago=50, lag=50 + 4)],
+    "unknown side": lambda: [trade("later", None, "1", ago=1, lag=3)],
+    "different source": lambda: [trade("other", BUY, "1", ago=1, lag=3, source="other")],
+    "future dated": lambda: [trade("f", BUY, "5", ago=-30)],
+    "huge number": lambda: [trade("huge", BUY, "1" + "0" * 60, ago=1, lag=3)],
+    "missing identity": lambda: [trade("t3", BUY, "3", ago=50, lag=60).model_copy(update={
+        "provenance": SourceProvenance(source="fixture", source_type="x", received_timestamp=NOW + timedelta(seconds=1))})],
+}
+
+
+@pytest.mark.parametrize("name", FUTURE_RECORDS)
+def test_records_received_after_evaluation_cannot_change_an_earlier_evaluation(name):
+    baseline = run(known())
+    with_future = run(known() + FUTURE_RECORDS[name]())
+    assert stable(with_future) == stable(baseline)
+    assert with_future.not_yet_received_count == len(FUTURE_RECORDS[name]())
+    assert with_future.trusted_for_current_use and with_future.reasons == ()
+
+
+def test_future_received_records_are_not_validated_so_cannot_raise_for_an_earlier_evaluation():
+    wrong_symbol = trade("eth", BUY, "1", ago=1, lag=3, symbol="ETH")
+    assert run(known() + [wrong_symbol]).not_yet_received_count == 1
+    with pytest.raises(ValueError, match="INSTRUMENT_IDENTITY_MISMATCH"):
+        run(known() + [wrong_symbol], evaluation_time=NOW + timedelta(seconds=3), c=config(window=63, session=303))
+
+
+def test_the_same_future_records_do_apply_once_the_evaluation_time_reaches_them():
+    items = known() + FUTURE_RECORDS["unknown side"]()
+    later = run(items, evaluation_time=NOW + timedelta(seconds=3), c=config(window=63, session=303))
+    assert later.not_yet_received_count == 0 and later.reasons == ("AGGRESSOR_SIDE_UNKNOWN",)
+    conflict = FUTURE_RECORDS["conflicting duplicate"]()
+    later = run(known() + conflict, evaluation_time=NOW + timedelta(seconds=60), c=config(window=120, session=360))
+    assert later.reasons == ("TRADE_IDENTITY_CONFLICT",)
+
+
+def test_trades_from_different_sources_never_collapse_into_one_identity():
+    for other in (trade("t3", BUY, "3", ago=50, source="other"),      # same tid, identical content
+                  trade("t3", SELL, "8", ago=49, source="other"),     # same tid, different content
+                  trade("zz", BUY, "1", ago=5, source="other")):      # no collision at all
+        r = run(known() + [other])
+        assert r.reasons == ("MIXED_TRADE_SOURCES",) and r.session_cvd.value is None
+        assert r.provenance is None and not r.trusted_for_current_use and r.duplicate_count == 0
+
+
+def test_same_provider_redelivery_over_either_transport_still_deduplicates():
+    redelivered = [trade(t.provenance.source_id, t.side, str(t.quantity), ago=(NOW - t.timestamp).total_seconds(),
+                         lag=0.5, source_type="public_info") for t in known()]
+    r = run(known() + redelivered)
+    assert values(r) == values(run(known())) and r.duplicate_count == 6
+    assert r.provenance.source == "fixture" and r.provenance.source_types == ("public_websocket",)
+
+
+def test_report_preserves_compact_reproducible_provenance_when_serialized():
+    r = run(known())
+    data = FlowReport.model_validate_json(r.model_dump_json()).provenance
+    assert data == r.provenance
+    assert (data.source, data.source_types, data.contributing_trade_count) == ("fixture", ("public_websocket",), 5)
+    assert (data.earliest_trade_id, data.latest_trade_id) == ("t1", "t5")
+    assert data.earliest_event_time == NOW - timedelta(seconds=200) and data.latest_event_time == NOW - timedelta(seconds=2)
+    assert data.newest_trade_provenance == known()[-1].provenance and data.digest_algorithm.startswith("sha256")
+    assert '"input_digest":"' + data.input_digest + '"' in r.model_dump_json()
+
+
+def test_input_digest_is_deterministic_and_tracks_contributing_content_only():
+    digest = run(known()).provenance.input_digest
+    shuffled = known()
+    random.Random(3).shuffle(shuffled)
+    assert run(shuffled).provenance.input_digest == digest
+    assert run(known() + known()).provenance.input_digest == digest                # duplicates
+    assert run(known() + [trade("old", BUY, "5", ago=900)]).provenance.input_digest == digest  # outside range
+    assert run(known() + FUTURE_RECORDS["unknown side"]()).provenance.input_digest == digest   # not yet received
+    formatted = [trade(t.provenance.source_id, t.side, str(t.quantity) + ("0" if "." in str(t.quantity) else ".0"), ago=(NOW - t.timestamp).total_seconds())
+                 for t in known()]
+    assert run(formatted).provenance.input_digest == digest                          # 1 vs 1.0
+    changed = known()
+    changed[3] = trade("t3", BUY, "3.1", ago=50)
+    assert run(changed).provenance.input_digest != digest
+    changed[3] = trade("t3", SELL, "3", ago=50)
+    assert run(changed).provenance.input_digest != digest
+
+
+def test_provenance_is_bounded_regardless_of_input_size():
+    many = [trade(f"t{i}", BUY if i % 2 else SELL, "1", ago=2 + i / 100) for i in range(3000)]
+    small, large = run(known()), run(many, c=config(window=60, session=300))
+    assert large.provenance.contributing_trade_count == 3000
+    assert len(large.model_dump_json()) < 2 * len(small.model_dump_json())
+    dumped = large.model_dump_json()
+    assert "t1500" not in dumped.replace(large.provenance.earliest_trade_id, "").replace(large.provenance.latest_trade_id, "")
+
+
+def test_provenance_is_kept_for_untrusted_quality_and_absent_when_nothing_contributed():
+    stale = run([trade("a", BUY, "1", ago=40)])
+    assert stale.session_cvd.value is None and stale.provenance.contributing_trade_count == 1
+    for r in (run([]), run(known() + [trade("x", None, "1")])):
+        assert r.provenance is None
+    r = run(known())
+    with pytest.raises(ValidationError, match="provenance"):
+        FlowReport.model_validate({**r.model_dump(), "provenance": None})
