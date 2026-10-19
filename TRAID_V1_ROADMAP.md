@@ -18,7 +18,6 @@ Authority rule:
 Roadmap defines Card identity/order/dependency/goal/Exit Gate.
 Card Specifications define the full bounded contract.
 Evidence proves what actually happened.
-PROJECT_CONTROL records current state.
 Repository/Git prove implementation reality.
 Prompts request work; they do not redefine this Roadmap.
 ```
@@ -189,7 +188,6 @@ critical failure paths tested
 applicable financial/data/AI/security invariants PASS
 exact Exit Gate proven
 Evidence updated
-PROJECT_CONTROL consistent
 Card Quality Gate PASS
 human closure/transition approval
 ```
@@ -936,7 +934,6 @@ After a Card becomes `COMPLETE` or `BLOCKED`:
 
 ```text
 update Evidence
-update PROJECT_CONTROL
 report actual result
 report limitation/blocker
 STOP
