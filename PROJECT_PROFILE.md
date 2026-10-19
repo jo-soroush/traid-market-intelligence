@@ -30,11 +30,7 @@ This file is not:
 - permission to start a Card;
 - permission to change architecture.
 
-Current execution state belongs in `PROJECT_CONTROL.md`.
-
 Card scope and order belong in `TRAID_V1_ROADMAP.md` and `TRAID_CARD_SPECIFICATIONS.md`.
-
-Verified implementation proof belongs in `TRAID_CARD_EVIDENCE_MAP.md`.
 
 ---
 
@@ -1524,73 +1520,9 @@ It does not make TraID's Core AWS-specific.
 
 ---
 
-## 45. Tool Neutrality
+## 45–46. Removed
 
-Project governance must survive a coding-agent change.
-
-Stable authority lives in:
-
-```text
-AGENTS.md
-PROJECT_PROFILE.md
-PROJECT_CONTROL.md
-TRAID_V1_ROADMAP.md
-TRAID_CARD_SPECIFICATIONS.md
-TRAID_CARD_EVIDENCE_MAP.md
-GIT_WORKFLOW.md
-TRAID_ENGINEERING_HARNESS.md
-FINANCIAL_AND_DATA_GUARDRAILS.md
-project tests
-```
-
-The Card-execution Skill is also project-owned:
-
-```text
-.agents/skills/traid-card-execution/SKILL.md
-```
-
-Claude Code, Codex, Cursor, or a future coding agent may use a thin adapter later.
-
-No tool-specific file may become the only copy of a critical TraID rule.
-
----
-
-## 46. Harness Philosophy
-
-TraID uses:
-
-```text
-Prompt Engineering
-→ instruction quality
-
-Context Engineering
-→ relevant information quality
-
-Harness Engineering
-→ state, permissions, Cards, validation, evidence,
-  checkpoints, rollback, approvals, security, observability
-```
-
-A stronger model does not replace controlled engineering.
-
-The project should increase autonomy only when the Harness can measure and constrain it.
-
-### Verification Risk Context
-
-```text
-Verification Standard: AEVS v1.0 — external verification-method reference for work governed by the Harness adoption rules, beginning with V1-C06
-Project Risk Context: AEVS Level 3 / High-Risk Context
-Reason: financial decision support and high-value market-data processing
-Card Verification Level: assessed independently for each authorized work item; determines its verification intensity
-```
-
-The project-level context describes TraID's hazards. It is not a universal
-minimum verification level for every Card. A work item's Verification Level
-may be lower or higher only with an explicit rationale showing which
-project-level hazards it exercises. The level is recorded during that work
-item's Contract/Risk Map and must not be silently lowered after implementation
-starts; any change follows the existing human-authorization rules. This
-durable context does not record mutable Card state or classify future Cards.
+The former tool-neutrality and governance-process sections were removed together with the legacy governance system. They remain in Git history.
 
 ---
 
@@ -1711,7 +1643,7 @@ required validation failure
 repository state uncertainty
 ```
 
-Detailed execution behavior belongs in `AGENTS.md` and the Card Skill.
+Stop and report to the maintainer when any of these occur.
 
 ---
 

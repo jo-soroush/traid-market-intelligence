@@ -8,7 +8,7 @@ TraID V1 canonical financial, market-data, temporal-integrity, and consequential
 
 ## 1. Authority
 
-This file owns cross-Card financial/data invariants. Card specs may make rules more specific but never silently weaker. Evidence proves tests; the Harness owns STOP behavior. Material changes require rationale, versioning, regression, Evidence, and applicable human approval.
+This file owns cross-Card financial/data invariants. Card specs may make rules more specific but never silently weaker. Tests prove them. Material changes require rationale, versioning, regression tests, and applicable human approval.
 
 ---
 
