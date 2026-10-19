@@ -368,3 +368,61 @@ def test_provenance_is_kept_for_untrusted_quality_and_absent_when_nothing_contri
     r = run(known())
     with pytest.raises(ValidationError, match="provenance"):
         FlowReport.model_validate({**r.model_dump(), "provenance": None})
+
+
+def retag(trades, **changes):
+    """Copies of the trades with provenance fields replaced (receipt lag in seconds via `lag`)."""
+    lag = changes.pop("lag", None)
+    out = []
+    for t in trades:
+        fields = {**dict(t.provenance), **changes}
+        if lag is not None:
+            fields["received_timestamp"] = t.timestamp + timedelta(seconds=lag)
+        out.append(t.model_copy(update={"provenance": SourceProvenance(**fields)}))
+    return out
+
+
+def test_digest_binds_receipt_timestamps_that_drive_quality_and_lateness():
+    base = run(known())
+    # Same event times and source ages, different receipt times: receipt_age differs.
+    later_receipt = run(retag(known(), lag=0.5))
+    assert later_receipt.quality.receipt_age != base.quality.receipt_age
+    assert later_receipt.provenance.input_digest != base.provenance.input_digest
+    # A single earlier trade received later (still within tolerance) is also bound.
+    moved = known()
+    moved[1] = retag([moved[1]], lag=4)[0]
+    assert run(moved).provenance.input_digest != base.provenance.input_digest
+    # Pushing one past the tolerance changes lateness and, necessarily, the digest.
+    late = known()
+    late[1] = retag([late[1]], lag=20)[0]
+    assert run(late).late_count == 1 and run(late).provenance.input_digest != base.provenance.input_digest
+
+
+def test_digest_binds_source_transport_symbol_and_trade_id():
+    base = run(known()).provenance.input_digest
+    assert run(retag(known(), source="other")).provenance.input_digest != base
+    assert run(retag(known(), source_type="public_info")).provenance.input_digest != base
+    eth = [t.model_copy(update={"symbol": "ETH"}) for t in known()]
+    eth_config = config().model_copy(update={"symbol": "ETH"})
+    assert run(eth, c=eth_config).provenance.input_digest != base
+    renamed = known()
+    renamed[2] = retag([renamed[2]], source_id="renamed")[0]
+    assert run(renamed).provenance.input_digest != base
+
+
+def test_digest_encoding_is_unambiguous_for_delimiter_like_content():
+    one = run(retag(known(), source="a|b", source_type="c")).provenance.input_digest
+    two = run(retag(known(), source="a", source_type="b|c")).provenance.input_digest
+    three = run(retag(known(), source='a","b', source_type="c")).provenance.input_digest
+    assert len({one, two, three}) == 3
+
+
+def test_digest_version_and_order_independence_are_preserved():
+    r = run(known())
+    assert r.provenance.digest_algorithm == "sha256-canonical-trades-v2"
+    shuffled = known() + retag(known(), lag=0.0)  # identical redelivery
+    random.Random(5).shuffle(shuffled)
+    assert run(shuffled).provenance.input_digest == r.provenance.input_digest
+    # Which delivery is kept is deterministic: the earliest receipt wins, regardless of order.
+    earlier_first = run(retag(known(), lag=0.2) + known()).provenance.input_digest
+    assert earlier_first == run(known() + retag(known(), lag=0.2)).provenance.input_digest == r.provenance.input_digest

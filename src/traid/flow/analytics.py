@@ -38,7 +38,9 @@ window but the result is not trusted. Nothing is interpolated or backfilled.
 
 Provenance: a report names its source, source types, event-time range, first
 and last trade id, count, the newest trade's provenance and a SHA-256 digest of
-the canonical retained trade records, instead of copying every trade.
+the canonical retained trade records (symbol, source, transport, trade id,
+event, source and receipt times, side, price, quantity: everything the quality
+and lateness results depend on), instead of copying every trade.
 
 Quality: provenance and identity are checked for every input trade; C05
 freshness, coverage, continuity and recovery are assessed on the newest
@@ -51,6 +53,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 import hashlib
+import json
 from decimal import Context, Decimal, DecimalException, ROUND_HALF_EVEN, localcontext
 
 from pydantic import Field, field_validator, model_validator
@@ -67,7 +70,7 @@ CONTEXT = Context(prec=8192, rounding=ROUND_HALF_EVEN, Emin=-999999, Emax=999999
 OUTPUT = Context(prec=50, rounding=ROUND_HALF_EVEN, Emin=-999999, Emax=999999)
 ZERO = Decimal(0)
 MAX_TRADES = 100000
-DIGEST_ALGORITHM = "sha256-canonical-trades-v1"
+DIGEST_ALGORITHM = "sha256-canonical-trades-v2"
 UNIT_LIMITATION = "UNITS_CALLER_ASSERTED_NOT_PROVIDER_VERIFIED"
 
 
@@ -184,9 +187,13 @@ def _canonical_decimal(value: Decimal) -> str:
 
 def _flow_provenance(retained: list[MarketTrade], newest: MarketTrade) -> FlowProvenance:
     """Bounded reference to the retained trades; retained is sorted by (time, tid)."""
-    lines = "\n".join(
-        f"{t.provenance.source_id}|{t.timestamp.isoformat()}|{t.side.value}|"
-        f"{_canonical_decimal(t.price)}|{_canonical_decimal(t.quantity)}" for t in retained)
+    # JSON array encoding keeps field boundaries unambiguous for any string content.
+    records = [[
+        t.symbol, t.provenance.source, t.provenance.source_type, t.provenance.source_id,
+        t.timestamp.isoformat(), t.provenance.source_timestamp.isoformat(),
+        t.provenance.received_timestamp.isoformat(), t.side.value,
+        _canonical_decimal(t.price), _canonical_decimal(t.quantity)] for t in retained]
+    lines = json.dumps(records, separators=(",", ":"), ensure_ascii=True)
     return FlowProvenance(
         source=newest.provenance.source,
         source_types=tuple(sorted({t.provenance.source_type for t in retained})),
