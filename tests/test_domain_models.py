@@ -7,6 +7,7 @@ from pydantic import ValidationError
 
 from traid.domain import (
     DOMAIN_SCHEMA_VERSION,
+    AggressorSide,
     Candle,
     DataQualityState,
     EvidenceReference,
@@ -224,3 +225,18 @@ def test_domain_module_has_no_provider_or_transport_imports() -> None:
     source = __import__("pathlib").Path(__file__).parents[1] / "src" / "traid" / "domain"
     text = "\n".join(path.read_text().lower() for path in source.glob("*.py"))
     assert not re.search(r"\b(hyperliquid|websocket|rest|sdk|requests)\b", text)
+
+
+def test_market_trade_side_is_explicit_optional_and_validated() -> None:
+    base = dict(symbol="BTC-USD", price="100", quantity="1", timestamp=SOURCE_TIME, provenance=provenance())
+    assert MarketTrade(**base).side is None  # unknown is never defaulted to a side
+    sell = MarketTrade(**base, side="SELL")
+    assert sell.side is AggressorSide.SELL
+    assert MarketTrade.model_validate_json(sell.model_dump_json()) == sell
+    # Backward compatibility: a payload written before the field existed still validates.
+    legacy = MarketTrade(**base).model_dump()
+    del legacy["side"]
+    assert MarketTrade.model_validate(legacy).side is None
+    for invalid in ("B", "A", "buy", "", 1):
+        with pytest.raises(ValidationError):
+            MarketTrade(**base, side=invalid)

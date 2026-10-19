@@ -103,12 +103,20 @@ class EvidenceReference(CanonicalModel):
     related_symbol: str | None = None
 
 
+class AggressorSide(StrEnum):
+    """Side of the aggressing (taker) order; ``None`` on a trade means unknown."""
+
+    BUY = "BUY"
+    SELL = "SELL"
+
+
 class MarketTrade(CanonicalModel):
     symbol: str
     price: Decimal = Field(gt=Decimal("0"))
     quantity: Decimal = Field(gt=Decimal("0"))
     timestamp: datetime
     provenance: SourceProvenance
+    side: AggressorSide | None = None
 
 
 class OrderBookLevel(CanonicalModel):

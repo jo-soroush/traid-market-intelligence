@@ -13,6 +13,7 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 from traid.domain import (
+    AggressorSide,
     Candle,
     DataQualityState,
     FundingSnapshot,
@@ -56,6 +57,16 @@ def _decimal(value: Any, capability: Capability, *, positive: bool = False) -> D
     if not result.is_finite() or (positive and result <= 0) or (not positive and result < 0):
         raise ProviderDataError("provider numeric value is outside the canonical domain", capability)
     return result
+
+
+_AGGRESSOR_SIDES = {"B": AggressorSide.BUY, "A": AggressorSide.SELL}
+
+
+def _aggressor_side(value: Any, capability: Capability) -> AggressorSide:
+    """Hyperliquid trade ``side`` is the aggressing side: B = buy, A = sell."""
+    if not isinstance(value, str) or value not in _AGGRESSOR_SIDES:
+        raise ProviderDataError("provider trade side is invalid", capability)
+    return _AGGRESSOR_SIDES[value]
 
 
 class HyperliquidAdapter(ExchangeAdapter):
@@ -142,7 +153,7 @@ class HyperliquidAdapter(ExchangeAdapter):
         result: list[MarketTrade] = []
         for record in records:
             item = self._require_mapping(record, capability)
-            result.append(MarketTrade(symbol=item["coin"], price=_decimal(item["px"], capability, positive=True), quantity=_decimal(item["sz"], capability, positive=True), timestamp=_timestamp(item["time"], capability), provenance=SourceProvenance(source="hyperliquid", source_type="public_info", source_id=str(item["tid"]), source_timestamp=_timestamp(item["time"], capability), received_timestamp=received)))
+            result.append(MarketTrade(symbol=item["coin"], side=_aggressor_side(item.get("side"), capability), price=_decimal(item["px"], capability, positive=True), quantity=_decimal(item["sz"], capability, positive=True), timestamp=_timestamp(item["time"], capability), provenance=SourceProvenance(source="hyperliquid", source_type="public_info", source_id=str(item["tid"]), source_timestamp=_timestamp(item["time"], capability), received_timestamp=received)))
         return tuple(result)
 
     def _order_book(self, symbol: str) -> OrderBookSnapshot:
@@ -212,6 +223,7 @@ class HyperliquidAdapter(ExchangeAdapter):
                     symbol=str((item := self._require_mapping(record, Capability.TRADES))["coin"]),
                     price=_decimal(item["px"], Capability.TRADES, positive=True),
                     quantity=_decimal(item["sz"], Capability.TRADES, positive=True),
+                    side=_aggressor_side(item.get("side"), Capability.TRADES),
                     timestamp=(source_time := _timestamp(item["time"], Capability.TRADES)),
                     provenance=SourceProvenance(source="hyperliquid", source_type="public_websocket", source_id=str(item["tid"]), source_timestamp=source_time, received_timestamp=received),
                 )

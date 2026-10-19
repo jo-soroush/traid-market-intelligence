@@ -31,7 +31,7 @@ def adapter(payloads):
 
 def test_rest_capabilities_map_to_canonical_models_and_preserve_decimal_precision():
     value = adapter({
-        Capability.TRADES: [{"coin": "BTC", "px": "100.123456789", "sz": "0.00010", "time": 1767265200000, "tid": 7}],
+        Capability.TRADES: [{"coin": "BTC", "side": "B", "px": "100.123456789", "sz": "0.00010", "time": 1767265200000, "tid": 7}],
         Capability.ORDER_BOOK: {"coin": "BTC", "time": 1767265200000, "levels": [[{"px": "99.1", "sz": "2.50", "n": 3}], []]},
         Capability.CANDLES: [{"t": 1767261600000, "T": 1767265200000, "s": "BTC", "i": "1h", "o": "99", "c": "100", "h": "101", "l": "98", "v": "3.25", "n": 4}],
         Capability.FUNDING: [{"coin": "BTC", "fundingRate": "0.00125", "time": 1767265200000}],
@@ -58,14 +58,14 @@ def test_open_interest_is_explicitly_unavailable_and_never_zero_filled():
 
 
 def test_invalid_provider_numeric_fails_closed():
-    value = adapter({Capability.TRADES: [{"coin": "BTC", "px": "not-a-number", "sz": "1", "time": 1767265200000, "tid": 7}]})
+    value = adapter({Capability.TRADES: [{"coin": "BTC", "side": "B", "px": "not-a-number", "sz": "1", "time": 1767265200000, "tid": 7}]})
     with pytest.raises(Exception):
         value.trades("BTC")
 
 
 def test_websocket_envelopes_are_canonicalized_without_raw_payload_leakage():
     value = HyperliquidAdapter(clock=lambda: NOW)
-    result = value.normalize_ws_message({"channel": "trades", "data": [{"coin": "BTC", "px": "100", "sz": "1", "time": 1767265200000, "tid": 8}]})
+    result = value.normalize_ws_message({"channel": "trades", "data": [{"coin": "BTC", "side": "A", "px": "100", "sz": "1", "time": 1767265200000, "tid": 8}]})
     assert result[0].symbol == "BTC"
     assert result[0].provenance.source_type == "public_websocket"
 
@@ -100,7 +100,7 @@ class FakeSocket:
 
 def test_stream_reconnects_and_resubscribes_after_unexpected_disconnect():
     first = FakeSocket(failure=ConnectionError("dropped"))
-    second = FakeSocket(messages=[{"channel": "trades", "data": [{"coin": "BTC", "px": "100", "sz": "1", "time": 1767265200000, "tid": 9}]}])
+    second = FakeSocket(messages=[{"channel": "trades", "data": [{"coin": "BTC", "side": "B", "px": "100", "sz": "1", "time": 1767265200000, "tid": 9}]}])
     sockets = [first, second]
 
     def connect(*_args, **_kwargs):
@@ -193,8 +193,8 @@ def test_rest_timeout_and_invalid_json_fail_closed(monkeypatch):
 @pytest.mark.parametrize(
     "record",
     [
-        {"coin": "BTC", "px": "100", "sz": "1", "tid": 1},
-        {"coin": "BTC", "px": "100", "sz": "1", "time": "bad", "tid": 1},
+        {"coin": "BTC", "side": "B", "px": "100", "sz": "1", "tid": 1},
+        {"coin": "BTC", "side": "B", "px": "100", "sz": "1", "time": "bad", "tid": 1},
     ],
 )
 def test_missing_or_malformed_trade_fields_fail_closed(record):
@@ -242,3 +242,40 @@ def test_cancellation_stops_reconnect_backoff():
             await task
 
     asyncio.run(cancel())
+
+
+def _record(**changes):
+    # Shape observed from the live info and websocket APIs (extra fields are ignored).
+    record = {"coin": "BTC", "side": "B", "px": "100", "sz": "1", "time": 1767265200000, "tid": 7,
+              "hash": "0x" + "0" * 64, "users": ["0xaaa", "0xbbb"]}
+    record.update(changes)
+    return {key: value for key, value in record.items() if value is not None}
+
+
+def test_trade_side_maps_buy_and_sell_aggressor_on_http_and_websocket():
+    from traid.domain import AggressorSide
+    rest = adapter({Capability.TRADES: [_record(side="B", tid=1), _record(side="A", tid=2)]}).trades("BTC")
+    assert [t.side for t in rest] == [AggressorSide.BUY, AggressorSide.SELL]
+    value = HyperliquidAdapter(clock=lambda: NOW)
+    ws = value.normalize_ws_message({"channel": "trades", "data": [_record(side="B", tid=1), _record(side="A", tid=2)]})
+    assert [t.side for t in ws] == [AggressorSide.BUY, AggressorSide.SELL]
+    assert [t.provenance.source_id for t in ws] == ["1", "2"]
+    assert ws[0].provenance.source_timestamp == ws[0].timestamp == rest[0].timestamp
+
+
+@pytest.mark.parametrize("side", [None, "", "b", "a", "BUY", "SELL", "X", "BA", 1, True, ["B"]])
+def test_invalid_or_missing_trade_side_is_rejected_on_both_paths(side):
+    record = _record(side=side)
+    if side is None:
+        assert "side" not in record
+    with pytest.raises(AdapterError) as error:
+        adapter({Capability.TRADES: [record]}).trades("BTC")
+    assert error.value.code in {AdapterErrorCode.PROVIDER_FAILURE, AdapterErrorCode.PROVIDER_DATA}
+    with pytest.raises(AdapterError) as error:
+        HyperliquidAdapter(clock=lambda: NOW).normalize_ws_message({"channel": "trades", "data": [record]})
+    assert error.value.code in {AdapterErrorCode.PROVIDER_FAILURE, AdapterErrorCode.PROVIDER_DATA}
+
+
+def test_one_malformed_side_rejects_the_whole_trade_batch():
+    with pytest.raises(AdapterError):
+        adapter({Capability.TRADES: [_record(tid=1), _record(side="?", tid=2)]}).trades("BTC")
