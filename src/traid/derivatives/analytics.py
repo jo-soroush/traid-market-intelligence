@@ -30,8 +30,10 @@ hour closed at least C06's 60 s availability offset earlier. LIVE = that
 observation is present, DELAYED = one hour behind, STALE = more. Coverage,
 continuity and recovery degrade state exactly as in C05. Untrusted quality
 withholds every number. Identity: candles by (source, symbol, start), funding by
-(source, symbol, UTC hour); identical repeats count once, different content under
-one identity makes the section unavailable. One provenance source per input set.
+(source, symbol, UTC hour); equivalent repeats count once (source_id, transport and
+receipt time are metadata: the earliest-received, then smallest provenance tuple
+represents them, whatever the input order), different content under one identity
+makes the section unavailable. One provenance source per input set.
 
 Open interest and basis are never computed: OI units, aggregation and timing are
 unverified and the asset context carries no timestamp; no canonical mark/oracle
@@ -307,6 +309,18 @@ def _na(unit, reason):
     return Metric(value=None, unit=unit, reason=reason)
 
 
+def _provenance_order(record):
+    """Total order over provenance so the kept duplicate never depends on input order.
+
+    source_id is provider record metadata, not part of a candle's or funding hour's
+    identity: observations that agree on content but differ in source_id (or
+    transport/receipt time) are one observation, represented by the earliest
+    received, then smallest (source_type, source_id, source_timestamp).
+    """
+    p = record.provenance
+    return (p.received_timestamp, p.source_type, p.source_id or "", p.source_timestamp)
+
+
 def _dedupe(records, key, content, blocking, conflict_reason):
     unique, duplicates = {}, 0
     for record in records:
@@ -318,8 +332,7 @@ def _dedupe(records, key, content, blocking, conflict_reason):
             blocking.add(conflict_reason)
         else:
             duplicates += 1
-            if (record.provenance.received_timestamp, record.provenance.source_type) < (
-                    kept.provenance.received_timestamp, kept.provenance.source_type):
+            if _provenance_order(record) < _provenance_order(kept):
                 unique[k] = record
     return unique, duplicates
 
@@ -472,7 +485,7 @@ def _funding_section(funding, config, coverage, evaluation_time, continuity, rec
             blocking.add("FUNDING_TIMESTAMP_OFF_HOURLY_SCHEDULE")
         if not _bounded(f.funding_rate):
             blocking.add("NUMERIC_RANGE_UNSUPPORTED")
-        elif abs(f.funding_rate) > FUNDING_CAP:
+        elif f.funding_rate > FUNDING_CAP or f.funding_rate < -FUNDING_CAP:  # exact; abs() would round
             blocking.add("FUNDING_RATE_EXCEEDS_DOCUMENTED_CAP")
     unique, duplicates = {}, 0
     if not blocking:
@@ -547,8 +560,9 @@ def analyze_derivatives(
     evaluation_time = _utc(evaluation_time, "evaluation_time")
     if config.session_start is not None and config.session_start > evaluation_time:
         raise ValueError("SESSION_START_AFTER_EVALUATION")
-    return DerivativesReport(
-        symbol=config.symbol, evaluation_time=evaluation_time, config=config,
-        candles=_candle_section(candles, config, candle_coverage, evaluation_time, continuity, recovery),
-        funding=_funding_section(funding, config, funding_coverage, evaluation_time, continuity, recovery),
-        open_interest=_na("UNVERIFIED", OI_REASON), basis=_na("UNVERIFIED", BASIS_REASON))
+    with localcontext(CONTEXT):  # results never depend on the caller's ambient Decimal context
+        return DerivativesReport(
+            symbol=config.symbol, evaluation_time=evaluation_time, config=config,
+            candles=_candle_section(candles, config, candle_coverage, evaluation_time, continuity, recovery),
+            funding=_funding_section(funding, config, funding_coverage, evaluation_time, continuity, recovery),
+            open_interest=_na("UNVERIFIED", OI_REASON), basis=_na("UNVERIFIED", BASIS_REASON))

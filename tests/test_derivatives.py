@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal, localcontext
 import inspect
+import itertools
 import math
 import random
 import statistics
@@ -600,3 +601,133 @@ def test_funding_cumulative_uses_only_the_lookback_hours():
     values = ["0.00009", "0.00008", "0.00001", "0.00002", "0.00003", "0.00004"]
     r = run(fs=rates(values))   # lookback 4 -> last four only
     assert r.funding.cumulative_funding.value == D("0.0001") and r.funding.mean_hourly_funding.value == D("0.000025")
+
+
+# ------------------------------------------------- signed funding through the provider
+@pytest.mark.parametrize("rate", ["0.0000125", "0", "-0.0000125", "-0.00022196"])
+def test_provider_normalized_signed_funding_reaches_the_analytics(rate):
+    when = FUND_LAST + timedelta(seconds=0.035)
+    raw = {"coin": "BTC", "fundingRate": rate, "premium": "0.0", "time": int(when.timestamp() * 1000)}
+    adapter = FixtureAdapter({Capability.FUNDING: [raw]})
+    adapter.connect()
+    r = run(fs=(adapter.funding("BTC"),), c=config(funding_lookback_hours=1))
+    assert r.funding.latest_rate.value == D(rate) and r.funding.cumulative_funding.value == D(rate)
+    assert r.funding.trusted_for_current_use and r.funding.reasons == ()
+
+
+# ----------------------------------------------- deterministic duplicate representative
+def with_ids(spec, ids, lag=5, **kw):
+    return [candle(LAST, *spec, lag=lag, source_id=i, **kw) for i in ids]
+
+
+def test_equivalent_candles_with_different_source_ids_are_one_deterministic_observation():
+    base = candles(ATR_SERIES[:-1], LAST - HOUR)
+    copies = with_ids(ATR_SERIES[-1], ["B", "C", "A"])                 # equal receipt times and transports
+    results = {run(base + tuple(p)).model_dump_json() for p in itertools.permutations(copies)}
+    assert len(results) == 1
+    r = run(base + tuple(copies))
+    assert r.candles.duplicate_count == 2 and r.candles.retained_count == 5
+    assert r.candles.provenance.newest_record_provenance.source_id == "A"      # smallest id wins the tie
+    assert r.candles.reasons == () and r.candles.atr.value == frac(10, 3)
+
+
+def test_the_earliest_received_equivalent_candle_represents_the_observation_regardless_of_order():
+    base = candles(ATR_SERIES[:-1], LAST - HOUR)
+    copies = (with_ids(ATR_SERIES[-1], ["Z"], lag=5) + with_ids(ATR_SERIES[-1], ["A"], lag=9)
+              + with_ids(ATR_SERIES[-1], ["M"], lag=7, source_type="public_websocket"))
+    results = {run(base + tuple(p)).model_dump_json() for p in itertools.permutations(copies)}
+    assert len(results) == 1
+    kept = run(base + tuple(copies)).candles.provenance
+    assert kept.newest_record_provenance.source_id == "Z" and kept.source_types == ("public_info",)
+
+
+def test_a_missing_source_id_sorts_deterministically_and_digests_do_not_depend_on_order():
+    base = candles(ATR_SERIES[:-1], LAST - HOUR)
+    copies = [candle(LAST, *ATR_SERIES[-1], source_id=None).model_copy(update={"provenance": SourceProvenance(
+        source="fixture", source_type="public_info", source_timestamp=LAST, received_timestamp=LAST + HOUR + timedelta(seconds=5))})]
+    copies += with_ids(ATR_SERIES[-1], ["A", "B"])
+    reports = [run(base + tuple(p)) for p in itertools.permutations(copies)]
+    assert len({r.model_dump_json() for r in reports}) == 1
+    assert reports[0].candles.provenance.newest_record_provenance.source_id is None
+
+
+def test_materially_conflicting_candles_are_never_resolved_by_any_input_order():
+    base = candles(ATR_SERIES[:-1], LAST - HOUR)
+    variants = [candle(LAST, *ATR_SERIES[-1], source_id="A"), candle(LAST, 11, 14, 11, 13, 2, source_id="B"),
+                candle(LAST, *ATR_SERIES[-1], source_id="C")]
+    for p in itertools.permutations(variants):
+        r = run(base + tuple(p))
+        assert r.candles.reasons == ("CANDLE_CONFLICT",) and r.candles.atr.value is None and r.candles.provenance is None
+
+
+def test_equivalent_funding_with_different_source_ids_is_deterministic_and_conflicts_still_fail():
+    def f(rate, source_id, lag=2):
+        when = FUND_LAST + timedelta(seconds=0.035)
+        return FundingSnapshot(symbol="BTC", funding_rate=D(rate), timestamp=when, provenance=SourceProvenance(
+            source="fixture", source_type="public_info", source_id=source_id, source_timestamp=when,
+            received_timestamp=when + timedelta(seconds=lag)))
+    base = rates(["0.00001", "0.00002", "0.00003"], FUND_LAST - HOUR)
+    same = [f("0.00004", "B"), f("0.00004", "A"), f("0.00004", None)]
+    assert len({run(fs=base + tuple(p)).model_dump_json() for p in itertools.permutations(same)}) == 1
+    assert run(fs=base + tuple(same)).funding.duplicate_count == 2
+    for p in itertools.permutations([f("0.00004", "A"), f("0.00005", "B")]):
+        assert run(fs=base + tuple(p)).funding.reasons == ("FUNDING_CONFLICT",)
+
+
+# ---------------------------------------------------- independence from ambient Decimal state
+CAP_CASES = [("0.04", True), ("0.0400000000000000000001", False), ("0.0399999999999999999999", True),
+             ("-0.04", True), ("-0.0400000000000000000001", False), ("-0.0399999999999999999999", True),
+             ("0.04000000000000000000000000000001", False), ("0.0400001", False)]
+
+
+@pytest.mark.parametrize("precision", [1, 2, 3, 5, 10, 28, 50, 100])
+@pytest.mark.parametrize("rounding", ["ROUND_HALF_EVEN", "ROUND_UP", "ROUND_DOWN", "ROUND_CEILING", "ROUND_FLOOR"])
+def test_the_funding_cap_decision_is_exact_under_any_ambient_decimal_context(precision, rounding):
+    import decimal
+    for rate, accepted in CAP_CASES:
+        record = fund(FUND_LAST, rate)
+        with decimal.localcontext() as ctx:
+            ctx.prec, ctx.rounding = precision, getattr(decimal, rounding)
+            r = run(fs=(record,), c=config(funding_lookback_hours=1))
+        assert (r.funding.latest_rate.value is not None) is accepted, (rate, precision, rounding)
+        if not accepted:
+            assert r.funding.reasons == ("FUNDING_RATE_EXCEEDS_DOCUMENTED_CAP",)
+
+
+def test_the_whole_report_is_identical_under_different_ambient_contexts():
+    import decimal
+    items = (candles(closes_to_specs(["100", "101.5", "103.25", "102", "105", "104", "108"]), LAST), rates(["0.0000125", "-0.00002", "0.0001", "-0.0000125"]))
+    c = config(volatility_period=4, session_start=LAST - 3 * HOUR)
+    expected = run(*items, c=c).model_dump_json()
+    for precision, rounding in ((1, decimal.ROUND_UP), (3, decimal.ROUND_DOWN), (7, decimal.ROUND_CEILING), (200, decimal.ROUND_HALF_EVEN)):
+        with decimal.localcontext() as ctx:
+            ctx.prec, ctx.rounding = precision, rounding
+            assert run(*items, c=c).model_dump_json() == expected
+
+
+# ------------------------------------------------------------------ C06 replay interoperability
+def test_c06_replayed_history_is_never_consumed_before_its_actual_receipt_and_is_stale_after():
+    """C06 releases records by modeled availability; C09 trusts only actual receipt timestamps.
+
+    Receipt timestamps are not rewritten, so history fetched after the evaluation time is
+    excluded (no lookahead) and, once fetched, the old bars are far behind the evaluation
+    time. Historical C09 analysis therefore needs an explicit modeled-availability input
+    contract; that extension is deliberately not made here.
+    """
+    from test_historical_dataset import BASE, FETCHED, candle as c06_candle, dataset, funding as c06_funding
+    from traid.historical import replay
+    from traid.historical.models import Category
+    ds = dataset([c06_candle(i) for i in range(3)], [c06_funding(i) for i in range(3)])
+    as_of = BASE + timedelta(hours=3, seconds=120)
+    events = tuple(replay(ds, as_of=as_of))
+    assert sum(e.category is Category.CANDLE for e in events) == 3          # C06 models all three as available
+    cs = tuple(e.value for e in events if e.category is Category.CANDLE)
+    fs = tuple(e.value for e in events if e.category is Category.FUNDING_SNAPSHOT)
+    assert all(v.provenance.received_timestamp == FETCHED > as_of for v in (*cs, *fs))   # receipts untouched
+    c = config(atr_period=2, volatility_period=2, momentum_lookbacks=(1,), funding_lookback_hours=3)
+    early = run(cs, fs, c=c, evaluation_time=as_of)
+    assert early.candles.not_yet_received_count == 3 and early.candles.reasons == ("NO_CLOSED_CANDLES",)
+    assert early.funding.not_yet_received_count == 3 and early.funding.reasons == ("NO_FUNDING_OBSERVATIONS",)
+    late = run(cs, fs, c=c, evaluation_time=FETCHED)
+    assert late.candles.not_yet_received_count == 0 and late.candles.quality.state.value == "STALE"
+    assert late.candles.atr.reason == late.funding.latest_rate.reason == "DATA_QUALITY_NOT_TRUSTED"
