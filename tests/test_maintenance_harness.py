@@ -29,6 +29,8 @@ def _run_checker(cwd: Path) -> subprocess.CompletedProcess[str]:
 
 def _idle_maintenance_scaffold(control: str, evidence: str) -> tuple[str, str]:
     """Give policy scenarios an explicit idle Card state, independent of live C06."""
+    # This fixture owns an idle maintenance scenario, not the live Card anchor.
+    control = re.sub(r"^Card Integration Record:\n\n```text\n.*?^```\n\n", "", control, flags=re.M | re.S)
     active = re.search(r"^Active Card: (V1-C\d{2}|NONE)$", control, re.MULTILINE)
     assert active, "canonical Card state must exist in the scaffold"
     card_id = active.group(1)

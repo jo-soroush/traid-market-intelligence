@@ -2340,3 +2340,36 @@ maintenance/hotfix records are not mistaken for Card authorization
 ```
 
 The checklist does not authorize C03 and does not alter the Roadmap.
+
+### Card integration effective boundary — C07 recovery and future Cards
+
+GIT_WORKFLOW §38 owns the procedure and Control §6 the single integration record.
+Original audit branch/base/digest and review history remain immutable. Local Git
+proof distinguishes reviewed source, squash integration and runtime branch; only
+successful bounded proof replaces the two source-branch comparisons. Financial,
+quality and authorization gates remain. Corrections have their own scope, digest
+and independent review requirement before prospective/integrated-main acceptance.
+
+Default checks are deterministic and offline for Card integration. A local PASS
+is explicitly EXTERNAL_ATTESTATION NOT_RUN / DELIVERY_NOT_VERIFIED. Prospective
+Card and correction squash checks invoke the production validator, preserve source
+identity and review/implementation authorization, require no final merge approval,
+and cannot recognize COMPLETE. Unsupported PR source contexts fail, not skip.
+Maintenance simulation retains its independent existing protections.
+
+`--verify-external` is required for actual Card delivery attestation and live
+COMPLETE recognition. It verifies real original and correction PR relationships,
+explicit recorded merge scope, exact preserved source/anchor identities and, at
+closure, the real successful main run with required steps. Archived C07+ receipts
+are also externally checked after the live integration record is retired. Missing, unavailable
+or contradictory external proof fails closed. Main push CI uses this explicit
+mode; source CI and bootstrap remain technical checks. Human approval authenticity
+and sufficiency of recorded local validation remain human process responsibilities.
+
+INTEGRATED_PENDING_VERIFICATION is a runtime observation, not a new Card table
+state. Recognition writes nothing and never completes a Card. A permanent closure
+requires actual verification, explicit closure authority and coordinated versioned
+state recording. It may accompany the next separately authorized normal workflow;
+no automatic closure-only maintenance loop or next-Card authority is introduced.
+C07 remains incomplete; corrected hosted results and independent correction audit
+are NOT_RUN until genuinely obtained. No background writer or duplicate ledger.

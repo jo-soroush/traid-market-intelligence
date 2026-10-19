@@ -209,6 +209,21 @@ def card_documentation_issues(evidence: str, record: "CardRecord") -> tuple[str,
             issues.extend(f"{record.card_id}:{issue}" for issue in technique_issues(closure.group(1), require_closure=True))
     if record.state in {"READY_FOR_HUMAN_REVIEW", "COMPLETE"}:
         issues.extend(independent_audit_issues(section, record))
+    if record.state == "COMPLETE" and int(record.card_id[-2:]) >= 7:
+        receipts = re.findall(r"^### Delivery Verification\n(.*?)(?=^### |\Z)", section, re.M | re.S)
+        fields = dict(re.findall(r"^([^:\n]+): ([^\n]+)$", receipts[0], re.M)) if len(receipts) == 1 else {}
+        audit = re.search(r"^### Independent Audit\n(.*?)(?=^### |\Z)", section, re.M | re.S)
+        audit_fields = dict(re.findall(r"^[ \t-]*([^:\n]+):[ \t]*([^\n]*)$", audit.group(1), re.M)) if audit else {}
+        valid = (fields.get("State") == "POST_MERGE_VERIFIED"
+                 and fields.get("Audit Digest") == audit_fields.get("Candidate Diff SHA-256")
+                 and fields.get("Source Branch") == audit_fields.get("Branch")
+                 and fields.get("Base SHA") == audit_fields.get("Base SHA")
+                 and all(FULL_GIT_SHA.fullmatch(fields.get(k, "")) for k in ("Source Commit", "Merge Anchor", "Validated Main"))
+                 and re.fullmatch(r"[1-9][0-9]*", fields.get("Hosted Run", ""))
+                 and _substantive(fields.get("Local Validation Evidence", ""))
+                 and fields.get("Closure Approval", "").startswith("GRANTED — "))
+        if not valid:
+            issues.append(f"{record.card_id}:DELIVERY_VERIFICATION_RECEIPT_MISSING_OR_INVALID")
     return tuple(issues)
 
 
@@ -423,7 +438,7 @@ def technique_alignment_issues(control: str, evidence_section: str, active_card:
     return tuple(issues)
 
 
-def independent_audit_issues(evidence_section: str, record: "CardRecord") -> tuple[str, ...]:
+def independent_audit_issues(evidence_section: str, record: "CardRecord", *, correction_branch: str | None = None) -> tuple[str, ...]:
     """Allow pre-audit review, but require a bound, resolved audit at completion."""
     if record.state not in {"READY_FOR_HUMAN_REVIEW", "COMPLETE"} or int(record.card_id[-2:]) < AEVS_ADOPTION_START_CARD_NUMBER:
         return ()
@@ -444,7 +459,7 @@ def independent_audit_issues(evidence_section: str, record: "CardRecord") -> tup
     kind = values.get("Candidate Type", "")
     if kind not in {"COMMIT", "WORKTREE"}:
         issues.append(f"{record.card_id}:INDEPENDENT_AUDIT_CANDIDATE_TYPE_INVALID")
-    if not MAINTENANCE_BRANCH.fullmatch(values.get("Branch", "")) and not re.fullmatch(r"card/v1-c\d{2}-[a-z0-9-]+", values.get("Branch", "")):
+    if not MAINTENANCE_BRANCH.fullmatch(values.get("Branch", "")) and not re.fullmatch(r"card/v1-c\d{2}-[a-z0-9-]+", values.get("Branch", "")) and not (correction_branch and values.get("Branch") == correction_branch and re.fullmatch(r"fix/card-integration-[a-z0-9-]+", correction_branch)):
         issues.append(f"{record.card_id}:INDEPENDENT_AUDIT_BRANCH_INVALID")
     if not FULL_GIT_SHA.fullmatch(values.get("Base SHA", "")):
         issues.append(f"{record.card_id}:INDEPENDENT_AUDIT_BASE_SHA_INVALID")
@@ -504,7 +519,7 @@ def _normalize_audit_recording(path: str, content: bytes) -> bytes:
         elif line.startswith("### "):
             heading = line.strip()
             recording = (
-                heading == "### Independent Audit" and re.match(r"## V1-C\d{2} ", owner) is not None
+                heading == "### Independent Audit" and (re.match(r"## V1-C\d{2} ", owner) is not None or owner == "## 26. Card Integration Lifecycle Correction")
             ) or (heading == "### Current Maintenance Re-Audit Record" and owner.startswith("## 25. AEVS"))
         if recording:
             for field in AUDIT_RECONCILIATION_FIELDS:
@@ -549,10 +564,11 @@ def worktree_candidate_identity(
         else:
             worktree = b"DELETED"
             worktree_mode = b"000000"
+        worktree = _normalize_integration_results(path, worktree)
         worktree = _normalize_audit_recording(path, worktree) if path == "TRAID_CARD_EVIDENCE_MAP.md" and worktree.startswith(b"FILE\0") else worktree
         index = subprocess.run(["git", "show", f":{path}"], cwd=repo, capture_output=True, check=False)
         if index.returncode == 0:
-            staged = b"FILE\0" + index.stdout
+            staged = _normalize_integration_results(path, b"FILE\0" + index.stdout)
             staged = _normalize_audit_recording(path, staged) if path == "TRAID_CARD_EVIDENCE_MAP.md" else staged
             stage_row = subprocess.check_output(["git", "ls-files", "--stage", "--", path], cwd=repo).splitlines()
             index_mode = stage_row[0].split(b" ", 1)[0] if stage_row else b"000000"
@@ -564,7 +580,7 @@ def worktree_candidate_identity(
         _hash_part(digest, b"worktree mode", worktree_mode)
         if staged != worktree or index_mode != worktree_mode:
             head = subprocess.run(["git", "show", f"HEAD:{path}"], cwd=repo, capture_output=True, check=False)
-            head_content = b"FILE\0" + head.stdout if head.returncode == 0 else b"DELETED"
+            head_content = _normalize_integration_results(path, b"FILE\0" + head.stdout) if head.returncode == 0 else b"DELETED"
             head_content = _normalize_audit_recording(path, head_content) if path == "TRAID_CARD_EVIDENCE_MAP.md" and head.returncode == 0 else head_content
             head_row = subprocess.check_output(["git", "ls-tree", "HEAD", "--", path], cwd=repo).splitlines()
             head_mode = head_row[0].split(b" ", 1)[0] if head_row else b"000000"
@@ -573,6 +589,397 @@ def worktree_candidate_identity(
                 _hash_part(digest, b"divergent index mode", index_mode)
     return {"Candidate Type": "WORKTREE", "Branch": branch, "Base SHA": base_sha,
             "Candidate Diff SHA-256": digest.hexdigest(), "Untracked Files": ", ".join(untracked) if untracked else "NONE"}
+
+
+def _integration_record(control: str) -> dict[str, str]:
+    section = control_section(control, "6. Active Card Record")
+    blocks = re.findall(r"^Card Integration Record:\n\n```text\n(.*?)^```", section, re.M | re.S)
+    if not blocks:
+        return {}
+    if len(blocks) != 1:
+        raise ValueError("CARD_INTEGRATION_RECORD_AMBIGUOUS")
+    pairs = re.findall(r"^([^:\n]+): ([^\n]+)$", blocks[0], re.M)
+    if len(pairs) != len([line for line in blocks[0].splitlines() if line.strip()]):
+        raise ValueError("CARD_INTEGRATION_RECORD_MALFORMED")
+    if len(dict(pairs)) != len(pairs):
+        raise ValueError("CARD_INTEGRATION_FIELD_DUPLICATED")
+    return dict(pairs)
+
+
+def _normalize_integration_results(path: str, content: bytes) -> bytes:
+    # Only designated self-digest/merge-receipt values, never scope, source
+    # identity, correction authority or record structure. A receipt value is
+    # still evaluated by the authority gate; normalization grants no permission.
+    if path == "PROJECT_CONTROL.md":
+        prefix = b"FILE\0" if content.startswith(b"FILE\0") else b""
+        text = content[len(prefix):].decode()
+        section = control_section(text, "6. Active Card Record")
+        normalized = re.sub(r"(Card Integration Record:\n\n```text\n)(.*?)(^```)",
+                            lambda m: m[1] + re.sub(r"(?m)^((?:Correction Diff SHA-256|Human Merge Approval): )[^\n]*", r"\g<1><integration-result>", m[2]) + m[3],
+                            section, flags=re.M | re.S)
+        if section:
+            text = re.sub(r"(^## 6\. Active Card Record\n)(.*?)(?=^## |\Z)",
+                          lambda m: m[1] + normalized, text, flags=re.M | re.S)
+        content = prefix + text.encode()
+    return content
+
+
+def committed_candidate_digest(repo: Path, commit: str, base: str, branch: str) -> str:
+    """Reproduce the effective-content digest from immutable Git objects/modes."""
+    digest = hashlib.sha256()
+    _hash_part(digest, b"schema", b"TraID frozen worktree v1")
+    _hash_part(digest, b"branch", branch.encode())
+    _hash_part(digest, b"base", base.encode())
+    rows = subprocess.check_output(["git", "ls-tree", "-rz", "--full-tree", commit], cwd=repo).split(b"\0")
+    entries = []
+    for row in rows:
+        if not row:
+            continue
+        metadata, path = row.split(b"\t", 1)
+        mode, kind, oid = metadata.split()
+        if kind != b"blob" or mode not in {b"100644", b"100755", b"120000"}:
+            raise ValueError("CARD_INTEGRATION_UNSUPPORTED_GIT_ENTRY")
+        entries.append((path, mode, oid))
+    proc = subprocess.run(["git", "cat-file", "--batch"], cwd=repo,
+                          input=b"".join(oid + b"\n" for _, _, oid in entries), capture_output=True, check=True)
+    offset = 0
+    contents = {}
+    for path, mode, oid in entries:
+        end = proc.stdout.index(b"\n", offset)
+        size = int(proc.stdout[offset:end].split()[-1])
+        contents[path] = proc.stdout[end + 1:end + 1 + size]
+        offset = end + 2 + size
+    for path, mode, oid in sorted(entries):
+        name = path.decode()
+        content = (b"SYMLINK\0" if mode == b"120000" else b"FILE\0") + contents[path]
+        if mode != b"120000":
+            content = _normalize_audit_recording(name, content)
+            content = _normalize_integration_results(name, content)
+        _hash_part(digest, b"tracked path", path)
+        _hash_part(digest, b"worktree", content)
+        _hash_part(digest, b"worktree mode", mode)
+    return digest.hexdigest()
+
+
+def github_card_merge_issues(pr: str, source: str, base: str, anchor: str, branch: str) -> tuple[str, ...]:
+    """Read the actual public PR; no credential, write, or approval inference."""
+    import json
+    from urllib.request import Request, urlopen
+    from urllib.parse import urlencode
+    if not re.fullmatch(r"[1-9][0-9]*", pr) and pr != "DISCOVER":
+        return ("CARD_INTEGRATION_PR_INVALID",)
+    prefix = "https://api.github.com/repos/jo-soroush/traid-market-intelligence/pulls"
+    url = prefix + ("?" + urlencode({"state": "closed", "base": "main", "head": "jo-soroush:" + branch, "per_page": 100}) if pr == "DISCOVER" else "/" + pr)
+    try:
+        with urlopen(Request(url, headers={"Accept": "application/vnd.github+json", "User-Agent": "TraID-Harness"}), timeout=10) as response:
+            value = json.load(response)
+        if pr == "DISCOVER":
+            matches = [v for v in value if v.get("head", {}).get("sha") == source and v.get("merge_commit_sha") == anchor]
+            if len(matches) != 1:
+                return ("CARD_INTEGRATION_GITHUB_RELATIONSHIP_MISMATCH",)
+            number = matches[0].get("number")
+            if type(number) is not int or number <= 0:
+                return ("CARD_INTEGRATION_GITHUB_RELATIONSHIP_MISMATCH",)
+            # List responses do not carry the authoritative `merged` boolean.
+            with urlopen(Request(prefix + "/" + str(number), headers={"Accept": "application/vnd.github+json", "User-Agent": "TraID-Harness"}), timeout=10) as response:
+                value = json.load(response)
+        else:
+            number = int(pr)
+        valid = (value["number"] == number and value["state"] == "closed" and value["merged"] is True and value["merge_commit_sha"] == anchor
+                 and value["head"]["sha"] == source and value["head"]["ref"] == branch
+                 and value["base"]["sha"] == base and value["base"]["ref"] == "main"
+                 and value["head"]["repo"]["full_name"] == "jo-soroush/traid-market-intelligence"
+                 and value["base"]["repo"]["full_name"] == "jo-soroush/traid-market-intelligence")
+        return () if valid else ("CARD_INTEGRATION_GITHUB_RELATIONSHIP_MISMATCH",)
+    except (OSError, ValueError, KeyError, TypeError, AttributeError):
+        return ("CARD_INTEGRATION_GITHUB_EVIDENCE_UNAVAILABLE",)
+
+
+def github_card_closure_issues(value: str, repo: Path, head: str) -> tuple[str, ...]:
+    """A recorded closure requires a real successful main run, not a status token."""
+    import json
+    from urllib.request import Request, urlopen
+    match = re.fullmatch(r"PASS — run:([1-9][0-9]*) sha:([0-9a-f]{40}) local:(\S.+)", value)
+    if not match:
+        return ("CARD_CLOSURE_VERIFICATION_MISSING",)
+    run_id, sha, reference = match.groups()
+    if subprocess.run(["git", "merge-base", "--is-ancestor", sha, head], cwd=repo, capture_output=True).returncode:
+        return ("CARD_CLOSURE_VALIDATION_NOT_ANCESTOR",)
+    changed = subprocess.check_output(["git", "diff", "--name-only", "--no-renames", sha, head], cwd=repo, text=True).splitlines()
+    if not set(changed) <= {"PROJECT_CONTROL.md", "TRAID_CARD_EVIDENCE_MAP.md"}:
+        return ("CARD_CLOSURE_UNVALIDATED_CODE_CHANGE",)
+    prefix = "https://api.github.com/repos/jo-soroush/traid-market-intelligence/actions/runs/" + run_id
+    try:
+        def read(url):
+            with urlopen(Request(url, headers={"Accept": "application/vnd.github+json", "User-Agent": "TraID-Harness"}), timeout=10) as response:
+                return json.load(response)
+        run, jobs = read(prefix), read(prefix + "/jobs?per_page=100")
+        if (run["status"] != "completed" or run["conclusion"] != "success" or run["head_sha"] != sha
+                or run["head_branch"] != "main" or run["event"] != "push" or run["path"] != ".github/workflows/ci.yml"):
+            return ("CARD_CLOSURE_HOSTED_NOT_VERIFIED",)
+        tests = [job for job in jobs["jobs"] if job["name"] == "test"]
+        required = {"Install from isolated committed source", "Run pytest", "Run bash scripts/check_secrets.sh",
+                    "Run python scripts/harness_consistency_check.py"}
+        if len(tests) != 1 or tests[0]["conclusion"] != "success" or not required <= {
+                step["name"] for step in tests[0]["steps"] if step["conclusion"] == "success"}:
+            return ("CARD_CLOSURE_REQUIRED_CHECK_MISSING",)
+        return ()
+    except (OSError, ValueError, KeyError, TypeError, AttributeError):
+        return ("CARD_CLOSURE_HOSTED_EVIDENCE_UNAVAILABLE",)
+
+
+def card_integration_issues(control: str, evidence: str, repo: Path, branch: str,
+                            *, prospective_source: str | None = None, prospective_correction: str | None = None,
+                            verify_external: bool = False, prospective_branch: str | None = None) -> tuple[bool, tuple[str, ...]]:
+    """Recognize only a bound Card anchor; never promote verification to COMPLETE.
+
+    Prospective mode is exclusively a simulation result, not external delivery
+    proof. It cannot authorize closure and is labelled in the caller output.
+    """
+    def git(*args):
+        return subprocess.check_output(["git", *args], cwd=repo, text=True).strip()
+
+    try:
+        values = _integration_record(control)
+        if not values:
+            return False, ()
+        correction_branch = values.get("Correction Branch", "NONE")
+        if correction_branch != "NONE" and not re.fullmatch(r"fix/card-integration-[a-z0-9-]+", correction_branch):
+            raise ValueError("CARD_INTEGRATION_CORRECTION_BRANCH_INVALID")
+        if branch not in {"main", correction_branch}:
+            return False, ()  # Source-branch checks continue unchanged.
+        required = {"Card ID", "Source Branch", "Base SHA", "Source Commit", "Merge Anchor", "PR",
+                    "Protected Paths", "Integrated Paths", "Human Merge Approval", "Post-Merge Verification",
+                    "Closure Approval", "Correction Branch", "Correction Base SHA", "Correction Paths",
+                    "Correction Authorization", "Correction Diff SHA-256"}
+        if set(values) != required:
+            raise ValueError("CARD_INTEGRATION_SCHEMA_INVALID")
+        state = resolve_card_state(control)
+        card = values["Card ID"]
+        record = next((r for r in state.cards if r.card_id == card), None)
+        if state.errors:
+            return False, state.errors
+        if record is None or (record.state != "COMPLETE" and state.active_card != card):
+            raise ValueError("CARD_INTEGRATION_CARD_STATE_MISMATCH")
+        if record.state not in {"READY_FOR_HUMAN_REVIEW", "COMPLETE"}:
+            raise ValueError("CARD_INTEGRATION_PREMATURE_COMPLETE")
+        source_branch = values["Source Branch"]
+        if not re.fullmatch(rf"card/{card.lower()}-[a-z0-9-]+", source_branch):
+            raise ValueError("CARD_INTEGRATION_SOURCE_BRANCH_INVALID")
+        declared = re.search(r"^Git Branch: ([^\n]+)$", _current_repository_section(control), re.M)
+        if not declared or declared.group(1) not in {source_branch, correction_branch}:
+            raise ValueError("CARD_INTEGRATION_OPERATIONAL_BRANCH_CONFLICT")
+        prospective = bool(prospective_source or prospective_correction)
+        if (prospective and branch != "main") or (prospective_source and prospective_correction) or (prospective and verify_external):
+            raise ValueError("CARD_INTEGRATION_PROSPECTIVE_CONTEXT_INVALID")
+        if prospective and prospective_branch != (correction_branch if prospective_correction else source_branch):
+            raise ValueError("CARD_INTEGRATION_PROSPECTIVE_BRANCH_MISMATCH")
+        if values["Human Merge Approval"] != "NOT_GRANTED" and not re.fullmatch(r"GRANTED — \S.+", values["Human Merge Approval"]):
+            raise ValueError("CARD_INTEGRATION_APPROVAL_INVALID")
+        if verify_external and (not values["Human Merge Approval"].startswith("GRANTED — ") or not state.delivery_approval):
+            raise ValueError("CARD_INTEGRATION_APPROVAL_MISSING")
+        if record.state == "READY_FOR_HUMAN_REVIEW" and (values["Post-Merge Verification"] != "NOT_VERIFIED" or values["Closure Approval"] != "NOT_GRANTED"):
+            raise ValueError("CARD_INTEGRATION_CLOSURE_REQUIRES_RECORDED_TRANSITION")
+        if record.state == "COMPLETE" and (prospective or not values["Closure Approval"].startswith("GRANTED — ")):
+            raise ValueError("CARD_INTEGRATION_PREMATURE_COMPLETE")
+        base = values["Base SHA"]
+        if not FULL_GIT_SHA.fullmatch(base):
+            raise ValueError("CARD_INTEGRATION_BASE_INVALID")
+        source = values["Source Commit"]
+        if source == "DISCOVER":
+            source = prospective_source or git("rev-parse", f"refs/remotes/origin/{source_branch}^{{commit}}")
+        if not FULL_GIT_SHA.fullmatch(source) or (prospective_source and source != prospective_source):
+            raise ValueError("CARD_INTEGRATION_SOURCE_INVALID")
+        if subprocess.run(["git", "merge-base", "--is-ancestor", base, source], cwd=repo, capture_output=True).returncode or source == base:
+            raise ValueError("CARD_INTEGRATION_SOURCE_ANCESTRY_INVALID")
+        source_evidence = git("show", f"{source}:TRAID_CARD_EVIDENCE_MAP.md")
+        section = card_evidence_section(source_evidence, card)
+        current_section = card_evidence_section(evidence, card)
+        pattern = r"^### Independent Audit\n(.*?)(?=^### |\Z)"
+        original_audit = re.search(pattern, section, re.M | re.S)
+        current_audit = re.search(pattern, current_section, re.M | re.S)
+        if not original_audit or not current_audit or original_audit.group(1).strip() != current_audit.group(1).strip():
+            raise ValueError("CARD_INTEGRATION_HISTORICAL_AUDIT_CHANGED")
+        audit_issues = independent_audit_issues(section, CardRecord(card, record.title, "COMPLETE", True))
+        if audit_issues:
+            return False, audit_issues
+        audit = dict(re.findall(r"^[ \t-]*([^:\n]+):[ \t]*([^\n]*)$", original_audit.group(1), re.M))
+        if audit.get("Status") not in {"PASS", "PASS_WITH_GAPS"} or not affirmative_audit_verdict(audit.get("Verdict", "")):
+            raise ValueError("CARD_INTEGRATION_AUDIT_NOT_ACCEPTED")
+        if audit.get("Branch") != source_branch or audit.get("Base SHA") != base:
+            raise ValueError("CARD_INTEGRATION_AUDIT_CONTEXT_MISMATCH")
+        if audit.get("Candidate Type") != "WORKTREE" or committed_candidate_digest(repo, source, base, source_branch) != audit.get("Candidate Diff SHA-256"):
+            raise ValueError("CARD_INTEGRATION_SOURCE_DIGEST_MISMATCH")
+        head = git("rev-parse", "HEAD")
+        anchor = values["Merge Anchor"]
+        if anchor == "DISCOVER":
+            matches = [c for c in git("rev-list", "--first-parent", f"{base}..{head}").splitlines()
+                       if git("show", "-s", "--format=%P", c) == base and git("rev-parse", f"{c}^{{tree}}") == git("rev-parse", f"{source}^{{tree}}")]
+            if len(matches) != 1:
+                raise ValueError("CARD_INTEGRATION_ANCHOR_AMBIGUOUS")
+            anchor = matches[0]
+        if not FULL_GIT_SHA.fullmatch(anchor) or git("show", "-s", "--format=%P", anchor) != base:
+            raise ValueError("CARD_INTEGRATION_ANCHOR_INVALID")
+        if subprocess.run(["git", "merge-base", "--is-ancestor", anchor, head], cwd=repo, capture_output=True).returncode:
+            raise ValueError("CARD_INTEGRATION_ANCHOR_NOT_ANCESTOR")
+        if git("rev-parse", f"{source}^{{tree}}") != git("rev-parse", f"{anchor}^{{tree}}"):
+            raise ValueError("CARD_INTEGRATION_TREE_MISMATCH")
+        def paths(field):
+            raw = values[field]
+            result = set() if raw == "NONE" else set(raw.split(", "))
+            if any(not p or p.startswith("/") or any(part in {"", ".", ".."} for part in p.split("/")) or "\\" in p for p in result):
+                raise ValueError("CARD_INTEGRATION_PATH_INVALID")
+            return result
+        protected, integrated_paths, allowed = paths("Protected Paths"), paths("Integrated Paths"), paths("Correction Paths")
+        actual_paths = set(git("diff", "--name-only", "--no-renames", base, source).splitlines())
+        if (actual_paths != integrated_paths or not protected or not protected <= actual_paths or protected & allowed
+                or not {p for p in actual_paths if p.startswith("src/")} <= protected):
+            raise ValueError("CARD_INTEGRATION_SCOPE_INVALID")
+        if verify_external:
+            issues = github_card_merge_issues(values["PR"], source, base, anchor, source_branch)
+            if issues:
+                return False, issues
+        changed = set(git("diff", "--name-only", "--no-renames", anchor).splitlines())
+        changed |= set(git("ls-files", "--others", "--exclude-standard").splitlines())
+        if changed & protected:
+            raise ValueError("CARD_INTEGRATION_PROTECTED_CONTENT_CHANGED")
+        for path in protected:
+            mode, _, oid = git("ls-tree", anchor, "--", path).split("\t")[0].split()
+            target = repo / path
+            actual_mode = "120000" if target.is_symlink() else "100755" if target.stat().st_mode & 0o111 else "100644"
+            content = os.readlink(target).encode() if target.is_symlink() else target.read_bytes()
+            if actual_mode != mode or content != subprocess.check_output(["git", "cat-file", "blob", oid], cwd=repo):
+                raise ValueError("CARD_INTEGRATION_PROTECTED_CONTENT_CHANGED")
+        dirty = bool(git("status", "--porcelain", "--untracked-files=all"))
+        if branch == "main" and dirty:
+            raise ValueError("CARD_INTEGRATION_DIRTY_MAIN")
+        if not prospective:
+            target = git("rev-parse", "refs/remotes/origin/main")
+            expected_target = head if branch == "main" else anchor
+            if (target != expected_target or subprocess.run(
+                    ["git", "merge-base", "--is-ancestor", expected_target, head], cwd=repo, capture_output=True).returncode):
+                raise ValueError("CARD_INTEGRATION_DIVERGENT_MAIN")
+        closure_only = (record.state == "COMPLETE" and correction_branch == "NONE"
+                        and changed <= {"PROJECT_CONTROL.md", "TRAID_CARD_EVIDENCE_MAP.md"})
+        if (changed or head != anchor) and not closure_only:
+            if not changed <= allowed or not values["Correction Authorization"].startswith("GRANTED — "):
+                raise ValueError("CARD_INTEGRATION_UNAUTHORIZED_SUBSEQUENT_CHANGE")
+            correction_base = values["Correction Base SHA"]
+            if correction_base != anchor or correction_branch == "NONE":
+                raise ValueError("CARD_INTEGRATION_CORRECTION_CONTEXT_INVALID")
+            expected = values["Correction Diff SHA-256"]
+            if record.state == "COMPLETE":
+                verification = re.fullmatch(r"PASS — run:([1-9][0-9]*) sha:([0-9a-f]{40}) local:(\S.+)", values["Post-Merge Verification"])
+                if not verification:
+                    raise ValueError("CARD_CLOSURE_VERIFICATION_MISSING")
+                actual = committed_candidate_digest(repo, verification.group(2), correction_base, correction_branch)
+            else:
+                actual = worktree_candidate_identity(repo, correction_base, recorded_branch=correction_branch)["Candidate Diff SHA-256"]
+            if not SHA256.fullmatch(expected) or expected != actual:
+                raise ValueError("CARD_INTEGRATION_CORRECTION_DIGEST_MISMATCH")
+            if prospective_correction:
+                if (not FULL_GIT_SHA.fullmatch(prospective_correction)
+                        or git("rev-parse", f"{prospective_correction}^{{tree}}") != git("rev-parse", f"{head}^{{tree}}")
+                        or git("show", "-s", "--format=%P", head) != correction_base
+                        or subprocess.run(["git", "merge-base", "--is-ancestor", correction_base, prospective_correction], cwd=repo, capture_output=True).returncode
+                        or committed_candidate_digest(repo, prospective_correction, correction_base, correction_branch) != expected):
+                    raise ValueError("CARD_INTEGRATION_PROSPECTIVE_CORRECTION_INVALID")
+            if branch == "main":
+                correction = re.search(r"^## 26\. Card Integration Lifecycle Correction\n(.*?)(?=^## |^# |\Z)", evidence, re.M | re.S)
+                body = correction.group(1) if correction else ""
+                matches = re.findall(r"^### Independent Audit\n(.*?)(?=^### |\Z)", body, re.M | re.S)
+                if len(matches) != 1:
+                    raise ValueError("CARD_INTEGRATION_CORRECTION_AUDIT_MISSING")
+                fields = dict(re.findall(r"^[ \t-]*([^:\n]+):[ \t]*([^\n]*)$", matches[0], re.M))
+                if fields.get("Status") not in {"PASS", "PASS_WITH_GAPS"} or not affirmative_audit_verdict(fields.get("Verdict", "")):
+                    raise ValueError("CARD_INTEGRATION_CORRECTION_AUDIT_UNRESOLVED")
+                if verify_external and not re.match(r"^GRANTED / (?:NOT_PERFORMED|COMPLETED) — MERGE_GRANTED; \S", fields.get("Delivery authorization/performance", "")):
+                    raise ValueError("CARD_INTEGRATION_CORRECTION_DELIVERY_NOT_GRANTED")
+                if (fields.get("Candidate Type") != "WORKTREE" or fields.get("Branch") != correction_branch
+                        or fields.get("Base SHA") != correction_base or fields.get("Candidate Diff SHA-256") != expected):
+                    raise ValueError("CARD_INTEGRATION_CORRECTION_AUDIT_IDENTITY_MISMATCH")
+                issues = independent_audit_issues("### Independent Audit\n" + matches[0], CardRecord(card, record.title, "COMPLETE", True), correction_branch=correction_branch)
+                if issues:
+                    return False, issues
+                if verify_external:
+                    correction_source = git("rev-parse", f"refs/remotes/origin/{correction_branch}^{{commit}}")
+                    if subprocess.run(["git", "merge-base", "--is-ancestor", correction_base, correction_source], cwd=repo, capture_output=True).returncode:
+                        raise ValueError("CARD_INTEGRATION_CORRECTION_SOURCE_ANCESTRY_INVALID")
+                    if committed_candidate_digest(repo, correction_source, correction_base, correction_branch) != expected:
+                        raise ValueError("CARD_INTEGRATION_CORRECTION_SOURCE_MISMATCH")
+                    anchors = [commit for commit in git("rev-list", "--first-parent", f"{correction_base}..{head}").splitlines()
+                               if git("show", "-s", "--format=%P", commit) == correction_base
+                               and git("rev-parse", f"{commit}^{{tree}}") == git("rev-parse", f"{correction_source}^{{tree}}")]
+                    if len(anchors) != 1:
+                        raise ValueError("CARD_INTEGRATION_CORRECTION_ANCHOR_INVALID")
+                    issues = github_card_merge_issues("DISCOVER", correction_source, correction_base, anchors[0], correction_branch)
+                    if issues:
+                        return False, issues
+        if prospective_correction and not (changed or head != anchor):
+            raise ValueError("CARD_INTEGRATION_PROSPECTIVE_CORRECTION_INVALID")
+        if record.state == "COMPLETE":
+            if not verify_external:
+                raise ValueError("CARD_CLOSURE_EXTERNAL_VERIFICATION_REQUIRED")
+            receipt = re.search(r"^### Delivery Verification\n(.*?)(?=^### |\Z)", current_section, re.M | re.S)
+            fields = dict(re.findall(r"^([^:\n]+): ([^\n]+)$", receipt.group(1), re.M)) if receipt else {}
+            verification = re.fullmatch(r"PASS — run:([1-9][0-9]*) sha:([0-9a-f]{40}) local:(\S.+)", values["Post-Merge Verification"])
+            if not verification:
+                raise ValueError("CARD_CLOSURE_VERIFICATION_MISSING")
+            run_id, validated_sha, local = verification.groups()
+            expected_receipt = {"State": "POST_MERGE_VERIFIED", "Source Branch": source_branch, "Base SHA": base,
+                                "Audit Digest": audit["Candidate Diff SHA-256"], "Source Commit": source,
+                                "Merge Anchor": anchor, "Validated Main": validated_sha, "Hosted Run": run_id,
+                                "Local Validation Evidence": local, "Closure Approval": values["Closure Approval"]}
+            if fields != expected_receipt:
+                raise ValueError("CARD_CLOSURE_RECEIPT_MISMATCH")
+            issues = github_card_closure_issues(values["Post-Merge Verification"], repo, head)
+            if issues:
+                return False, issues
+        return True, ()
+    except (ValueError, OSError, subprocess.CalledProcessError) as exc:
+        reason = str(exc) if isinstance(exc, ValueError) else "CARD_INTEGRATION_GIT_EVIDENCE_UNAVAILABLE"
+        return False, (reason,)
+
+
+def historical_card_delivery_issues(control: str, evidence: str, repo: Path) -> tuple[str, ...]:
+    """Attest archived delivery receipts too; local prose cannot forge history."""
+    live = _integration_record(control).get("Card ID")
+    head = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=repo, text=True).strip()
+    for record in parse_card_table(control):
+        if record.state != "COMPLETE" or int(record.card_id[-2:]) < 7 or record.card_id == live:
+            continue
+        section = card_evidence_section(evidence, record.card_id)
+        issues = card_documentation_issues(section, record)
+        if issues:
+            return issues
+        receipt = re.search(r"^### Delivery Verification\n(.*?)(?=^### |\Z)", section, re.M | re.S)
+        fields = dict(re.findall(r"^([^:\n]+): ([^\n]+)$", receipt.group(1), re.M))
+        source, base, anchor, validated = (fields[key] for key in ("Source Commit", "Base SHA", "Merge Anchor", "Validated Main"))
+        try:
+            def git(*args):
+                return subprocess.check_output(["git", *args], cwd=repo, text=True).strip()
+            source_section = card_evidence_section(git("show", f"{source}:TRAID_CARD_EVIDENCE_MAP.md"), record.card_id)
+            pattern = r"^### Independent Audit\n(.*?)(?=^### |\Z)"
+            source_audit, current_audit = re.search(pattern, source_section, re.M | re.S), re.search(pattern, section, re.M | re.S)
+            if (not source_audit or not current_audit or source_audit[1].strip() != current_audit[1].strip()
+                    or committed_candidate_digest(repo, source, base, fields["Source Branch"]) != fields["Audit Digest"]
+                    or git("show", "-s", "--format=%P", anchor) != base
+                    or git("rev-parse", f"{source}^{{tree}}") != git("rev-parse", f"{anchor}^{{tree}}")
+                    or subprocess.run(["git", "merge-base", "--is-ancestor", base, source], cwd=repo, capture_output=True).returncode
+                    or subprocess.run(["git", "merge-base", "--is-ancestor", anchor, validated], cwd=repo, capture_output=True).returncode
+                    or subprocess.run(["git", "merge-base", "--is-ancestor", validated, head], cwd=repo, capture_output=True).returncode):
+                return (f"{record.card_id}:HISTORICAL_DELIVERY_IDENTITY_MISMATCH",)
+            issues = github_card_merge_issues("DISCOVER", source, base, anchor, fields["Source Branch"])
+            if not issues:
+                # Later independently authorized Cards may follow this historical
+                # validated commit; their changes do not rewrite its result.
+                issues = github_card_closure_issues("PASS — run:" + fields["Hosted Run"] + " sha:" + validated
+                                                   + " local:" + fields["Local Validation Evidence"], repo, validated)
+            if issues:
+                return tuple(f"{record.card_id}:{issue}" for issue in issues)
+        except (OSError, ValueError, subprocess.CalledProcessError):
+            return (f"{record.card_id}:HISTORICAL_DELIVERY_EVIDENCE_UNAVAILABLE",)
+    return ()
 
 
 def candidate_applicability_issues(recorded: dict[str, str], actual: dict[str, str]) -> tuple[str, ...]:
@@ -974,6 +1381,15 @@ def resolve_card_state(control: str) -> ResolvedState:
     if active_record and any(len(set(values)) > 1 for values in (start_values, delivery_values, verified_values)):
         errors.append("ACTIVE_CARD_AUTHORIZATION_DECLARATIONS_CONFLICT")
     approval = bool(delivery_values and len(set(delivery_values)) == 1 and delivery_values[0].startswith("GRANTED"))
+    # A later explicit merge receipt may supersede the frozen source approval.
+    # Source identity remains bound; delivery still requires the resolved audit.
+    try:
+        integration = _integration_record(control)
+    except ValueError as exc:
+        errors.append(str(exc))
+        integration = {}
+    if active_record and integration.get("Card ID") == active_card and integration.get("Human Merge Approval", "").startswith("GRANTED — "):
+        approval = True
     verified = bool(verified_values and len(set(verified_values)) == 1 and verified_values[0].startswith("YES"))
     if active_card == "NONE":
         completed = [record for record in cards if record.state == "COMPLETE"]
@@ -1004,7 +1420,8 @@ def resolve_card_state(control: str) -> ResolvedState:
     return ResolvedState(tuple(cards), active_card, active_state, declared_next, derived_next, active_start, approval, verified, not errors, tuple(dict.fromkeys(errors)))
 
 
-def main() -> int:
+def main(*, prospective_source: str | None = None, prospective_correction: str | None = None,
+         verify_external: bool = False, prospective_branch: str | None = None) -> int:
     control = Path("PROJECT_CONTROL.md").read_text()
     evidence = Path("TRAID_CARD_EVIDENCE_MAP.md").read_text()
     state = resolve_card_state(control)
@@ -1062,6 +1479,17 @@ def main() -> int:
     )
     clean = not changed_paths
     working_tree_policy = expected_tree.group(1).split(" —", 1)[0].strip() if expected_tree else ""
+    card_integrated, card_integration_errors = card_integration_issues(
+        control, evidence, Path.cwd(), branch, prospective_source=prospective_source,
+        prospective_correction=prospective_correction, verify_external=verify_external, prospective_branch=prospective_branch)
+    if card_integration_errors:
+        print("HARNESS_CONSISTENCY: BLOCKED: " + ", ".join(card_integration_errors))
+        return 1
+    if verify_external:
+        historical_issues = historical_card_delivery_issues(control, evidence, Path.cwd())
+        if historical_issues:
+            print("HARNESS_CONSISTENCY: BLOCKED: " + ", ".join(historical_issues))
+            return 1
     maintenance_issues = maintenance_consistency_issues(control, branch, head, changed_paths)
     integrated, integration_issues = integrated_maintenance_issues(control, evidence, branch, Path.cwd())
     if integration_issues:
@@ -1092,7 +1520,8 @@ def main() -> int:
     documentation_issues = tuple(
         issue for record in state.cards for issue in card_documentation_issues(evidence, record)
     )
-    documentation_issues += active_card_candidate_issues(evidence, current_record if active_card != "NONE" else None, Path.cwd(), branch)
+    if not card_integrated:
+        documentation_issues += active_card_candidate_issues(evidence, current_record if active_card != "NONE" else None, Path.cwd(), branch)
     if active_card != "NONE":
         documentation_issues += technique_alignment_issues(control, card_evidence_section(evidence, active_card), active_card)
     if active_card != "NONE" and state.delivery_approval and current_record and int(current_card_id[-2:]) >= AEVS_ADOPTION_START_CARD_NUMBER:
@@ -1108,7 +1537,7 @@ def main() -> int:
         quality_gate=quality.group(1) if quality else "", delivery_approval=state.delivery_approval,
         delivery_verified=state.delivery_verified, project_control_state=current_record.state if current_record else "",
         evidence_state=evidence_state_value,
-        expected_branch=branch if integrated else (expected_branch.group(1).strip() if expected_branch else ""),
+        expected_branch=branch if integrated or card_integrated else (expected_branch.group(1).strip() if expected_branch else ""),
         actual_branch=branch, expected_head=expected_head.group(1) if expected_head else "", actual_head=head,
         head_checkpoint_verified=checkpoint, test_state_verified=bool(test_state and test_state.group(1).startswith("VERIFIED")),
         quality_gate_state=control_quality.group(1) if control_quality else "", evidence_status=evidence_state_value,
@@ -1125,6 +1554,12 @@ def main() -> int:
     )
     result = evaluate_state_consistency(facts)
     if result.passed and not documentation_issues:
+        if card_integrated:
+            label = "VERIFIED_COMPLETE" if complete else "PROSPECTIVE_INTEGRATION" if prospective_source or prospective_correction else "INTEGRATED_PENDING_VERIFICATION"
+            print(f"CARD_RUNTIME: {label}; CARD_COMPLETE: {'YES' if complete else 'NO'}; HISTORICAL_AUDIT_IDENTITY: PRESERVED")
+            print("EXTERNAL_ATTESTATION: " + ("VERIFIED_MERGE_RELATIONSHIP" if verify_external else "NOT_RUN; DELIVERY_NOT_VERIFIED"))
+            if branch != "main":
+                print("CORRECTION_RUNTIME: AUTHORIZED_LOCAL_ONLY; CORRECTION_DELIVERY: NOT_GRANTED")
         if integrated:
             print("MAINTENANCE_RUNTIME: INTEGRATED / NO_ACTIVE_MAINTENANCE; AUDIT_RUNTIME: HISTORICAL")
         print("COMPLETED_CARDS: " + (", ".join(completed_card_ids(control)) or "NONE"))
@@ -1136,4 +1571,8 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    import argparse
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--verify-external", action="store_true",
+                        help="Verify live GitHub merge/closure evidence; required for completion")
+    sys.exit(main(verify_external=parser.parse_args().verify_external))

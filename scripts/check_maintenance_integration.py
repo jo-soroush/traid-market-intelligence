@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run the production Harness against a disposable maintenance squash merge.
+"""Run the production Harness against a disposable authorized squash merge.
 
 Only the temporary clone is mutated. No branch, commit, or remote is changed
 in the source checkout. This verifies integration, not hosted PR provenance.
@@ -16,9 +16,11 @@ import tempfile
 
 
 def simulate(root: Path, base: str, head: str, branch: str) -> int:
-    if not re.fullmatch(r"(?:maintenance|hotfix)/[^\s]+", branch):
-        print("MAINTENANCE_INTEGRATION: NOT_APPLICABLE — non-maintenance source branch")
-        return 0
+    is_card = re.fullmatch(r"card/v1-c\d{2}-[a-z0-9-]+", branch) is not None
+    is_correction = re.fullmatch(r"fix/card-integration-[a-z0-9-]+", branch) is not None
+    if not is_card and not is_correction and not re.fullmatch(r"(?:maintenance|hotfix)/[^\s]+", branch):
+        print("INTEGRATION: BLOCKED — unsupported source branch")
+        return 1
     if not all(re.fullmatch(r"[0-9a-f]{40}", sha) for sha in (base, head)):
         print("MAINTENANCE_INTEGRATION: BLOCKED — full base/head SHAs required")
         return 1
@@ -51,11 +53,16 @@ def simulate(root: Path, base: str, head: str, branch: str) -> int:
                 subprocess.run(["git", *args], cwd=scratch, env=env, check=True, capture_output=True)
             if subprocess.check_output(["git", "status", "--porcelain"], cwd=scratch):
                 raise ValueError("simulated main is dirty")
+            # Prospective mode cannot assert real GitHub delivery or COMPLETE.
+            command = [sys.executable, "scripts/harness_consistency_check.py"]
+            if is_card or is_correction:
+                argument = "prospective_source" if is_card else "prospective_correction"
+                command = [sys.executable, "-c", "import sys; sys.path.insert(0,'scripts'); import harness_consistency_check as m; raise SystemExit(m.main(" + argument + "=" + repr(head) + ", prospective_branch=" + repr(branch) + "))"]
             result = subprocess.run(
-                [sys.executable, "scripts/harness_consistency_check.py"], cwd=scratch,
+                command, cwd=scratch,
                 env={**env, "PYTHONPATH": str(scratch / "src")}, check=False,
             )
-            print("MAINTENANCE_INTEGRATION: " + ("PASS" if result.returncode == 0 else "BLOCKED"))
+            print(("CARD_INTEGRATION_SIMULATION: " if is_card or is_correction else "MAINTENANCE_INTEGRATION: ") + ("PASS" if result.returncode == 0 else "BLOCKED"))
             return 0 if result.returncode == 0 else 1
     except (subprocess.CalledProcessError, ValueError) as exc:
         print(f"MAINTENANCE_INTEGRATION: BLOCKED — {exc}")

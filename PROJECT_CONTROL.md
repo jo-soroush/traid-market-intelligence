@@ -51,13 +51,13 @@ runtime check still means STOP. External hosted/delivery evidence is separate.
 ```text
 Project: TraID
 Target: V1
-Project Phase: C07_IMPLEMENTATION
+Project Phase: C07_INTEGRATED_PENDING_VERIFICATION / LOCAL_LIFECYCLE_CORRECTION
 Active Card: V1-C07
 Active Card State: READY_FOR_HUMAN_REVIEW
 Last COMPLETE Card: derived from the authoritative §30 table
 Next Roadmap Card: V1-C08 — Trade Flow & CVD
 Next Card Authorized: NO — C08 NOT_GRANTED
-Implementation Authorization: V1-C07 START_GRANTED; DELIVERY_NOT_GRANTED
+Implementation Authorization: V1-C07 START_GRANTED; DELIVERY_GRANTED; DELIVERY_NOT_VERIFIED — correction implementation; correction commit/push/PR GRANTED; correction merge NOT_GRANTED
 Systemic State-Drift Remediation: CLOSED / DELIVERED / VERIFIED
 V1 COMPLETE: NO
 Live Trade Execution: PROHIBITED
@@ -119,12 +119,12 @@ Implementation: completion is derived from the canonical §30 Card Status Table;
 Source Code: PRESENT — C01 baseline, C02 canonical domain contracts, C03 boundary, C04 provider adapter, C05 quality layer, and C06 historical data/replay foundation
 Tests: PRESENT — C01 through C06 focused, regression, and Harness tests
 Git Repository: INITIALIZED
-Git Branch: card/v1-c07-order-book-liquidity
+Git Branch: fix/card-integration-lifecycle-c07
 Git Checkpoint: 82eb0644b1e9912cd1dc972c646b489f26d081c4 — verified PR14 squash integration
-Git Upstream: NONE — local C07; delivery NOT_GRANTED
+Git Upstream: NONE — local lifecycle correction not yet pushed; correction commit/push/PR GRANTED, merge NOT_GRANTED
 Git Remote: origin — https://github.com/jo-soroush/traid-market-intelligence.git
 Git Safe Checkpoint: VERIFIED — historical PR #13 merge 2e04a174096b60e2c3719d4d4d5ff6a92a442e3e; prior reconciliation history preserved
-Working Tree: DIRTY_ALLOWED — authorized C07 implementation
+Working Tree: DIRTY_ALLOWED — explicitly scoped Card integration lifecycle correction
 V1-C01: COMPLETE
 V1-C01 Authorization: START_GRANTED; DELIVERY_GRANTED; DELIVERY_COMPLETED
 V1-C02: COMPLETE
@@ -547,6 +547,8 @@ Human Delivery Approval: GRANTED — explicit C06 controlled-delivery authorizat
 Delivery Verified: YES — PR #10 merged with hosted PR CI PASS at `1c40b3a5b0c801d303d71053c411427767d671c1`; PR #11 governance maintenance merged with hosted CI PASS at `e8ce5af0b548819d8b37711ff0e5185c7d306512`. PR #12 delivered the reconciliation policy at `622d7848bb00cdd0d1c3a877844b1c3099230f75`; its audit is HISTORICAL and maintenance is closed. C07 remains NOT_GRANTED.
 ```
 
+The Card record retains the reviewed source identity. Runtime integration and the separately authorized correction scope are proved by the single Card Integration Record below, not by rewriting historical audit identity. Successful recognition is pending verification, never COMPLETE.
+
 Current active-Card record:
 
 ```text
@@ -556,8 +558,29 @@ State: READY_FOR_HUMAN_REVIEW
 Branch: card/v1-c07-order-book-liquidity
 Start Commit: 82eb0644b1e9912cd1dc972c646b489f26d081c4
 Human Start Approval: GRANTED — explicit user V1-C07 implementation request
-Human Delivery Approval: NOT_GRANTED
+Human Delivery Approval: GRANTED — explicit C07 FINAL MERGE & POST-MERGE VERIFICATION; PR15 squash merge authorized and performed; closure not yet verified
 Delivery Verified: NO
+```
+
+Card Integration Record:
+
+```text
+Card ID: V1-C07
+Source Branch: card/v1-c07-order-book-liquidity
+Base SHA: 82eb0644b1e9912cd1dc972c646b489f26d081c4
+Source Commit: d26b45a3be831850ea8a8ac12b6d346d2ecad159
+Merge Anchor: b86a265e644bbac0674aad091769c38389ca7385
+PR: 15
+Protected Paths: src/traid/liquidity/__init__.py, src/traid/liquidity/analytics.py, tests/test_liquidity.py
+Integrated Paths: PROJECT_CONTROL.md, TRAID_CARD_EVIDENCE_MAP.md, src/traid/liquidity/__init__.py, src/traid/liquidity/analytics.py, tests/test_harness_consistency.py, tests/test_liquidity.py, tests/test_maintenance_harness.py
+Human Merge Approval: GRANTED — explicit C07 FINAL MERGE & POST-MERGE VERIFICATION instruction; PR15 merge independently verified through GitHub
+Post-Merge Verification: NOT_VERIFIED
+Closure Approval: NOT_GRANTED
+Correction Branch: fix/card-integration-lifecycle-c07
+Correction Base SHA: b86a265e644bbac0674aad091769c38389ca7385
+Correction Paths: .github/workflows/ci.yml, scripts/harness_consistency_check.py, scripts/check_maintenance_integration.py, tests/test_card_integration.py, tests/test_maintenance_harness.py, GIT_WORKFLOW.md, TRAID_ENGINEERING_HARNESS.md, PROJECT_CONTROL.md, TRAID_CARD_EVIDENCE_MAP.md
+Correction Authorization: GRANTED — ONE BOUNDED CARD INTEGRATION LIFECYCLE FIX and CONSOLIDATED HARNESS LIFECYCLE STABILIZATION; local implementation/testing; commit/push/PR GRANTED — explicit user authorization for controlled delivery of this correction only; merge NOT_GRANTED, C07 closure NOT_GRANTED, C08 NOT_GRANTED
+Correction Diff SHA-256: d1bd7c3a0f64d48aa5e4ea5e3fd1957594d834d647a886f6cf899762657ad2a5
 ```
 
 Current active-Card Contract/Risk Map:
@@ -584,13 +607,13 @@ Verification-technique applicability:
 V1-C01 Authorization: START_GRANTED; DELIVERY_GRANTED; DELIVERY_COMPLETED
 V1-C02 Authorization: START_GRANTED; DELIVERY_GRANTED; DELIVERY_COMPLETED
 Card Start: GRANTED — V1-C07 Phase 1 implementation
-Delivery Approval: NOT_GRANTED — C07 implementation only
+Delivery Approval: GRANTED — C07 PR15 commit/push/PR/merge authorized and performed; verification pending; correction commit/push/PR GRANTED (explicit user authorization), correction merge NOT_GRANTED
 Next Card: NOT_GRANTED — C08 and later remain unauthorized
 V1-C03 Authorization: START_GRANTED; DELIVERY_GRANTED; DELIVERY_COMPLETED
 V1-C04 Authorization: START_GRANTED; DELIVERY_GRANTED; DELIVERY_COMPLETED
 V1-C05 Authorization: START_GRANTED; DELIVERY_GRANTED; DELIVERY_COMPLETED
 V1-C06 Authorization: START_GRANTED; DELIVERY_GRANTED; DELIVERY_COMPLETED
-V1-C07 Authorization: START_GRANTED; DELIVERY_NOT_GRANTED
+V1-C07 Authorization: START_GRANTED; DELIVERY_GRANTED; DELIVERY_NOT_VERIFIED
 Architecture Change: NOT_GRANTED
 Material Scope Change: NOT_GRANTED
 Significant Technology Addition: NOT_GRANTED
@@ -1034,7 +1057,7 @@ Recommended State:
 Current:
 
 ```text
-CARD_QUALITY_GATE: PASS — C07 bounded AUD-01/AUD-03/AUD-05 remediation locally validated; prior independent FAIL preserved, fresh bounded re-audit PENDING; delivery NOT_GRANTED
+CARD_QUALITY_GATE: PASS — C07 local proof and independent Claude PASS preserved; original FAIL retained; integration verification pending; correction quality evidence owned by Evidence §26
 Evidence updated: YES — see C07 Evidence
 ```
 
@@ -1380,8 +1403,8 @@ when proof is absent.
 ```text
 Active Card is V1-C07
 Next Roadmap Card: V1-C08
-Repository Write Authorization: C07 implementation/testing only; no delivery
-Safe Resume: STOP for bounded independent Claude re-audit of corrected C07 instrument/unit contract and frozen candidate. Prior independent FAIL preserved; delivery NOT_GRANTED.
+Repository Write Authorization: one Card integration lifecycle correction only; no financial changes; correction commit/push/PR GRANTED; correction merge NOT_GRANTED
+Safe Resume: Continue only the authorized Card integration lifecycle correction on fix/card-integration-lifecycle-c07; C07 integrated but not verified/COMPLETE. Original Claude audit and FAIL history remain immutable. Correction commit/push/PR GRANTED by explicit user authorization (exact scope: the nine recorded correction paths); correction merge, C07 closure and C08 NOT_GRANTED.
 C01-C06 COMPLETE. PR14 integrated and predecessor archived in this normal C07 task.
 D-OI-001 remains DEFERRED; C08 and later NOT_GRANTED.
 ```

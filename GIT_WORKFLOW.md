@@ -1054,3 +1054,83 @@ prompts are justified only by new external failure evidence, genuine scope or
 architecture conflict, missing approval, unexpected repository state, or an
 unavailable external result. This is an operational rule, not an arbitrary
 machine-count limit.
+
+## 38. Card Integration and Recorded Closure
+
+Control §6 owns the single Card Integration Record. The original independent
+source audit remains immutable. Normal source-branch candidate enforcement is
+unchanged. Local integration recognition reproduces that audit from Git objects,
+verifies the exact source/squash tree including modes, the anchor's sole base
+parent and ancestry, protected paths and the explicitly scoped correction digest.
+Main must be clean and equal fetched origin/main. An authorized local correction
+is labelled local-only and is not delivery. An integrated correction additionally
+requires its own resolved independent audit bound to the exact technical candidate.
+No arbitrary descendant or same-path edit is exempt.
+
+Three stages have different evidence requirements:
+
+- Local technical validation (default) performs no GitHub requests. It may report
+  INTEGRATED_PENDING_VERIFICATION with EXTERNAL_ATTESTATION NOT_RUN and
+  DELIVERY_NOT_VERIFIED. This is not proof of an authorized GitHub delivery.
+- Prospective squash simulation requires a clean exact source branch/head and
+  current fetched target, implementation authorization, accepted independent audit,
+  candidate integrity and scope. It does not require final merge approval and
+  cannot accept COMPLETE. The existing runner handles ordinary Card,
+  maintenance/hotfix and the explicitly recorded fix/card-integration correction
+  branch. Unsupported sources are BLOCKED, never successfully skipped.
+- Actual delivery and closure require explicit human authority and external proof.
+  Run `python scripts/harness_consistency_check.py --verify-external` on integrated
+  main. It verifies the original GitHub PR relationship and, for the correction,
+  resolves its preserved origin source ref, exact digest and unique squash anchor,
+  then verifies that separate PR relationship. Missing, unavailable or contradictory
+  external evidence blocks attestation. Main push CI invokes this mode; source
+  CI uses local checks and prospective simulation before final merge approval.
+
+Before performing a merge, the delivery engineer must separately verify the
+human's explicit merge instruction and successful required checks for the exact
+PR head. A recorded approval is a process receipt, not authentication of human
+intent; neither agent-written prose, audit PASS nor technical CI grants authority.
+The existing consequential Git authorization rules remain mandatory.
+
+Normal Cards may record Source Commit, Merge Anchor and PR as DISCOVER. The source
+is resolved from its preserved origin source ref (or exact prospective head), the
+anchor from the unique exact squash tree with the declared base parent, and the
+PR from the exact external relationship. Preserve source objects/refs; missing or
+ambiguous evidence fails closed. C07 retains its explicitly recorded original
+source, anchor and immutable audited digest.
+
+Recognition writes neither Git nor canonical state. C07 remains
+READY_FOR_HUMAN_REVIEW until a separately authorized recorded closure. COMPLETE
+requires coordinated Control §2/§6/§7/§30/§34 and Card Evidence, existing quality,
+learning and delivery gates, explicit closure approval and actual successful
+post-merge local checks plus hosted main packaging, pytest, scanners and Harness.
+Record `Post-Merge Verification: PASS — run:<id> sha:<validated-main> local:<reference>`
+and `Closure Approval: GRANTED — <human-reference>` only when those facts exist.
+Local default checks refuse a live COMPLETE record without external attestation.
+Explicit external mode checks the real successful run and required steps, including archived C07+ delivery receipts; pending,
+failed and synthetic results cannot support closure. The reviewed correction
+identity is reproduced from the validated commit, not rewritten for the closure
+record. Only coordinated Control/Evidence state recording may follow that run;
+other code/test changes invalidate its applicability.
+
+At closure, add the Card's historical `### Delivery Verification` receipt with
+State POST_MERGE_VERIFIED, Source Branch, Base SHA, Audit Digest, Source Commit,
+Merge Anchor, Validated Main, Hosted Run, Local Validation Evidence and Closure
+Approval. It must agree exactly with the integration record. Preserve it and the
+original audit when archiving that record in a separately authorized next normal
+workflow. Human review still owns approval authenticity and local evidence sufficiency.
+
+A versioned closure transition is unavoidable. It may accompany the next separately
+authorized normal workflow once actual prerequisites have passed. This imposes no
+automatic closure-only maintenance PR and grants no next-Card authorization. If
+no state-recording workflow is authorized, retain integrated-pending status.
+
+Only designated audit result values, the correction self-digest and Human Merge
+Approval receipt in the integration record are normalized from technical identity.
+Other context, scope, authorization and structure stay hashed. Technical CI therefore imposes no premature merge-approval checkpoint. Final
+authority is checked at delivery/attestation. If its required receipt was not
+already recorded under explicit authorization, a separately authorized result-only
+checkpoint may still be needed in the existing PR; normalization preserves the
+technical audit identity but does not write or authenticate that receipt. Correction implementation
+permission is not correction merge permission: external attestation additionally
+requires its independently reviewed receipt to state explicit MERGE_GRANTED scope.
