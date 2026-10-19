@@ -2,6 +2,7 @@
 
 from traid.domain.models import (
     DOMAIN_SCHEMA_VERSION,
+    AggressorSide,
     Candle,
     DataQualityState,
     EvidenceReference,
@@ -18,6 +19,7 @@ from traid.domain.models import (
 
 __all__ = [
     "DOMAIN_SCHEMA_VERSION",
+    "AggressorSide",
     "Candle",
     "DataQualityState",
     "EvidenceReference",
