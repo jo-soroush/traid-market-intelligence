@@ -299,3 +299,33 @@ def test_valid_trade_ids_become_exact_decimal_source_ids_on_both_paths(tid):
     rest = adapter({Capability.TRADES: [_record(tid=tid)]}).trades("BTC")
     ws = HyperliquidAdapter(clock=lambda: NOW).normalize_ws_message({"channel": "trades", "data": [_record(tid=tid)]})
     assert rest[0].provenance.source_id == ws[0].provenance.source_id == str(tid)
+
+
+def _funding_record(rate):
+    return {"coin": "BTC", "fundingRate": rate, "premium": "0.0", "time": 1767265200035}
+
+
+@pytest.mark.parametrize("rate", ["0.0000125", "0", "0.0", "-0.0000125", "-0.00022196", "-0.04"])
+def test_funding_rate_is_signed_positive_zero_and_negative_are_preserved(rate):
+    result = adapter({Capability.FUNDING: [_funding_record(rate)]}).funding("BTC")
+    assert result.funding_rate == Decimal(rate) and str(result.funding_rate) == str(Decimal(rate))
+
+
+@pytest.mark.parametrize("rate", ["NaN", "Infinity", "-Infinity", "abc", "", None, True, 1.5, [], {}])
+def test_funding_rate_that_is_not_a_finite_decimal_is_rejected(rate):
+    with pytest.raises(AdapterError):
+        adapter({Capability.FUNDING: [_funding_record(rate)]}).funding("BTC")
+
+
+def test_signed_validation_is_scoped_to_funding_other_fields_stay_nonnegative():
+    negative_size = _record(sz="-1")
+    with pytest.raises(AdapterError):
+        adapter({Capability.TRADES: [negative_size]}).trades("BTC")
+    with pytest.raises(AdapterError):
+        HyperliquidAdapter(clock=lambda: NOW).normalize_ws_message({"channel": "trades", "data": [negative_size]})
+    candle = {"t": 1767261600000, "T": 1767265199999, "s": "BTC", "i": "1h", "o": "99", "c": "100", "h": "101", "l": "98", "v": "-3", "n": 4}
+    with pytest.raises(AdapterError):
+        adapter({Capability.CANDLES: [candle]}).candles("BTC")
+    book = {"coin": "BTC", "time": 1767265200000, "levels": [[{"px": "99", "sz": "-2", "n": 1}], []]}
+    with pytest.raises(AdapterError):
+        adapter({Capability.ORDER_BOOK: book}).order_book("BTC")

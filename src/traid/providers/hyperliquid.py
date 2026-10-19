@@ -47,14 +47,15 @@ def _timestamp(value: Any, capability: Capability) -> datetime:
     return datetime.fromtimestamp(value / 1000, tz=UTC)
 
 
-def _decimal(value: Any, capability: Capability, *, positive: bool = False) -> Decimal:
+def _decimal(value: Any, capability: Capability, *, positive: bool = False, signed: bool = False) -> Decimal:
+    """Finite decimal; nonnegative by default, strictly positive with ``positive``, any sign with ``signed``."""
     if not isinstance(value, (str, int, Decimal)) or isinstance(value, bool):
         raise ProviderDataError("provider numeric value is invalid", capability)
     try:
         result = Decimal(str(value))
     except (InvalidOperation, ValueError) as error:
         raise ProviderDataError("provider numeric value is invalid", capability) from error
-    if not result.is_finite() or (positive and result <= 0) or (not positive and result < 0):
+    if not result.is_finite() or (positive and result <= 0) or (not positive and not signed and result < 0):
         raise ProviderDataError("provider numeric value is outside the canonical domain", capability)
     return result
 
@@ -200,7 +201,7 @@ class HyperliquidAdapter(ExchangeAdapter):
             raise AdapterError(code=AdapterErrorCode.UNAVAILABLE, message="no funding observation returned", capability=capability)
         item = self._require_mapping(records[-1], capability)
         source_time = _timestamp(item["time"], capability)
-        return FundingSnapshot(symbol=str(item["coin"]), funding_rate=_decimal(item["fundingRate"], capability), timestamp=source_time, provenance=SourceProvenance(source="hyperliquid", source_type="public_info", source_id="fundingHistory", source_timestamp=source_time, received_timestamp=self._received()))
+        return FundingSnapshot(symbol=str(item["coin"]), funding_rate=_decimal(item["fundingRate"], capability, signed=True), timestamp=source_time, provenance=SourceProvenance(source="hyperliquid", source_type="public_info", source_id="fundingHistory", source_timestamp=source_time, received_timestamp=self._received()))
 
     def _market_context(self, symbol: str) -> MarketContext:
         capability = Capability.MARKET_CONTEXT

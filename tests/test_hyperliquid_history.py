@@ -155,14 +155,14 @@ def test_c04_differential_positive_funding_mapping(monkeypatch):
     assert new == old
 
 
-def test_negative_funding_is_preserved_in_c06_but_c04_differential_does_not_apply(monkeypatch):
+def test_negative_funding_mapping_is_identical_in_c04_and_c06(monkeypatch):
+    # Previously C04 rejected negative funding while C06 preserved it; funding is a signed rate.
     raw = funding_payload(rate="-0.000125")
     reference = HyperliquidAdapter(clock=lambda: NOW)
     monkeypatch.setattr(reference, "_post", lambda *_: [raw])
-    with pytest.raises(ProviderDataError, match="outside the canonical domain"):
-        reference._funding("BTC")
-    historical = provider(lambda payload: [raw] if payload["type"] == "fundingHistory" else []).fetch(BASE, BASE + timedelta(hours=1))
-    assert str(historical.funding[0].funding_rate) == "-0.000125"
+    old = reference._funding("BTC")
+    new = provider(lambda payload: [raw] if payload["type"] == "fundingHistory" else []).fetch(BASE, BASE + timedelta(hours=1)).funding[0]
+    assert str(new.funding_rate) == "-0.000125" and new == old
 
 
 def test_historical_layer_has_no_provider_imports_or_new_dependency():
