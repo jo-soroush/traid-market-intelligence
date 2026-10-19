@@ -309,6 +309,9 @@ def _na(unit, reason):
     return Metric(value=None, unit=unit, reason=reason)
 
 
+_NO_TIME = datetime.min.replace(tzinfo=timezone.utc)
+
+
 def _provenance_order(record):
     """Total order over provenance so the kept duplicate never depends on input order.
 
@@ -318,23 +321,38 @@ def _provenance_order(record):
     received, then smallest (source_type, source_id, source_timestamp).
     """
     p = record.provenance
-    return (p.received_timestamp, p.source_type, p.source_id or "", p.source_timestamp)
+    return (p.received_timestamp, p.source_type, p.source_id or "", p.source_timestamp or _NO_TIME)
 
 
-def _dedupe(records, key, content, blocking, conflict_reason):
-    unique, duplicates = {}, 0
+def _dedupe(records, key, content):
+    """Group-level duplicate handling that depends only on the multiset of records.
+
+    Returns (representatives, duplicates, conflicts), all functions of the input
+    multiset and never of its order:
+    * identity group = records sharing ``key``; content variant = records in the
+      group with equal ``content`` (value equality, so 1.0 == 1.00);
+    * duplicates = sum over groups of (records - distinct content variants), i.e.
+      redundant deliveries of content already seen. Design decision: the
+      specification does not define the counter; this is the smallest definition
+      that is order independent and counts equivalent repeats inside conflicting
+      groups the same way as inside clean ones;
+    * conflicts = number of groups with more than one content variant. Conflicts
+      are reported separately and are never resolved: callers make the section
+      unavailable, so no variant is ever chosen as truth;
+    * representative of a group = minimum of (provenance order, textual content),
+      the second term only breaking ties between value-equal records whose Decimal
+      formatting differs so even serialized output cannot depend on arrival order.
+    """
+    groups: dict = {}
     for record in records:
-        k = key(record)
-        kept = unique.get(k)
-        if kept is None:
-            unique[k] = record
-        elif content(kept) != content(record):
-            blocking.add(conflict_reason)
-        else:
-            duplicates += 1
-            if _provenance_order(record) < _provenance_order(kept):
-                unique[k] = record
-    return unique, duplicates
+        groups.setdefault(key(record), []).append(record)
+    unique, duplicates, conflicts = {}, 0, 0
+    for k, members in groups.items():
+        variants = {content(m) for m in members}
+        duplicates += len(members) - len(variants)
+        conflicts += len(variants) > 1
+        unique[k] = min(members, key=lambda m: (_provenance_order(m), tuple(map(str, content(m)))))
+    return unique, duplicates, conflicts
 
 
 def _tail(series, count, step, start_of):
@@ -368,11 +386,13 @@ def _candle_section(candles, config, coverage, evaluation_time, continuity, reco
             blocking.add("CANDLE_TIMESTAMP_PROVENANCE_MISMATCH")
         if not all(_bounded(v) for v in (c.open, c.high, c.low, c.close, c.volume)):
             blocking.add("NUMERIC_RANGE_UNSUPPORTED")
-    unique, duplicates = {}, 0
-    if not blocking:
-        unique, duplicates = _dedupe(
-            closed, lambda c: c.start_timestamp,
-            lambda c: (c.end_timestamp, c.open, c.high, c.low, c.close, c.volume), blocking, "CANDLE_CONFLICT")
+    unique, duplicates, conflicts = _dedupe(
+        closed, lambda c: (c.provenance.source, c.start_timestamp),
+        lambda c: (c.end_timestamp, c.open, c.high, c.low, c.close, c.volume))
+    if conflicts:
+        blocking.add("CANDLE_CONFLICT")
+    if blocking:
+        unique = {}  # nothing is retained, so no partially trusted value can be exposed
     series = sorted(unique.values(), key=lambda c: c.start_timestamp)
     unit_price = f"{config.quote_currency}"
 
@@ -487,11 +507,13 @@ def _funding_section(funding, config, coverage, evaluation_time, continuity, rec
             blocking.add("NUMERIC_RANGE_UNSUPPORTED")
         elif f.funding_rate > FUNDING_CAP or f.funding_rate < -FUNDING_CAP:  # exact; abs() would round
             blocking.add("FUNDING_RATE_EXCEEDS_DOCUMENTED_CAP")
-    unique, duplicates = {}, 0
-    if not blocking:
-        unique, duplicates = _dedupe(
-            checked, lambda f: _floor_hour(f.timestamp), lambda f: (f.timestamp, f.funding_rate),
-            blocking, "FUNDING_CONFLICT")
+    unique, duplicates, conflicts = _dedupe(
+        checked, lambda f: (f.provenance.source, _floor_hour(f.timestamp)),
+        lambda f: (f.timestamp, f.funding_rate))
+    if conflicts:
+        blocking.add("FUNDING_CONFLICT")
+    if blocking:
+        unique = {}  # nothing is retained, so no partially trusted value can be exposed
     series = sorted(unique.values(), key=lambda f: f.timestamp)
     hours = [_floor_hour(f.timestamp) for f in series]
     n = config.funding_lookback_hours

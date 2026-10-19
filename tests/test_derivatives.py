@@ -731,3 +731,175 @@ def test_c06_replayed_history_is_never_consumed_before_its_actual_receipt_and_is
     late = run(cs, fs, c=c, evaluation_time=FETCHED)
     assert late.candles.not_yet_received_count == 0 and late.candles.quality.state.value == "STALE"
     assert late.candles.atr.reason == late.funding.latest_rate.reason == "DATA_QUALITY_NOT_TRUSTED"
+
+
+# ------------------------------------------------------- order-independent duplicate semantics
+# Contract (design decision, the specification does not define the counter):
+#   duplicate_count = sum over identity groups of (records - distinct content variants)
+# and conflicts are reported only as a reason, never as duplicates and never resolved.
+TAIL = ATR_SERIES[-1]          # (11, 14, 11, 13, 1)
+
+
+def variant(volume, source_id, lag=5, **kw):
+    spec = (TAIL[0], TAIL[1], TAIL[2], TAIL[3], volume)
+    return candle(LAST, *spec, source_id=source_id, lag=lag, **kw)
+
+
+def all_orders(items):
+    return list(itertools.permutations(items))
+
+
+def unique_serializations(base, items, runner):
+    return {runner(base + tuple(p)).model_dump_json() for p in all_orders(items)}
+
+
+def test_reported_abc_case_conflicting_candles_have_one_order_independent_report():
+    base = candles(ATR_SERIES[:-1], LAST - HOUR)
+    a, b, c = variant(1, "A"), variant(2, "B"), variant(2, "C")        # A conflicts with B and C; B == C
+    assert len(unique_serializations(base, [a, b, c], run)) == 1
+    r = run(base + (a, b, c))
+    assert r.candles.reasons == ("CANDLE_CONFLICT",)
+    assert r.candles.duplicate_count == 1            # 3 records - 2 content variants; B/C are the equivalent pair
+    assert r.candles.input_count == 7                 # 4 base candles + A, B, C
+    assert r.candles.quality is None and r.candles.provenance is None and not r.candles.trusted_for_current_use
+    assert r.candles.retained_count == 0 and r.candles.latest_start is None and r.candles.bars_behind is None
+    metrics = (r.candles.atr, r.candles.realized_volatility, r.candles.vwap, r.candles.vwap_session_volume,
+               *(m.simple_return for m in r.candles.momentum))
+    assert all(m.value is None and m.reason == "CANDLE_CONFLICT" for m in metrics)
+
+
+@pytest.mark.parametrize("volumes, expected_duplicates", [
+    ([1, 1], 1), ([1, 1, 1], 2), ([1, 1, 1, 1], 3),           # equivalent deliveries
+    ([1, 2], 0), ([1, 2, 3], 0),                              # all distinct: conflict, no duplicate
+    ([1, 2, 2], 1), ([2, 1, 2], 1), ([1, 1, 2, 2], 2), ([1, 1, 1, 2], 2), ([1, 2, 2, 3, 3, 3], 3),
+])
+def test_candle_duplicate_count_is_records_minus_content_variants_for_every_order(volumes, expected_duplicates):
+    base = candles(ATR_SERIES[:-1], LAST - HOUR)
+    items = [variant(v, str(i)) for i, v in enumerate(volumes)]
+    seen = set()
+    for p in itertools.islice(itertools.permutations(items), 720):
+        r = run(base + tuple(p))
+        seen.add((r.model_dump_json(), r.candles.duplicate_count))
+        assert r.candles.duplicate_count == expected_duplicates
+    assert len({s[0] for s in seen}) == 1
+    assert run(base + tuple(items)).candles.reasons == (("CANDLE_CONFLICT",) if len(set(volumes)) > 1 else ())
+
+
+def test_equivalent_records_with_every_kind_of_metadata_difference_are_one_observation():
+    base = candles(ATR_SERIES[:-1], LAST - HOUR)
+    items = [variant(1, "B", lag=5), variant(1, "A", lag=5),                       # differing ids, equal receipt
+             variant(1, "A", lag=9),                                              # different receipt
+             variant(1, "C", lag=5, source_type="public_websocket"),             # different transport
+             variant(1, "unused").model_copy(update={"provenance": SourceProvenance(                 # missing id
+                 source="fixture", source_type="public_info", source_timestamp=LAST,
+                 received_timestamp=LAST + HOUR + timedelta(seconds=5))})]
+    assert len(unique_serializations(base, items, run)) == 1
+    r = run(base + tuple(items))
+    assert r.candles.duplicate_count == 4 and r.candles.reasons == () and r.candles.trusted_for_current_use
+    # earliest received, then smallest (transport, id): the missing id sorts first among the lag-5 public_info copies
+    assert r.candles.provenance.newest_record_provenance.source_id is None
+    assert r.candles.provenance.newest_record_provenance.source_type == "public_info"
+
+
+def test_value_equal_decimals_with_different_formatting_cannot_make_output_depend_on_order():
+    base = candles(ATR_SERIES[:-1], LAST - HOUR)
+    first = candle(LAST, *TAIL[:4], D("1.0"), source_id="X")
+    second = candle(LAST, *TAIL[:4], D("1.00"), source_id="X")
+    session = config(session_start=LAST - HOUR)
+    runner = lambda cs: run(cs, c=session)  # noqa: E731
+    assert len(unique_serializations(base, [first, second], runner)) == 1
+    assert run(base + (first, second), c=session).candles.duplicate_count == 1
+
+
+def mixed_groups():
+    """Four candle identities: conflicting 1+3, conflicting 2+2, clean 3x, and a single."""
+    def at(hours_back, volume, i, spec=(11, 14, 11, 13)):
+        return candle(LAST - hours_back * HOUR, *spec, volume, source_id=f"{hours_back}-{i}")
+    g1 = [at(1, 1, 0)] + [at(1, 2, i) for i in (1, 2, 3)]
+    g2 = [at(2, 1, i) for i in (0, 1)] + [at(2, 2, i) for i in (2, 3)]
+    g3 = [at(3, 1, i) for i in (0, 1, 2)]
+    g4 = [at(4, 1, 0)]
+    return g1 + g2 + g3 + g4
+
+
+def test_mixed_multiplicity_groups_count_consistently_and_conflicts_stay_separate():
+    items = mixed_groups()
+    _, duplicates, conflicts = module._dedupe(
+        [c for c in items], lambda c: (c.provenance.source, c.start_timestamp),
+        lambda c: (c.end_timestamp, c.open, c.high, c.low, c.close, c.volume))
+    assert (duplicates, conflicts) == (2 + 2 + 2 + 0, 2)    # (4-2) + (4-2) + (3-1) + (1-1); two conflicting identities
+    rng = random.Random(5)
+    expected = None
+    for _ in range(60):
+        rng.shuffle(items)
+        r = run(tuple(items))
+        expected = expected or r.model_dump_json()
+        assert r.model_dump_json() == expected
+        assert r.candles.duplicate_count == 6 and r.candles.reasons == ("CANDLE_CONFLICT",)
+    clean = [c for c in items if c.start_timestamp in {LAST - 3 * HOUR, LAST - 4 * HOUR}]
+    only_clean = run(tuple(clean))
+    assert only_clean.candles.duplicate_count == 2 and "CANDLE_CONFLICT" not in only_clean.candles.reasons
+
+
+@pytest.mark.parametrize("change", [
+    dict(open=12), dict(high=15), dict(low=10), dict(close=12), dict(volume=2),
+])
+def test_a_difference_in_any_candle_value_field_is_a_conflict_not_a_duplicate(change):
+    base = candles(ATR_SERIES[:-1], LAST - HOUR)
+    spec = dict(zip(("open", "high", "low", "close", "volume"), TAIL))
+    other = {**spec, **change}
+    a = candle(LAST, spec["open"], spec["high"], spec["low"], spec["close"], spec["volume"], source_id="A")
+    b = candle(LAST, other["open"], other["high"], other["low"], other["close"], other["volume"], source_id="B")
+    for p in all_orders([a, b]):
+        r = run(base + tuple(p))
+        assert r.candles.reasons == ("CANDLE_CONFLICT",) and r.candles.duplicate_count == 0 and r.candles.atr.value is None
+
+
+def funding_variant(rate, source_id, lag=2, offset=0.035, hour=FUND_LAST):
+    when = hour + timedelta(seconds=offset)
+    return FundingSnapshot(symbol="BTC", funding_rate=D(rate), timestamp=when, provenance=SourceProvenance(
+        source="fixture", source_type="public_info", source_id=source_id, source_timestamp=when,
+        received_timestamp=when + timedelta(seconds=lag)))
+
+
+def test_conflicting_funding_abc_case_is_order_independent_and_negative_rates_stay_valid():
+    base = rates(["-0.00001", "-0.00002", "-0.00003"], FUND_LAST - HOUR)
+    a, b, c = funding_variant("-0.00004", "A"), funding_variant("-0.00005", "B"), funding_variant("-0.00005", "C")
+    assert len({run(fs=base + tuple(p)).model_dump_json() for p in all_orders([a, b, c])}) == 1
+    r = run(fs=base + (a, b, c))
+    assert r.funding.reasons == ("FUNDING_CONFLICT",) and r.funding.duplicate_count == 1
+    assert r.funding.quality is None and r.funding.provenance is None and r.funding.retained_count == 0
+    assert r.funding.latest_start is None and r.funding.latest_rate.value is None
+    clean = run(fs=base + (funding_variant("-0.00004", "A"), funding_variant("-0.00004", "B", lag=7)))
+    assert clean.funding.latest_rate.value == D("-0.00004") and clean.funding.duplicate_count == 1
+    assert clean.funding.reasons == () and clean.funding.cumulative_funding.value == D("-0.0001")
+
+
+@pytest.mark.parametrize("rates_in_group, expected", [
+    (["0.00001"] * 3, 2), (["0.00001", "0.00002"], 0), (["0.00001", "0.00002", "0.00002"], 1),
+    (["0.00001", "0.00001", "0.00002", "0.00002"], 2), (["0", "0.0", "0.00"], 2),
+])
+def test_funding_duplicate_count_matches_the_candle_contract(rates_in_group, expected):
+    base = rates(["0.00001", "0.00001", "0.00001"], FUND_LAST - HOUR)
+    items = [funding_variant(r, str(i), lag=2 + i % 2) for i, r in enumerate(rates_in_group)]
+    outputs = {(run(fs=base + tuple(p)).model_dump_json()) for p in itertools.islice(all_orders(items), 120)}
+    assert len(outputs) == 1
+    assert run(fs=base + tuple(items)).funding.duplicate_count == expected
+
+
+def test_a_difference_in_funding_rate_or_exact_timestamp_is_a_conflict():
+    base = rates(["0.00001"] * 3, FUND_LAST - HOUR)
+    for other in (funding_variant("0.00002", "B"), funding_variant("0.00001", "B", offset=0.036, lag=2)):
+        for p in all_orders([funding_variant("0.00001", "A"), other]):
+            r = run(fs=base + tuple(p))
+            assert r.funding.reasons == ("FUNDING_CONFLICT",) and r.funding.duplicate_count == 0
+
+
+def test_future_received_conflicting_variants_cannot_change_earlier_duplicate_diagnostics():
+    base = candles(ATR_SERIES[:-1], LAST - HOUR)
+    known = (variant(1, "A"), variant(1, "B"))
+    baseline = run(base + known)
+    later = (variant(9, "Z", lag=7200), variant(8, "Y", lag=7300))
+    r = run(base + known + later)
+    assert stable(r.candles) == stable(baseline.candles) and baseline.candles.duplicate_count == 1
+    assert r.candles.not_yet_received_count == 2
