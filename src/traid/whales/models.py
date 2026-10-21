@@ -197,8 +197,9 @@ class WalletFill(WhaleModel):
 
     @property
     def end_position(self) -> Decimal:
-        # Exact: both operands are provider decimals; the context only bounds precision.
-        delta = self.size if self.side == "B" else -self.size
+        # Exact and ambient-context independent: copy_negate never rounds, and the addition
+        # runs in the explicit 8192-digit context (provider decimals are far shorter).
+        delta = self.size if self.side == "B" else self.size.copy_negate()
         return CANONICAL.add(self.start_position, delta)
 
     @property

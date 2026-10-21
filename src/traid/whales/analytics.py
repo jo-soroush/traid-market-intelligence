@@ -41,6 +41,7 @@ from decimal import (
     ROUND_HALF_EVEN, localcontext,
 )
 from enum import StrEnum
+import json
 from typing import Literal
 
 from pydantic import Field, model_validator
@@ -61,6 +62,12 @@ ZERO = Decimal(0)
 QUOTE = "USDC"
 BASE = "BTC"
 INTERPRETATION = "DESCRIBES_PAST_OBSERVED_CLOSING_FILL_OUTCOMES_NOT_PREDICTIVE_SKILL"
+FRAGMENTATION = "COUNTS_CLOSING_FILLS_NOT_INDEPENDENT_TRADES_SENSITIVE_TO_FILL_FRAGMENTATION"
+SMART_MONEY_LIMITATIONS = (
+    FRAGMENTATION,  # one close split into many fills raises the win rate without changing closed PnL
+    "CLOSED_PNL_FEE_TREATMENT_UNVERIFIED",
+    "NOT_PREDICTIVE_SKILL_OR_TRADE_AUTHORIZATION",
+)
 
 
 # ------------------------------------------------------------------------------ rules
@@ -72,7 +79,8 @@ class ScoreComponent(StrEnum):
 
 
 NORMALIZATION = {
-    ScoreComponent.CLOSING_FILL_WIN_RATE: "wins/(wins+losses) over closing fills with non-zero closedPnl; range [0,1]",
+    ScoreComponent.CLOSING_FILL_WIN_RATE: ("wins/(wins+losses) counted per closing FILL with non-zero closedPnl, "
+                                           "not per independent trade; range [0,1]"),
     ScoreComponent.CLOSED_PNL_GAIN_SHARE: "sum(closedPnl>0)/(sum(closedPnl>0)+|sum(closedPnl<0)|); range [0,1]",
 }
 
@@ -139,9 +147,14 @@ class LabelCheck(StrEnum):
 
 
 class Continuity(StrEnum):
-    FIRST_OBSERVED = "FIRST_OBSERVED"
-    CHAINED = "CHAINED"
-    GAP_BEFORE = "GAP_BEFORE"
+    FIRST_OBSERVED = "FIRST_OBSERVED"    # first fill seen: no earlier fill to chain from
+    CHAINED = "CHAINED"                  # starts exactly where the previous fill ended
+    GAP_BEFORE = "GAP_BEFORE"            # position changed between fills without an observed fill
+    AMBIGUOUS_ORDER = "AMBIGUOUS_ORDER"  # same-millisecond fills whose order positions cannot prove
+    UNANCHORED = "UNANCHORED"            # follows an ambiguous group, so its predecessor is unknown
+
+
+UNPROVEN = (Continuity.GAP_BEFORE, Continuity.AMBIGUOUS_ORDER, Continuity.UNANCHORED)
 
 
 class LifecycleEvent(WhaleModel):
@@ -193,6 +206,7 @@ class LifecycleEvidence(WhaleModel):
     history_fresh: bool
     duplicate_count: int = Field(ge=0)
     continuity_gap_count: int = Field(ge=0)
+    ambiguous_sequence_count: int = Field(ge=0)
     contradictory_label_count: int = Field(ge=0)
     unattributed_liquidation_count: int = Field(ge=0)
     reasons: tuple[str, ...]
@@ -245,16 +259,24 @@ class LabelCount(WhaleModel):
 
 
 class Coverage(StrEnum):
-    # COMPLETE: a fresh COMPLETE fill history proves every fill from the window start through
+    # Fill coverage: a fresh COMPLETE fill history proves every FILL from the window start through
     # observed_through (its final page receipt); fills after observed_through are not yet known.
+    # It says nothing about position changes without fills: see PositionContinuity.
     COMPLETE = "COMPLETE"
     INCOMPLETE = "INCOMPLETE"
+
+
+class PositionContinuity(StrEnum):
+    # PROVEN: inside the window every fill starts where the previous one ended, in a proven order.
+    PROVEN = "PROVEN"
+    UNPROVEN = "UNPROVEN"
 
 
 class ActivitySummary(WhaleModel):
     window_start: datetime           # exclusive
     observed_through: datetime | None
     coverage: Coverage
+    position_continuity: PositionContinuity
     observed_event_counts: tuple[LabelCount, ...]  # events seen in the window (a lower bound if INCOMPLETE)
     buy_volume: Metric
     sell_volume: Metric
@@ -265,6 +287,7 @@ class ActivitySummary(WhaleModel):
 class PerformanceEvidence(WhaleModel):
     window_start: datetime
     coverage: Coverage
+    position_continuity: PositionContinuity
     funding_coverage: Coverage
     unrealized_pnl: Metric
     unrealized_as_of: datetime | None
@@ -272,7 +295,7 @@ class PerformanceEvidence(WhaleModel):
     fees: Metric
     funding: Metric
     combined_net_pnl: Metric
-    closing_fill_count: int | None
+    closing_fill_count: int | None   # closing FILLS, not independent trades or position episodes
     winning_closing_fills: int | None
     losing_closing_fills: int | None
     flat_closing_fills: int | None
@@ -307,18 +330,22 @@ class SmartMoneyEvidence(WhaleModel):
     components: tuple[ComponentValue, ...]
     score: Metric
     score_status: ScoreStatus
+    evidence_unit: Literal["CLOSING_FILL"] = "CLOSING_FILL"
     interpretation: Literal["DESCRIBES_PAST_OBSERVED_CLOSING_FILL_OUTCOMES_NOT_PREDICTIVE_SKILL"] = INTERPRETATION
+    limitations: tuple[str, ...] = SMART_MONEY_LIMITATIONS
     reasons: tuple[str, ...]
 
     @model_validator(mode="after")
     def earned(self):
+        if not set(SMART_MONEY_LIMITATIONS) <= set(self.limitations):
+            raise ValueError("methodology limitations, including fill fragmentation, must stay disclosed")
         if (self.status is SmartMoneyStatus.ELIGIBLE) != bool(self.components):
             raise ValueError("components exist exactly for eligible evidence")
         if (self.score_status is ScoreStatus.SCORED) != (self.score.value is not None):
             raise ValueError("a score value exists exactly when scored")
         if self.score_status is ScoreStatus.SCORED and (
-                self.status is not SmartMoneyStatus.ELIGIBLE or any(c.weight is None for c in self.components)):
-            raise ValueError("only eligible evidence with configured weights can be scored")
+                self.status is not SmartMoneyStatus.ELIGIBLE or all(c.weight is None for c in self.components)):
+            raise ValueError("only eligible evidence with at least one configured weight can be scored")
         if self.status is not SmartMoneyStatus.ELIGIBLE and not self.reasons:
             raise ValueError("ineligible evidence requires a reason")
         return self
@@ -386,6 +413,7 @@ class WhaleReport(WhaleModel):
         "PAST_OUTCOMES_ARE_NOT_PREDICTIVE_SKILL",
         "PNL_COMPONENTS_NOT_COMBINED_ACCOUNTING_COMPOSITION_UNVERIFIED",
         "PROVIDER_EXPOSES_ONLY_10000_MOST_RECENT_FILLS",
+        "SMART_MONEY_COUNTS_CLOSING_FILLS_SENSITIVE_TO_FILL_FRAGMENTATION",
         "LIQUIDATION_ONLY_FROM_PROVIDER_FILL_MARKER_NEVER_FROM_ESTIMATED_PRICE",
         "NOTIONAL_IS_PROVIDER_POSITION_VALUE_PRICE_BASIS_UNDOCUMENTED",
         "QUOTE_UNITS_USDC_MARGINED_PERP_NOT_DOCUMENTED_PER_FIELD",
@@ -426,6 +454,11 @@ def _received(obj, cls) -> datetime:
     return received
 
 
+def _rank(model):
+    """Total order over records: value identity first, then the exact provider spelling."""
+    return canonical_json(model.model_dump(mode="python")), json.dumps(model.model_dump(mode="json"), sort_keys=True)
+
+
 def _effect(start: Decimal, end: Decimal) -> PositionEffect:
     if start == 0:
         return PositionEffect.OPEN
@@ -437,11 +470,13 @@ def _effect(start: Decimal, end: Decimal) -> PositionEffect:
 
 
 # Provider `dir` text (observed live: Open/Close Long/Short, "Long > Short", "Short > Long").
+# Each text must match the side AND the size effect: "Open" grows the position away from
+# zero (OPEN/INCREASE), "Close" moves it toward zero without crossing (REDUCE/CLOSE).
 _DIRECTION = {
-    "Open Long": lambda s, e: s >= 0 and e > 0,
-    "Open Short": lambda s, e: s <= 0 and e < 0,
-    "Close Long": lambda s, e: s > 0 and e >= 0,
-    "Close Short": lambda s, e: s < 0 and e <= 0,
+    "Open Long": lambda s, e: s >= 0 and e > s,
+    "Open Short": lambda s, e: s <= 0 and e < s,
+    "Close Long": lambda s, e: s > 0 and 0 <= e < s,
+    "Close Short": lambda s, e: s < 0 and s < e <= 0,
     "Long > Short": lambda s, e: s > 0 and e < 0,
     "Short > Long": lambda s, e: s < 0 and e > 0,
 }
@@ -457,29 +492,101 @@ def _attribution(fill: WalletFill) -> LiquidationAttribution:
     return LiquidationAttribution.COUNTERPARTY
 
 
-def _chain_order(fills: list[WalletFill]) -> list[WalletFill]:
-    """Time order; within one millisecond, follow the startPosition chain (tid is not chronological)."""
-    ordered: list[WalletFill] = []
-    current = None
+SEARCH_BUDGET = 10000  # search steps per millisecond group; exhausting it means "not proven"
+
+
+def _complete_orders(counter: Counter, start: Decimal, total: int, limit: int, budget: list[int]):
+    """Distinct position paths from ``start`` using every transition once (at most ``limit``).
+
+    Iterative depth-first search over transition types indexed by start position; parallel
+    fills with the same (start, end) are one type, so their mutual order never counts as a
+    different path. ``budget`` is shared by the caller; None means it ran out.
+    """
+    by_start: dict = {}
+    for k in sorted(counter):
+        by_start.setdefault(k[0], []).append(k)
+
+    def following(position):
+        return iter([k for k in by_start.get(position, ()) if counter[k] > 0])
+    found, path, stack = [], [], [following(start)]
+    while stack:
+        budget[0] -= 1
+        if budget[0] < 0:
+            return None
+        step = next(stack[-1], None)
+        if step is None:
+            stack.pop()
+            if path:
+                counter[path.pop()] += 1
+            continue
+        counter[step] -= 1
+        path.append(step)
+        if len(path) == total:
+            found.append(tuple(path))
+            if len(found) >= limit:
+                return found
+            counter[path.pop()] += 1
+            continue
+        stack.append(following(step[1]))
+    return found
+
+
+def _unique_chain(group: list[WalletFill], anchor: Decimal | None) -> list[WalletFill] | None:
+    """The one same-millisecond order that position continuity proves, or None.
+
+    The group's fills must form exactly one position path that uses all of them. It starts
+    at the anchor (the previous fill's end) whenever some fill starts there. Otherwise (no
+    anchor, or a gap before the group) a path using every fill can only begin at the one
+    position with one more outgoing than incoming transition; a balanced group is a cycle
+    that could begin anywhere, so it is not proven. Several paths, none, or an exhausted
+    search mean the order is not proven; ``tid`` is never chronological evidence. Parallel
+    fills with identical (start, end) are interchangeable, listed in presentation order.
+    """
+    counter = Counter((f.start_position, f.end_position) for f in group)
+    if anchor is not None and any(k[0] == anchor for k in counter):
+        begin = anchor
+    else:
+        balance: Counter = Counter()
+        for (a, b), n in counter.items():
+            balance[a] += n
+            balance[b] -= n
+        sources = [v for v, n in balance.items() if n > 0]
+        if len(sources) != 1 or balance[sources[0]] != 1:
+            return None
+        begin = sources[0]
+    paths = _complete_orders(counter, begin, len(group), 2, [SEARCH_BUDGET])
+    if paths is None or len(paths) != 1:
+        return None
+    pools: dict = {}
+    for f in group:   # group is already in presentation order
+        pools.setdefault((f.start_position, f.end_position), []).append(f)
+    return [pools[k].pop(0) for k in paths[0]]
+
+
+def _chain_order(fills: list[WalletFill]) -> list[tuple[WalletFill, Continuity]]:
+    """Time order; within one millisecond only the order position continuity proves."""
     by_time: dict[datetime, list[WalletFill]] = {}
     for f in fills:
         by_time.setdefault(f.time, []).append(f)
+    ordered: list[tuple[WalletFill, Continuity]] = []
+    anchor, started = None, False
     for t in sorted(by_time):
-        remaining = sorted(by_time[t], key=lambda f: (f.tid, f.oid))
-        while remaining:
-            pick = next((f for f in remaining if current is not None and f.start_position == current), None)
-            if pick is None:
-                ends = {f.end_position for f in remaining}
-                heads = [f for f in remaining if f.start_position not in ends]
-                pick = (heads or remaining)[0]
-            ordered.append(pick)
-            remaining.remove(pick)
-            current = pick.end_position
+        group = sorted(by_time[t], key=lambda f: (f.tid, f.oid))   # presentation only
+        chain = _unique_chain(group, anchor)
+        if chain is None:
+            ordered += [(f, Continuity.AMBIGUOUS_ORDER) for f in group]
+            anchor, started = None, True
+            continue
+        for f in chain:
+            continuity = (Continuity.FIRST_OBSERVED if not started else Continuity.UNANCHORED if anchor is None
+                          else Continuity.CHAINED if f.start_position == anchor else Continuity.GAP_BEFORE)
+            ordered.append((f, continuity))
+            anchor, started = f.end_position, True
     return ordered
 
 
 def _latest(histories):
-    return max(histories, key=lambda h: (h.provenance.received_timestamp, canonical_json(h.model_dump(mode="python"))))
+    return max(histories, key=lambda h: (h.provenance.received_timestamp, _rank(h)))
 
 
 # -------------------------------------------------------------------------- lifecycle
@@ -488,7 +595,7 @@ def _lifecycle(histories: list[FillHistory], T, rules: WhaleRules) -> LifecycleE
         return LifecycleEvidence(
             status=LifecycleStatus.NO_HISTORY, events=(), history_completeness=None, history_reasons=(),
             coverage_start=None, observed_through=None, history_fresh=False, duplicate_count=0,
-            continuity_gap_count=0, contradictory_label_count=0, unattributed_liquidation_count=0,
+            continuity_gap_count=0, ambiguous_sequence_count=0, contradictory_label_count=0, unattributed_liquidation_count=0,
             reasons=("NO_FILL_HISTORY_KNOWN_AT_EVALUATION",))
     latest = _latest(histories)
     received = latest.provenance.received_timestamp
@@ -505,25 +612,22 @@ def _lifecycle(histories: list[FillHistory], T, rules: WhaleRules) -> LifecycleE
             conflicted = True
             continue
         duplicates += len(group) - 1
-        fills.append(min(group, key=lambda f: canonical_json(f.model_dump(mode="python"))))
+        fills.append(min(group, key=_rank))
     common = dict(history_completeness=latest.completeness, history_reasons=latest.reasons,
                   coverage_start=latest.requested_start if complete else None, observed_through=received,
                   history_fresh=fresh, duplicate_count=duplicates)
     if conflicted:
         return LifecycleEvidence(status=LifecycleStatus.CONFLICT, events=(), continuity_gap_count=0,
-                                 contradictory_label_count=0, unattributed_liquidation_count=0,
+                                 ambiguous_sequence_count=0, contradictory_label_count=0, unattributed_liquidation_count=0,
                                  reasons=("CONFLICTING_FILLS_FOR_ONE_IDENTITY",), **common)
-    ordered = _chain_order(fills)
-    events, previous = [], None
-    for f in ordered:
+    events = []
+    for f, continuity in _chain_order(fills):
         end = f.end_position
         effect = _effect(f.start_position, end)
         attribution = _attribution(f)
         rule = _DIRECTION.get(f.direction_label)
         check = (LabelCheck.UNRECOGNIZED if rule is None else
                  LabelCheck.CONSISTENT if rule(f.start_position, end) else LabelCheck.CONTRADICTORY)
-        continuity = (Continuity.FIRST_OBSERVED if previous is None else
-                      Continuity.CHAINED if f.start_position == previous else Continuity.GAP_BEFORE)
         label = {LiquidationAttribution.OWN_ACCOUNT: LifecycleLabel.LIQUIDATION,
                  LiquidationAttribution.UNATTRIBUTED: LifecycleLabel.UNKNOWN}.get(attribution, LifecycleLabel(effect.value))
         events.append(LifecycleEvent(
@@ -533,8 +637,8 @@ def _lifecycle(histories: list[FillHistory], T, rules: WhaleRules) -> LifecycleE
             liquidation_method=None if f.liquidation is None else f.liquidation.method,
             provider_direction_label=f.direction_label, direction_label_check=check, continuity=continuity,
             closed_pnl=f.closed_pnl, fee=f.fee, fee_token=f.fee_token))
-        previous = end
     gaps = sum(e.continuity is Continuity.GAP_BEFORE for e in events)
+    ambiguous = sum(e.continuity is Continuity.AMBIGUOUS_ORDER for e in events)
     contradictory = sum(e.direction_label_check is LabelCheck.CONTRADICTORY for e in events)
     unattributed = sum(e.liquidation_attribution is LiquidationAttribution.UNATTRIBUTED for e in events)
     reasons = []
@@ -542,6 +646,8 @@ def _lifecycle(histories: list[FillHistory], T, rules: WhaleRules) -> LifecycleE
         reasons.append(f"PROVIDER_DIRECTION_LABEL_CONTRADICTS_SIZE_CHANGE:{contradictory}")
     if gaps:
         reasons.append(f"CONTINUITY_GAPS:{gaps}")
+    if ambiguous:
+        reasons.append(f"SAME_MILLISECOND_ORDER_AMBIGUOUS:{ambiguous}")
     if unattributed:
         reasons.append(f"LIQUIDATION_MARKER_WITHOUT_LIQUIDATED_USER:{unattributed}")
     if not complete:
@@ -552,7 +658,7 @@ def _lifecycle(histories: list[FillHistory], T, rules: WhaleRules) -> LifecycleE
         reasons.append("PROVIDER_DIRECTION_LABEL_UNRECOGNIZED")
     status = LifecycleStatus.CONTRADICTORY if contradictory else LifecycleStatus.AVAILABLE
     return LifecycleEvidence(status=status, events=tuple(events), continuity_gap_count=gaps,
-                             contradictory_label_count=contradictory, unattributed_liquidation_count=unattributed,
+                             ambiguous_sequence_count=ambiguous, contradictory_label_count=contradictory, unattributed_liquidation_count=unattributed,
                              reasons=tuple(reasons), **common)
 
 
@@ -560,6 +666,16 @@ def _covers(lifecycle: LifecycleEvidence, start: datetime) -> bool:
     """A window (start, T] is covered only by a fresh COMPLETE history that began at or before start."""
     return (lifecycle.status in (LifecycleStatus.AVAILABLE, LifecycleStatus.CONTRADICTORY)
             and lifecycle.coverage_start is not None and lifecycle.coverage_start <= start and lifecycle.history_fresh)
+
+
+def _continuity_problems(lifecycle: LifecycleEvidence, start: datetime) -> list[str]:
+    """Paging completeness is not economic completeness: an unexplained or unordered change in
+    the window leaves its position path unproven (never assumed to be zero activity)."""
+    inside = [e for e in lifecycle.events if e.time > start]
+    gaps = sum(e.continuity is Continuity.GAP_BEFORE for e in inside)
+    unordered = sum(e.continuity in (Continuity.AMBIGUOUS_ORDER, Continuity.UNANCHORED) for e in inside)
+    return ([f"CONTINUITY_GAPS_IN_WINDOW:{gaps}"] if gaps else []) + (
+        [f"UNPROVEN_FILL_ORDER_IN_WINDOW:{unordered}"] if unordered else [])
 
 
 def _reconcile(snapshot: PositionSnapshot | None, lifecycle: LifecycleEvidence) -> Reconciliation:
@@ -579,6 +695,9 @@ def _reconcile(snapshot: PositionSnapshot | None, lifecycle: LifecycleEvidence) 
         return unknown("FILL_AT_SNAPSHOT_MILLISECOND_ORDER_UNKNOWN", size)
     before = [e for e in covered if e.time < ts]
     after = [e for e in covered if e.time > ts]
+    if (before and before[-1].continuity is Continuity.AMBIGUOUS_ORDER) or (
+            after and after[0].continuity is Continuity.AMBIGUOUS_ORDER):
+        return unknown("FILL_ORDER_AMBIGUOUS_AROUND_SNAPSHOT", size)
     implied_before = before[-1].end_position if before else None
     implied_after = after[0].start_position if after else None
     if implied_before is None and implied_after is None:
@@ -598,7 +717,7 @@ def _select_snapshot(snapshots: list[PositionSnapshot], T, rules: WhaleRules):
     group = [s for s in snapshots if s.snapshot_time == newest]
     if len({canonical_json(s.model_dump(mode="python", exclude={"provenance"})) for s in group}) > 1:
         return SnapshotStatus.CONFLICT, None, ("CONFLICTING_SNAPSHOTS_AT_ONE_PROVIDER_TIME",)
-    chosen = min(group, key=lambda s: (s.provenance.received_timestamp, canonical_json(s.model_dump(mode="python"))))
+    chosen = min(group, key=lambda s: (s.provenance.received_timestamp, _rank(s)))
     if T - newest > rules.max_snapshot_age:
         return SnapshotStatus.STALE, chosen, ("SNAPSHOT_STALE",)
     return SnapshotStatus.FRESH, chosen, ()
@@ -688,17 +807,20 @@ def _activity(lifecycle: LifecycleEvidence, T, rules: WhaleRules) -> ActivitySum
     observed = tuple(LabelCount(label=label, count=counts[label]) for label in LifecycleLabel)
     covered = _covers(lifecycle, start)
     reasons = [] if covered else ["FILL_HISTORY_DOES_NOT_COVER_WINDOW"]
-    if covered:
+    continuity = _continuity_problems(lifecycle, start)
+    reasons += continuity
+    if covered:  # fill totals are observed facts whatever the position path between fills
         buy = _sum(e.size for e in events if e.side == "B")
         sell = _sum(e.size for e in events if e.side == "A")
         with localcontext(EXACT):
             notional = _sum(e.price * e.size for e in events)
         volumes = (_m(buy, BASE), _m(sell, BASE), _m(notional, f"{QUOTE} (C11-derived price x size)"))
     else:
-        why = reasons[0]
+        why = "FILL_HISTORY_DOES_NOT_COVER_WINDOW"
         volumes = (_na(BASE, why), _na(BASE, why), _na(QUOTE, why))
     return ActivitySummary(window_start=start, observed_through=lifecycle.observed_through,
                            coverage=Coverage.COMPLETE if covered else Coverage.INCOMPLETE,
+                           position_continuity=PositionContinuity.UNPROVEN if continuity else PositionContinuity.PROVEN,
                            observed_event_counts=observed, buy_volume=volumes[0], sell_volume=volumes[1],
                            traded_notional=volumes[2], reasons=tuple(reasons))
 
@@ -710,7 +832,8 @@ def _performance(lifecycle, funding_histories: list[FundingHistory], exposure: W
                  rules: WhaleRules) -> PerformanceEvidence:
     start = T - rules.smart_money.evaluation_window
     covered = _covers(lifecycle, start)
-    reasons = []
+    continuity = _continuity_problems(lifecycle, start)
+    reasons = list(continuity)
     unrealized = exposure.unrealized_pnl
     if covered:
         events = _window(lifecycle.events, start, T)
@@ -744,13 +867,14 @@ def _performance(lifecycle, funding_histories: list[FundingHistory], exposure: W
         funding = _na(QUOTE, "CONFLICTING_FUNDING_ENTRIES")
         reasons.append("CONFLICTING_FUNDING_ENTRIES")
     elif funding_covered:  # one settlement per provider time; equal repeats count once
-        funding = _m(_sum(group[0].usdc for t, group in by_time.items() if start < t <= T),
+        funding = _m(_sum(min(group, key=_rank).usdc for t, group in by_time.items() if start < t <= T),
                      f"{QUOTE} (provider userFunding usdc, sign as reported)")
     else:
         funding = _na(QUOTE, "FUNDING_HISTORY_DOES_NOT_COVER_WINDOW")
         reasons.append("FUNDING_HISTORY_DOES_NOT_COVER_WINDOW")
     return PerformanceEvidence(
         window_start=start, coverage=Coverage.COMPLETE if covered else Coverage.INCOMPLETE,
+        position_continuity=PositionContinuity.UNPROVEN if continuity else PositionContinuity.PROVEN,
         funding_coverage=Coverage.COMPLETE if funding_covered else Coverage.INCOMPLETE,
         unrealized_pnl=unrealized, unrealized_as_of=exposure.snapshot_time if unrealized.value is not None else None,
         closed_pnl=closed, fees=fees, funding=funding,
@@ -778,6 +902,9 @@ def _smart_money(lifecycle, reconciliation, performance: PerformanceEvidence, T,
         return result(SmartMoneyStatus.UNKNOWN, ["POSITION_SNAPSHOT_UNRECONCILED_WITH_FILLS"])
     if performance.coverage is not Coverage.COMPLETE:
         return result(SmartMoneyStatus.INSUFFICIENT_EVIDENCE, ["FILL_HISTORY_DOES_NOT_COVER_EVALUATION_WINDOW"])
+    if performance.position_continuity is not PositionContinuity.PROVEN:
+        return result(SmartMoneyStatus.INSUFFICIENT_EVIDENCE, ["POSITION_CONTINUITY_UNPROVEN_IN_EVALUATION_WINDOW",
+                                                               *_continuity_problems(lifecycle, start)])
     if performance.closing_fill_count < sm.min_closing_fills:
         return result(SmartMoneyStatus.INSUFFICIENT_EVIDENCE,
                       [f"CLOSING_FILLS_BELOW_MINIMUM:{performance.closing_fill_count}<{sm.min_closing_fills}"])

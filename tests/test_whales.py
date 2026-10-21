@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta, timezone
 from decimal import ROUND_DOWN, Decimal, localcontext
 import inspect
+import itertools
 import json
 from pathlib import Path
 import random
@@ -185,12 +186,14 @@ def test_same_millisecond_fills_follow_the_position_chain_not_tid():
     assert [e.tid for e in w.lifecycle.events] == [100, 900, 500] and w.lifecycle.continuity_gap_count == 0
 
 
-def test_same_millisecond_ordering_continues_the_previous_chain_first():
+def test_a_gap_inside_one_millisecond_makes_its_order_ambiguous():
+    # 0.3 -> 0.5 continues the earlier fill, but 1.0 -> 1.2 could sit before or after it:
+    # with a gap inside the millisecond no order is proven, and tid does not decide it.
     at = t(5)
     fills = [fill("0", "0.3", "B", t(6), 1), fill("0.3", "0.2", "B", at, 900), fill("1", "0.2", "B", at, 100)]
     w = one(run(fills=[history(fills)]))
-    # The fill continuing the earlier position comes first; only the unrelated one is a gap.
-    assert [e.tid for e in w.lifecycle.events] == [1, 900, 100] and w.lifecycle.continuity_gap_count == 1
+    assert [e.continuity.value for e in w.lifecycle.events] == ["FIRST_OBSERVED", "AMBIGUOUS_ORDER", "AMBIGUOUS_ORDER"]
+    assert w.lifecycle.ambiguous_sequence_count == 2 and "SAME_MILLISECOND_ORDER_AMBIGUOUS:2" in w.lifecycle.reasons
 
 
 def test_real_fixture_chain_has_no_gaps_although_tid_order_would():
@@ -631,3 +634,198 @@ def test_no_output_can_authorize_or_route_a_trade():
         source = inspect.getsource(mod)
         assert "traid.exchange" not in source and "urllib" not in source and "datetime.now" not in source
         assert "import random" not in source and "from random" not in source
+
+
+# ========================================================= audit regressions (C11 remediation)
+@pytest.mark.parametrize("start, size, side, end, effect, text", [
+    ("0.12345", "0.12346", "A", "-0.00001", "FLIP", "Long > Short"),
+    ("-0.12345", "0.12346", "B", "0.00001", "FLIP", "Short > Long"),
+    ("0.1234567890123456789012345678901", "0.1234567890123456789012345678901", "A", "0", "CLOSE", "Close Long"),
+    ("-1.00000000000000000000000000000001", "0.00000000000000000000000000000002", "A",
+     "-1.00000000000000000000000000000003", "INCREASE", "Open Short"),
+    ("0", "0.00000000000000000000000000000001", "A", "-0.00000000000000000000000000000001", "OPEN", "Open Short"),
+])
+def test_end_positions_and_labels_ignore_the_ambient_decimal_context(start, size, side, end, effect, text):
+    f = fill(start, size, side, t(5), 1, dir=text)
+    results = []
+    for prec, rounding in ((28, None), (3, ROUND_DOWN), (1, ROUND_DOWN)):
+        with localcontext() as c:
+            c.prec = prec
+            if rounding:
+                c.rounding = rounding
+            assert f.end_position == D(end)
+            report = run(fills=[history([f])])
+        (e,) = one(report).lifecycle.events
+        assert (e.end_position, e.position_effect.value, e.direction_label_check.value) == (D(end), effect, "CONSISTENT")
+        results.append(report.model_dump_json())
+    assert len(set(results)) == 1
+
+
+def test_a_gap_in_a_complete_history_withholds_smart_money_but_keeps_observed_facts():
+    # Paging is complete, yet the position moves 1 -> 5 with no fill: the economic path is unproven.
+    fills = [fill("2", "1", "A", t(50), 1, closed="5"), fill("5", "1", "A", t(40), 2, closed="5")]
+    w = one(run(fills=[history(fills)]))
+    assert w.lifecycle.history_completeness is Completeness.COMPLETE and w.lifecycle.continuity_gap_count == 1
+    p = w.performance
+    assert p.coverage.value == "COMPLETE" and p.position_continuity.value == "UNPROVEN"
+    assert p.closed_pnl.value == D(10) and p.closing_fill_count == 2   # observed facts preserved
+    assert "CONTINUITY_GAPS_IN_WINDOW:1" in p.reasons
+    assert w.activity.position_continuity.value == "UNPROVEN" and w.activity.sell_volume.value == D(2)
+    sm = w.smart_money
+    assert sm.status is SmartMoneyStatus.INSUFFICIENT_EVIDENCE and sm.score.value is None and sm.components == ()
+    assert sm.reasons[:2] == ("POSITION_CONTINUITY_UNPROVEN_IN_EVALUATION_WINDOW", "CONTINUITY_GAPS_IN_WINDOW:1")
+    scored = one(run(r=rules(weights=[(ScoreComponent.CLOSING_FILL_WIN_RATE, "1")]), fills=[history(fills)])).smart_money
+    assert scored.score_status is ScoreStatus.NOT_ELIGIBLE
+
+
+def test_a_gap_before_the_window_does_not_block_a_proven_window():
+    fills = [fill("0", "1", "B", t(170), 100), fill("3", "1", "B", t(160), 101),    # 1 -> 3 gap, before the 2h window
+             fill("4", "1", "A", t(100), 102, closed="5"), fill("3", "1", "B", t(90), 103),
+             fill("4", "1", "A", t(80), 104, closed="-2")]
+    w = one(run(fills=[history(fills)]))
+    assert w.lifecycle.continuity_gap_count == 1
+    assert w.performance.position_continuity.value == "PROVEN" and w.smart_money.status is SmartMoneyStatus.ELIGIBLE
+
+
+def test_cycles_without_an_anchor_are_ambiguous_and_never_reconciled():
+    at = t(10)
+    fills = [fill("0", "1", "B", at, 7), fill("1", "1", "A", at, 3)]          # 0->1->0 or 1->0->1
+    w = one(run(snapshots=[snapshot("0", at=t(5))], fills=[history(fills)]))
+    assert [e.continuity.value for e in w.lifecycle.events] == ["AMBIGUOUS_ORDER", "AMBIGUOUS_ORDER"]
+    assert w.reconciliation.status is ReconciliationStatus.NOT_CHECKABLE
+    assert w.reconciliation.reasons == ("FILL_ORDER_AMBIGUOUS_AROUND_SNAPSHOT",)
+    later = one(run(fills=[history(fills + [fill("0", "1", "B", t(5), 9)])]))
+    assert later.lifecycle.events[-1].continuity.value == "UNANCHORED"
+    assert later.performance.position_continuity.value == "UNPROVEN"
+
+
+def test_an_anchor_resolves_the_same_cycle_and_parallel_transitions():
+    at = t(10)
+    anchored = [fill("1", "1", "A", t(20), 1), fill("0", "1", "B", at, 7), fill("1", "1", "A", at, 3)]
+    w = one(run(fills=[history(anchored)]))
+    assert [e.tid for e in w.lifecycle.events] == [1, 7, 3]
+    assert [e.continuity.value for e in w.lifecycle.events] == ["FIRST_OBSERVED", "CHAINED", "CHAINED"]
+    parallel = [fill("1", "1", "A", t(20), 1), fill("0", "1", "B", at, 8), fill("1", "1", "A", at, 5),
+                fill("0", "1", "B", at, 2)]
+    w = one(run(fills=[history(parallel)]))
+    assert [e.end_position for e in w.lifecycle.events] == list(map(D, ["0", "1", "0", "1"]))
+    assert w.lifecycle.ambiguous_sequence_count == 0 and w.lifecycle.continuity_gap_count == 0
+    # 0->1, 0->2 both leave the anchor, but only 0->1->0->2 uses every fill: still proven.
+    dead_end = [fill("1", "1", "A", t(20), 1), fill("0", "1", "B", at, 8), fill("1", "1", "A", at, 5),
+                fill("0", "2", "B", at, 2)]
+    w = one(run(fills=[history(dead_end)]))
+    assert [e.end_position for e in w.lifecycle.events] == list(map(D, ["0", "1", "0", "2"]))
+    assert w.lifecycle.ambiguous_sequence_count == 0
+    # 0->1->0->-1->0 and 0->-1->0->1->0 both fit: genuinely ambiguous even with an anchor.
+    two_ways = [fill("1", "1", "A", t(20), 1), fill("0", "1", "B", at, 8), fill("1", "1", "A", at, 5),
+                fill("0", "1", "A", at, 2), fill("-1", "1", "B", at, 3)]
+    assert one(run(fills=[history(two_ways)])).lifecycle.ambiguous_sequence_count == 4
+
+
+def test_ambiguity_survives_permutations_and_decimal_spellings():
+    at = t(10)
+    variants = [fill("0", "1", "B", at, 7), fill("1", "1", "A", at, 3)]
+    respelled = [variants[0].model_copy(update={"start_position": D("0.000"), "size": D("1.0")}),
+                 variants[1].model_copy(update={"start_position": D("1.00")})]
+    outputs = set()
+    for chosen in (variants, respelled):
+        for perm in itertools.permutations(chosen):
+            w = one(run(fills=[history(list(perm))]))
+            assert w.lifecycle.ambiguous_sequence_count == 2
+            outputs.add(tuple(e.continuity.value for e in w.lifecycle.events))
+    assert outputs == {("AMBIGUOUS_ORDER", "AMBIGUOUS_ORDER")}
+
+
+@pytest.mark.parametrize("prec", [28, 2])
+def test_equivalent_duplicates_serialize_identically_in_any_order(prec):
+    a = fill("0", "1", "B", t(20), 1, price="100000")
+    a2 = a.model_copy(update={"price": D("100000.0"), "size": D("1.00")})
+    s1, s2 = snapshot("1.5", at=t(2), received=t(1)), snapshot("1.5", at=t(2), received=t(1))
+    s2 = s2.model_copy(update={"btc_position": s2.btc_position.model_copy(update={"size": D("1.50"), "entry_price": D("100000.00")})})
+    f1, f2 = fund(t(10), "-1.0"), fund(t(10), "-1.000")
+    h1, h2 = history([a]), history([a2])                   # same receipt: tied
+    fh1, fh2 = funding([f1]), funding([f2])
+    outs = set()
+    for snaps in itertools.permutations([s1, s2]):
+        for hists in itertools.permutations([h1, h2]):
+            for funds in itertools.permutations([fh1, fh2]):
+                with localcontext() as c:
+                    c.prec, c.rounding = prec, ROUND_DOWN
+                    outs.add(run(snapshots=snaps, fills=hists, funding_histories=funds).model_dump_json())
+    assert len(outs) == 1
+    w = one(WhaleReport.model_validate_json(outs.pop()))
+    assert w.lifecycle.duplicate_count == 1 and w.performance.funding.value == D(-1)
+
+
+def test_a_single_configured_component_is_a_coherent_score():
+    sm = one(run(r=rules(weights=[(ScoreComponent.CLOSING_FILL_WIN_RATE, "1")]), fills=[history(round_trips(4))])).smart_money
+    assert sm.score_status is ScoreStatus.SCORED and sm.score.value == D("0.5")
+    weights = {c.component: c.weight for c in sm.components}
+    assert weights == {ScoreComponent.CLOSING_FILL_WIN_RATE: D(1), ScoreComponent.CLOSED_PNL_GAIN_SHARE: None}
+    data = one(run(fills=[history(round_trips(4))])).smart_money.model_dump()
+    data.update(score_status="SCORED", score={"value": D("0.5"), "unit": "x", "reason": None})
+    with pytest.raises(ValidationError):    # a score with no configured weight at all is unearned
+        type(sm).model_validate(data)
+    with pytest.raises(ValidationError):
+        type(sm).model_validate(dict(sm.model_dump(), limitations=()))   # disclosure cannot be dropped
+
+
+@pytest.mark.parametrize("start, size, side, text, effect", [
+    ("1", "1", "B", "Close Long", "INCREASE"),
+    ("-1", "1", "A", "Close Short", "INCREASE"),
+    ("2", "1", "A", "Open Long", "REDUCE"),
+    ("-2", "1", "B", "Open Short", "REDUCE"),
+    ("1", "1", "A", "Open Long", "CLOSE"),
+    ("1", "2", "A", "Close Long", "FLIP"),
+    ("-1", "2", "B", "Close Short", "FLIP"),
+    ("0", "1", "B", "Close Long", "OPEN"),
+    ("1", "1", "B", "Long > Short", "INCREASE"),
+])
+def test_direction_text_contradicting_the_size_effect_is_detected(start, size, side, text, effect):
+    w = one(run(fills=[history([fill(start, size, side, t(5), 1, dir=text)])]))
+    (e,) = w.lifecycle.events
+    assert e.position_effect.value == effect and e.direction_label_check.value == "CONTRADICTORY"
+    assert w.lifecycle.status is LifecycleStatus.CONTRADICTORY
+
+
+@pytest.mark.parametrize("start, size, side, text", [
+    ("0", "1", "B", "Open Long"), ("1", "1", "B", "Open Long"), ("2", "1", "A", "Close Long"),
+    ("1", "1", "A", "Close Long"), ("0", "1", "A", "Open Short"), ("-1", "1", "A", "Open Short"),
+    ("-2", "1", "B", "Close Short"), ("-1", "1", "B", "Close Short"), ("1", "2", "A", "Long > Short"),
+    ("-1", "2", "B", "Short > Long"),
+])
+def test_matching_direction_text_is_consistent(start, size, side, text):
+    (e,) = one(run(fills=[history([fill(start, size, side, t(5), 1, dir=text)])])).lifecycle.events
+    assert e.direction_label_check.value == "CONSISTENT"
+
+
+def test_fill_fragmentation_sensitivity_is_demonstrated_and_disclosed():
+    equal = rules(weights=[(ScoreComponent.CLOSED_PNL_GAIN_SHARE, "1"), (ScoreComponent.CLOSING_FILL_WIN_RATE, "1")])
+    whole = [fill("0", "1", "B", t(100), 1), fill("1", "1", "A", t(90), 2, closed="10"),
+             fill("0", "1", "B", t(80), 3), fill("1", "1", "A", t(70), 4, closed="-10")]
+    pieces = [fill("0", "1", "B", t(100), 1)] + [
+        fill(str(D("1") - D("0.1") * i), "0.1", "A", t(95) + timedelta(seconds=i), 10 + i, closed="1") for i in range(10)
+    ] + [fill("0", "1", "B", t(80), 3), fill("1", "1", "A", t(70), 4, closed="-10")]
+    a, b = one(run(r=equal, fills=[history(whole)])), one(run(r=equal, fills=[history(pieces)]))
+    assert a.performance.closed_pnl.value == b.performance.closed_pnl.value == 0   # same economics
+    assert a.smart_money.score.value == D("0.5")
+    with localcontext() as c:
+        c.prec = 50
+        assert abs(b.smart_money.score.value - (D(10) / D(11) + D("0.5")) / 2) < D("1e-48")   # ~0.7045
+    for sm in (a.smart_money, b.smart_money):
+        assert sm.evidence_unit == "CLOSING_FILL"
+        assert "COUNTS_CLOSING_FILLS_NOT_INDEPENDENT_TRADES_SENSITIVE_TO_FILL_FRAGMENTATION" in sm.limitations
+    assert "SMART_MONEY_COUNTS_CLOSING_FILLS_SENSITIVE_TO_FILL_FRAGMENTATION" in run().limitations
+    assert "per closing FILL" in next(c.normalization for c in b.smart_money.components
+                                      if c.component is ScoreComponent.CLOSING_FILL_WIN_RATE)
+
+
+def test_large_same_millisecond_sweeps_resolve_and_search_is_bounded(monkeypatch):
+    at = t(10)
+    sweep = [fill(str(D("0.001") * i), "0.001", "B", at, 10**6 - i) for i in range(2500)]   # tids descending
+    w = one(run(fills=[history(sweep)]))
+    assert w.lifecycle.ambiguous_sequence_count == 0 and w.lifecycle.continuity_gap_count == 0
+    assert w.lifecycle.events[-1].end_position == D("2.5")
+    monkeypatch.setattr(analytics, "SEARCH_BUDGET", 100)   # an exhausted search proves nothing
+    w = one(run(fills=[history(sweep)]))
+    assert w.lifecycle.ambiguous_sequence_count == 2500 and w.smart_money.status is not SmartMoneyStatus.ELIGIBLE
