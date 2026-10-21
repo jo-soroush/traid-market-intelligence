@@ -7,9 +7,12 @@ Three official paths, verified live on 2026-10-21:
   the items titled "Federal Reserve issues FOMC statement".
 * ``/newsevents/pressreleases/monetaryYYYYMMDDa.htm``: the statement page states its
   date ("September 16, 2026"), its release time with an explicit zone ("For release at
-  2:00 p.m. EDT") and the decision ("decided to maintain the target range for the
-  federal funds rate at 3-1/2 to 3-3/4 percent" / "decided to raise|lower ... by 1/4
-  percentage point to 3-3/4 to 4 percent"; hyphens may be U+2011).
+  2:00 p.m. EDT") and the decision in one of three verified forms (hyphens may be U+2011):
+  "decided to maintain the target range for the federal funds rate at 3-1/2 to 3-3/4
+  percent"; "decided to raise|lower ... by 1/4 percentage point to 3-3/4 to 4 percent";
+  or the target-only form "decided to raise ... to 5-1/4 to 5-1/2 percent" (July 26, 2023)
+  / "decided to lower ... to 0 to 1/4 percent" (March 15, 2020, released 5:00 p.m. EDT).
+  A change size is recorded only when stated; it is never inferred here.
 * ``/monetarypolicy/fomccalendars.htm``: per-year sections "YYYY FOMC Meetings" with
   month labels ("April", "Apr/May") and dates ("28-29", "30-1", "17-18*",
   "22 (notation vote)").
@@ -105,7 +108,7 @@ def statement_items(items: tuple[FeedItem, ...]) -> tuple[FeedItem, ...]:
 _NUMBER = r"(\d+(?:-\d/\d)?|\d/\d)"
 _DECISION = re.compile(
     r"decided to (maintain|raise|lower) the target range for the federal funds rate "
-    rf"(?:at|by {_NUMBER} percentage points? to) {_NUMBER} to {_NUMBER} percent")
+    rf"(at|(?:by {_NUMBER} percentage points? )?to) {_NUMBER} to {_NUMBER} percent")
 _RELEASE = re.compile(r"For release at (\d{1,2}):(\d{2}) ([ap])\.m\. (EST|EDT)")
 _DATE = re.compile(r"(January|February|March|April|May|June|July|August|September|October|November|December) "
                    r"(\d{1,2}), (\d{4}) Federal Reserve issues FOMC statement")
@@ -150,16 +153,16 @@ def parse_fomc_statement(document: str, *, item: FeedItem, received: datetime) -
     published = (local - ZONES[zone]).replace(tzinfo=UTC)
     if published != item.published_at:
         raise ProviderDataError("page release time and feed publication time disagree")
-    (verb, change, lower, upper), = decisions
+    (verb, preposition, change, lower, upper), = decisions
     action = {"maintain": PolicyAction.MAINTAIN, "raise": PolicyAction.RAISE, "lower": PolicyAction.LOWER}[verb]
-    if (action is PolicyAction.MAINTAIN) != (change == ""):
-        raise ProviderDataError("decision wording and change size disagree")
+    if (action is PolicyAction.MAINTAIN) != (preposition == "at"):
+        raise ProviderDataError("decision verb and wording disagree")
     received = received.astimezone(UTC)
     try:
         return FomcStatement(
             statement_date=statement_date, url=item.url, published_at=published,
             release_time_text=f"{int(hour) % 12 or 12}:{minute} {meridiem}.m. {zone}",
-            action=action, change_percentage_points=None if change == "" else _fraction(change),
+            action=action, stated_change_percentage_points=None if change == "" else _fraction(change),
             target_lower_percent=_fraction(lower), target_upper_percent=_fraction(upper),
             decision_text=_DECISION.search(text).group(0),
             provenance=SourceProvenance(source="federal_reserve_board", source_type="public_website",

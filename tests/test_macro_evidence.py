@@ -15,7 +15,8 @@ from traid.domain.models import SourceProvenance
 from traid.macro import (
     BLS_SERIES, PROVIDERS, US_SPOT_BTC_ETFS, Applicability, AssetEtfMapping, EtfEvidenceReport, EtfFund, EtfMetric,
     EtfObservation, EtfProvider, Freshness, MacroEvidenceReport, MacroEventType, ProviderState, ScheduledRelease,
-    SupportState, ValueBasis, Vintage, build_etf_evidence, build_macro_evidence, verify_mapping_identity,
+    ReceiptWindow, ReleaseVintage, SupportState, ValueBasis, build_etf_evidence, build_macro_evidence,
+    verify_mapping_identity,
 )
 from traid.macro.bls import parse_bls_response
 from traid.macro.fed import FeedItem, STATEMENT_TITLE, parse_fomc_calendar, parse_fomc_statement
@@ -113,11 +114,22 @@ def test_a_zone_is_never_assumed():
 
 
 # ======================================================= release window and revisions
-def test_capture_inside_the_release_window_is_the_release_value_with_previous():
+NOT_ESTABLISHED = "ORIGINAL_RELEASE_VINTAGE_NOT_ESTABLISHED_NO_VINTAGE_SOURCE"
+
+
+def assert_no_release_claim(s):
+    assert s.release_vintage is ReleaseVintage.NOT_ESTABLISHED
+    assert (s.release_value.value, s.release_value.reason) == (None, NOT_ESTABLISHED)
+    assert (s.previous_at_release.value, s.previous_at_release.reason) == (None, NOT_ESTABLISHED)
+
+
+def test_capture_inside_the_inferred_window_is_known_at_receipt_not_a_release_value():
     s = series(build(caps=captures(S + timedelta(minutes=3))))
     assert (s.freshness, s.reference_period, s.scheduled_at, s.next_scheduled_at) == (Freshness.CURRENT, "2026-09", S, N)
-    assert s.release_value.value == D("336.940") and s.previous_at_release.value == D("334.980")
-    assert s.known_vintage is Vintage.RELEASE_WINDOW and s.publication_time is None
+    assert s.known_value.value == D("336.940") and s.previous_known.value == D("334.980")
+    assert s.captured_at == S + timedelta(minutes=3) and s.first_observed_at == S + timedelta(minutes=3)
+    assert s.receipt_window is ReceiptWindow.INFERRED_RELEASE_WINDOW and s.publication_time is None
+    assert_no_release_claim(s)
     assert s.consensus.value is None and s.consensus.reason == "NO_APPROVED_CONSENSUS_SOURCE"
     assert s.unit == "index, 1982-84=100" and s.seasonal_adjustment == "NSA"
 
@@ -128,19 +140,21 @@ def test_historical_backfill_is_unusable_before_its_receipt_and_schedule_gaps_un
     assert series(then).known_value.value is None and then.excluded_after_evaluation.bls_captures == 4
     gap = (CPI_SCHEDULE[0], sched("2026-11", date(2026, 12, 10)))      # the 2026-10 release is not listed
     s = series(build(schedules=gap, caps=captures(S + timedelta(minutes=3))))
-    assert s.next_scheduled_at is None and s.known_vintage is Vintage.UNKNOWN_WINDOW
-    assert s.release_value.value is None and s.release_value.reason == "NO_CAPTURE_IN_RELEASE_WINDOW"
+    assert s.next_scheduled_at is None and s.receipt_window is ReceiptWindow.UNBOUNDED
     assert "NEXT_PERIOD_RELEASE_NOT_SCHEDULED_WINDOW_UNBOUNDED" in s.reasons
-    assert s.known_value.value == D("336.940")    # still what TraID knew, just not proven as the release value
+    assert s.known_value.value == D("336.940")    # still what TraID knew at its receipt
+    assert_no_release_claim(s)
 
 
 def test_revisions_are_kept_in_receipt_order_and_never_overwritten():
     first = captures(S + timedelta(minutes=5))
     revised = captures(S + timedelta(days=3), payload=with_value("2026-09", "337.010"))
     s = series(build(caps=first + revised))
-    assert [r.value for r in s.revisions] == [D("336.940"), D("337.010")]
-    assert s.release_value.value == D("336.940") and s.known_value.value == D("337.010")
+    assert [(r.captured_at, r.value) for r in s.revisions] == [(S + timedelta(minutes=5), D("336.940")),
+                                                                (S + timedelta(days=3), D("337.010"))]
+    assert s.known_value.value == D("337.010") and s.captured_at == S + timedelta(days=3)
     assert "REVISED_ACROSS_CAPTURES:1" in s.reasons
+    assert_no_release_claim(s)
 
 
 def test_a_capture_holding_a_period_before_its_release_contradicts_the_schedule():
@@ -156,8 +170,9 @@ def test_published_unavailable_values_stay_unavailable_never_zero():
     sch = (sched("2025-10", date(2025, 11, 13), retrieved=known), sched("2025-11", date(2025, 12, 18), retrieved=known))
     s = series(build(at=datetime(2025, 11, 20, tzinfo=UTC), schedules=sch,
                      caps=captures(datetime(2025, 11, 13, 14, tzinfo=UTC), payload=_until("2025-10"))))
-    assert s.known_value.value is None and "lapse in appropriations" in s.known_value.reason
-    assert s.release_value.value is None and s.release_value.reason.startswith("PUBLISHED_UNAVAILABLE:")
+    assert s.known_value.value is None and s.known_value.reason.startswith("PUBLISHED_UNAVAILABLE:")
+    assert "lapse in appropriations" in s.known_value.reason and s.revisions[0].raw_value == "-"
+    assert_no_release_claim(s)
 
 
 def _until(period):
@@ -212,8 +227,10 @@ def test_preliminary_flags_and_employment_units():
            sched("2026-10", date(2026, 11, 6), event="EMPLOYMENT_SITUATION"))
     r = build(schedules=sch, caps=captures(datetime(2026, 10, 2, 12, 40, tzinfo=UTC)))
     nfp, rate = series(r, "CES0000000001"), series(r, "LNS14000000")
-    assert nfp.preliminary is True and nfp.unit == "thousands of persons" and nfp.release_value.value == D(159044)
-    assert rate.unit == "percent" and rate.release_value.value == D("4.2") and rate.previous_at_release.value == D("4.1")
+    assert nfp.preliminary is True and nfp.unit == "thousands of payroll jobs" and nfp.known_value.value == D(159044)
+    assert nfp.measure == "LEVEL" and nfp.known_value.unit == "thousands of payroll jobs"
+    assert rate.unit == "percent" and rate.measure == "RATE"
+    assert rate.known_value.value == D("4.2") and rate.previous_known.value == D("4.1")
 
 
 def test_macro_evidence_is_deterministic_across_orders_and_contexts():
@@ -283,7 +300,7 @@ APPROVED = EtfProvider(provider_id="test_provider", name="Test provider", state=
 T_ETF = datetime(2026, 10, 21, 22, tzinfo=UTC)
 
 
-def obs(ticker, metric=EtfMetric.NET_FLOW_USD, raw="1000000", basis=ValueBasis.REPORTED, day=date(2026, 10, 20),
+def obs(ticker, metric=EtfMetric.NET_FLOW_USD, raw="1000000", basis=ValueBasis.REPORTED, day=date(2026, 10, 21),
         provider="test_provider", received=datetime(2026, 10, 21, 12, tzinfo=UTC)):
     unit = etf_module.UNITS[metric]
     return EtfObservation(provider_id=provider, ticker=ticker, metric=metric, trade_date=day, raw_value=raw,
@@ -366,14 +383,15 @@ def test_volume_and_assets_never_become_flows():
 def test_etf_point_in_time_and_revisions():
     funds = [f.ticker for f in US_SPOT_BTC_ETFS.applicable()]
     first = [obs(t, raw="10") for t in funds]
-    revised = obs("IBIT", raw="12", received=datetime(2026, 10, 21, 20, tzinfo=UTC))
+    revised = obs("IBIT", raw="12", received=datetime(2026, 10, 21, 21, tzinfo=UTC))
     future = obs("FBTC", raw="999", received=datetime(2026, 10, 22, tzinfo=UTC))
     r = etf(first + [revised, future])
     m = metric(r, EtfMetric.NET_FLOW_USD)
     assert next(f for f in m.funds if f.ticker == "IBIT").value.value == D(12)     # latest known receipt
     assert next(f for f in m.funds if f.ticker == "FBTC").value.value == D(10)
     assert r.excluded_after_evaluation == 1
-    early = metric(etf(first + [revised], at=datetime(2026, 10, 21, 13, tzinfo=UTC)), EtfMetric.NET_FLOW_USD)
+    # After the mapping became available (19:58:30Z) but before the revision was received.
+    early = metric(etf(first + [revised], at=datetime(2026, 10, 21, 20, 30, tzinfo=UTC)), EtfMetric.NET_FLOW_USD)
     assert next(f for f in early.funds if f.ticker == "IBIT").value.value == D(10)
 
 
@@ -432,9 +450,10 @@ def test_conflicting_captures_at_one_receipt_fail_closed():
     at = S + timedelta(minutes=5)
     s = series(build(caps=captures(at) + captures(at, payload=with_value("2026-09", "340.000"))))
     assert s.known_value.value is None and s.known_value.reason == "CONFLICTING_CAPTURES_AT_ONE_RECEIPT_TIME"
-    assert s.release_value.value is None and "CONFLICTING_RELEASE_WINDOW_CAPTURES" in s.reasons
+    assert s.preliminary is None and s.revisions == () and "CONFLICTING_CAPTURES_AT_ONE_RECEIPT_TIME" in s.reasons
+    assert s.previous_known.value == D("334.980")         # the captures agree on August
     same = series(build(caps=captures(at) + captures(at, payload=with_value("2026-09", "336.9400"))))
-    assert same.known_value.value == D("336.94") and same.release_value.value == D("336.94")   # one value, two spellings
+    assert same.known_value.value == D("336.94") and same.conflicting_receipts == ()   # one value, two spellings
 
 
 def test_future_dated_etf_observations_are_excluded():
@@ -449,18 +468,19 @@ def test_future_dated_etf_observations_are_excluded():
 
 def test_release_window_boundaries_are_exact():
     at_release = series(build(caps=captures(S)))
-    assert at_release.known_vintage is Vintage.RELEASE_WINDOW and at_release.release_value.value == D("336.940")
+    assert at_release.receipt_window is ReceiptWindow.INFERRED_RELEASE_WINDOW
+    assert at_release.known_value.value == D("336.940") and at_release.release_value.value is None
     just_before = build(caps=captures(S - timedelta(microseconds=1)))
     assert len(just_before.inconsistent_bls_captures) == 2
     # The next period's release is listed twice with different times, so it is not used as a due release;
     # the window still closes at its earliest listed time, and a capture after that is not the release value.
     conflict = CPI_SCHEDULE + (sched("2026-10", date(2026, 11, 12)),)
     late = series(build(at=N + timedelta(days=3), schedules=conflict, caps=captures(N, payload=without("2026-10"))))
-    assert late.reference_period == "2026-09" and late.known_vintage is Vintage.UNKNOWN_WINDOW
+    assert late.reference_period == "2026-09" and late.receipt_window is ReceiptWindow.AFTER_INFERRED_WINDOW
     assert late.release_value.value is None
     inside = series(build(at=N + timedelta(days=3), schedules=conflict,
                           caps=captures(N - timedelta(microseconds=1), payload=without("2026-10"))))
-    assert inside.known_vintage is Vintage.RELEASE_WINDOW
+    assert inside.receipt_window is ReceiptWindow.INFERRED_RELEASE_WINDOW
 
 
 def test_a_statement_is_unknowable_before_publication_even_if_construction_was_bypassed():

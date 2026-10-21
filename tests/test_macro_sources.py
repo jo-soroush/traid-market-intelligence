@@ -172,10 +172,14 @@ def test_real_feed_lists_statements_with_gmt_publication_times():
     ("20260729", 18, PolicyAction.MAINTAIN, None, D("3.5"), D("3.75"), "EDT"),
     ("20260128", 19, PolicyAction.MAINTAIN, None, D("3.5"), D("3.75"), "EST"),        # standard time: 19:00 UTC
     ("20251210", 19, PolicyAction.LOWER, D("0.25"), D("3.5"), D("3.75"), "EST"),
+    # Target-only wording: the new range is announced without a stated change size.
+    ("20230726", 18, PolicyAction.RAISE, None, D("5.25"), D("5.5"), "EDT"),
+    ("20200315", 21, PolicyAction.LOWER, None, D("0"), D("0.25"), "EDT"),             # Sunday, 5:00 p.m. EDT
 ])
 def test_real_statements_parse_decision_and_dst_correct_publication_time(stamp, hour, action, change, lower, upper, zone):
     s = statement(stamp, hour)
-    assert (s.action, s.change_percentage_points, s.target_lower_percent, s.target_upper_percent) == (action, change, lower, upper)
+    assert (s.action, s.stated_change_percentage_points, s.target_lower_percent, s.target_upper_percent) == \
+        (action, change, lower, upper)
     assert s.published_at.hour == hour and s.release_time_text.endswith(zone)
     assert s.statement_date.strftime("%Y%m%d") == stamp and "target range for the federal funds rate" in s.decision_text
 
@@ -208,6 +212,33 @@ def test_changed_or_ambiguous_statement_pages_fail_closed(edit):
         parse_fomc_statement(page, item=item("20260916", 18), received=RX)
 
 
+def test_target_only_statements_record_the_range_and_no_invented_change():
+    july = statement("20230726", 18)
+    assert july.decision_text == ("decided to raise the target range for the federal funds rate to 5-1/4 to 5-1/2 "
+                                  "percent")
+    assert july.stated_change_percentage_points is None and july.release_time_text == "2:00 p.m. EDT"
+    march = statement("20200315", 21)
+    assert march.published_at == datetime(2020, 3, 15, 21, tzinfo=UTC) and march.release_time_text == "5:00 p.m. EDT"
+    assert (march.target_lower_percent, march.target_upper_percent, march.stated_change_percentage_points) == \
+        (D(0), D("0.25"), None)
+
+
+@pytest.mark.parametrize("stamp, hour, old, new", [
+    ("20230726", 18, "decided to raise", "decided to maintain"),                       # maintain needs "at"
+    ("20230726", 18, "funds rate to 5-1/4", "funds rate at 5-1/4"),                    # a raise needs "to"
+    ("20230726", 18, "funds rate to 5-1/4", "funds rate to a range of 5-1/4"),         # unverified wording
+    ("20230726", 18, "funds rate to 5-1/4", "funds rate by about 1/4 percentage point to 5-1/4"),
+    ("20230726", 18, "to 5-1/2 percent", "to 5-1/5 percent"),                          # not a half/quarter/eighth
+    ("20200315", 21, "5:00 p.m. EDT", "2:00 p.m. EDT"),                               # page and feed times disagree
+    ("20200315", 21, "decided to lower", "decided to reduce"),
+])
+def test_target_only_wording_changes_fail_closed(stamp, hour, old, new):
+    page = fixture(f"fed_statement_{stamp}a.html")
+    assert page.count(old) == 1
+    with pytest.raises(ProviderDataError):
+        parse_fomc_statement(page.replace(old, new), item=item(stamp, hour), received=RX)
+
+
 def test_non_statement_items_and_receipt_before_publication_are_rejected():
     minutes = FeedItem(title="Minutes of the Federal Open Market Committee", url=item("20260916", 18).url,
                        published_at=datetime(2026, 9, 16, 18, tzinfo=UTC))
@@ -222,7 +253,7 @@ def test_rate_fractions_are_exact_in_any_decimal_context():
     with localcontext() as ctx:
         ctx.prec, ctx.rounding = 1, ROUND_DOWN
         s = statement("20260916", 18)
-    assert (s.target_lower_percent, s.target_upper_percent, s.change_percentage_points) == (D("3.75"), D(4), D("0.25"))
+    assert (s.target_lower_percent, s.target_upper_percent, s.stated_change_percentage_points) == (D("3.75"), D(4), D("0.25"))
     assert fed._fraction("0") == 0 and fed._fraction("5-1/8") == D("5.125")
 
 

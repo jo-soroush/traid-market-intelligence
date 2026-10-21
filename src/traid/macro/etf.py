@@ -11,6 +11,14 @@ The asset-to-fund mapping records fund identity verified against SEC EDGAR
 (company_tickers_exchange.json: CIK, registrant name, ticker, exchange). That a fund
 holds spot BTC is a curated assertion with its evidence, not an SEC classification.
 
+A mapping is itself knowledge with a time: it is usable only at evaluation times at or
+after ``available_at`` (when TraID obtained it), and a later mapping version never
+rewrites an earlier evaluation. It describes the fund set as of ``identity_retrieved_on``.
+A fund's validity period is recorded only with evidence; when it is unknown (no verified
+launch or listing date), the fund is applicable from the mapping's as-of date onward and
+coverage for any earlier trade date is unavailable, never retroactively populated.
+US-listed ETF trade dates are US exchange session dates, compared in America/New_York.
+
 Metric identities are strict: net flow, net assets, trading volume, traded value,
 shares outstanding and BTC holdings are different facts. No metric is derived from
 another here (volume and AUM change are never flows), and an aggregate exists only
@@ -23,6 +31,7 @@ from datetime import date, datetime
 from decimal import Decimal, InvalidOperation, localcontext
 from enum import StrEnum
 from typing import Literal
+from zoneinfo import ZoneInfo
 
 from pydantic import Field, model_validator
 
@@ -30,8 +39,10 @@ from traid.domain.models import SourceProvenance
 from traid.liquidity import Metric
 from traid.macro.models import CANONICAL, MacroModel, digest, rank, utc
 
-ENGINE_VERSION = "c12-etf-evidence-1"
+ENGINE_VERSION = "c12-etf-evidence-2"
 MAX_OBSERVATIONS = 100000
+MAX_MAPPINGS = 1000
+NEW_YORK = ZoneInfo("America/New_York")
 
 
 class Applicability(StrEnum):
@@ -46,6 +57,25 @@ class EtfFund(MacroModel):
     exchange: str = Field(min_length=1)
     applicability: Applicability
     applicability_evidence: str = Field(min_length=1)
+    valid_from: date | None = None           # first trade date the applicability holds, only with evidence
+    valid_until: date | None = None          # last such trade date, only with evidence
+    validity_evidence: str | None = Field(default=None, min_length=1)
+
+    @model_validator(mode="after")
+    def validity_is_evidenced(self):
+        if (self.valid_from is None and self.valid_until is None) != (self.validity_evidence is None):
+            raise ValueError("a validity period requires its evidence, and evidence requires a period")
+        if self.valid_from is not None and self.valid_until is not None and self.valid_until < self.valid_from:
+            raise ValueError("validity period must be ordered")
+        return self
+
+    def valid_on(self, day: date, as_of: date) -> bool | None:
+        """Applicable on ``day``: True/False when known, None when its validity there is unverified."""
+        if self.valid_until is not None and day > self.valid_until:
+            return False
+        if self.valid_from is not None:
+            return day >= self.valid_from
+        return True if day >= as_of else None
 
 
 class AssetEtfMapping(MacroModel):
@@ -54,10 +84,13 @@ class AssetEtfMapping(MacroModel):
     mapping_version: str = Field(pattern=r"^[A-Za-z0-9._-]+$")
     funds: tuple[EtfFund, ...] = Field(min_length=1)
     identity_source: str = Field(min_length=1)
-    identity_retrieved_on: date
+    identity_retrieved_on: date                 # the mapping describes the fund set as of this date
+    available_at: datetime                      # when TraID obtained the mapping; unusable before
+    available_at_evidence: str = Field(min_length=1)
     limitations: tuple[str, ...] = (
         "MAPPED_FUNDS_ONLY_COMPLETENESS_OF_THE_US_SPOT_BTC_ETF_SET_NOT_PROVEN",
         "SPOT_BTC_APPLICABILITY_IS_A_CURATED_ASSERTION",
+        "FUND_VALIDITY_BEFORE_THE_MAPPING_DATE_UNVERIFIED_UNLESS_RECORDED",
     )
 
     @model_validator(mode="after")
@@ -65,6 +98,8 @@ class AssetEtfMapping(MacroModel):
         tickers = [f.ticker for f in self.funds]
         if tickers != sorted(set(tickers)) or len({f.cik for f in self.funds}) != len(self.funds):
             raise ValueError("funds must be unique by ticker and CIK, ordered by ticker")
+        if self.available_at.date() < self.identity_retrieved_on:
+            raise ValueError("a mapping cannot be available before the facts it records were retrieved")
         return self
 
     def applicable(self) -> tuple[EtfFund, ...]:
@@ -75,6 +110,9 @@ _GLASSNODE = "Glassnode US Spot ETF metric documentation lists this fund as a US
 US_SPOT_BTC_ETFS = AssetEtfMapping(
     asset="BTC", jurisdiction="US", mapping_version="us-spot-btc-2026-10-21",
     identity_source="https://www.sec.gov/files/company_tickers_exchange.json", identity_retrieved_on=date(2026, 10, 21),
+    # Conservative knowledge time: the commit that first recorded this mapping in TraID.
+    available_at=datetime.fromisoformat("2026-10-21T21:58:30+02:00"),
+    available_at_evidence="First recorded in TraID commit 7a76e30 (author date 2026-10-21T21:58:30+02:00)",
     funds=tuple(sorted((
         EtfFund(ticker="ARKB", registrant_name="Ark 21Shares Bitcoin ETF", cik=1869699, exchange="CBOE",
                 applicability=Applicability.CURATED_SPOT_BTC, applicability_evidence=_GLASSNODE),
@@ -248,8 +286,12 @@ class EtfEvidenceReport(MacroModel):
     engine_version: str = ENGINE_VERSION
     evaluation_time: datetime
     asset: Literal["BTC"]
-    mapping_version: str
-    mapping_digest: str
+    mapping_state: Literal["AVAILABLE", "NO_MAPPING_KNOWN_AT_EVALUATION_TIME", "CONFLICTING_MAPPING_VERSIONS"]
+    mapping_version: str | None
+    mapping_digest: str | None
+    mapping_as_of: date | None
+    mapping_available_at: datetime | None
+    excluded_mappings_after_evaluation: int = Field(ge=0)
     provider: EtfProvider | None
     provider_state: Literal["APPROVED", "NO_APPROVED_PROVIDER"]
     metrics: tuple[MetricCoverage, ...]
@@ -273,18 +315,40 @@ class EtfEvidenceReport(MacroModel):
         return self
 
 
+def _mapping_at(mappings: tuple[AssetEtfMapping, ...], T: datetime):
+    """The latest mapping TraID had obtained by T; later versions are counted, never read."""
+    known, later = [], 0
+    for m in mappings:
+        if type(m) is not AssetEtfMapping:
+            raise ValueError("AssetEtfMapping required")
+        if utc(m.available_at) > T:
+            later += 1
+            continue
+        known.append(AssetEtfMapping.model_validate(m.model_dump()))
+    if not known:
+        return None, "NO_MAPPING_KNOWN_AT_EVALUATION_TIME", later
+    newest = max(m.available_at for m in known)
+    latest = {digest(m): m for m in known if m.available_at == newest}
+    if len(latest) > 1:
+        return None, "CONFLICTING_MAPPING_VERSIONS", later
+    return next(iter(latest.values())), "AVAILABLE", later
+
+
 def build_etf_evidence(
-    *, evaluation_time: datetime, mapping: AssetEtfMapping = US_SPOT_BTC_ETFS,
+    *, evaluation_time: datetime, mappings: tuple[AssetEtfMapping, ...] = (US_SPOT_BTC_ETFS,),
     providers: tuple[EtfProvider, ...] = PROVIDERS, observations: tuple[EtfObservation, ...] = (),
     trade_date: date | None = None,
 ) -> EtfEvidenceReport:
     """Per-fund and aggregate ETF coverage at T for one approved provider (or none)."""
-    if type(mapping) is not AssetEtfMapping or not isinstance(providers, tuple) or not isinstance(observations, tuple):
-        raise ValueError("AssetEtfMapping and tuples of providers and observations required")
-    if len(observations) > MAX_OBSERVATIONS:
-        raise ValueError("too many observations")
+    if not isinstance(mappings, tuple) or not isinstance(providers, tuple) or not isinstance(observations, tuple):
+        raise ValueError("tuples of mappings, providers and observations required")
+    if len(observations) > MAX_OBSERVATIONS or len(mappings) > MAX_MAPPINGS:
+        raise ValueError("too many observations or mappings")
     T = utc(evaluation_time, "evaluation_time")
-    mapping = AssetEtfMapping.model_validate(mapping.model_dump())
+    session = T.astimezone(NEW_YORK).date()     # the latest US exchange session date that can have begun by T
+    if trade_date is not None and trade_date > session:
+        raise ValueError("trade_date is after the evaluation time's US session date")
+    mapping, mapping_state, later_mappings = _mapping_at(mappings, T)
     providers = tuple(EtfProvider.model_validate(p.model_dump()) for p in providers)
     approved = [p for p in providers if p.state is ProviderState.APPROVED]
     if len(approved) > 1:
@@ -295,22 +359,25 @@ def build_etf_evidence(
         if type(o) is not EtfObservation or type(o.provenance) is not SourceProvenance:
             raise ValueError("EtfObservation required")
         if o.provenance.received_timestamp > T or any(t is not None and utc(t) > T for t in (o.published_at, o.as_of)) \
-                or o.trade_date > T.date():
+                or o.trade_date > session:
             later += 1
             continue
         o = EtfObservation.model_validate(o.model_dump())
         if provider is None or o.provider_id != provider.provider_id:
             unapproved += 1
             continue
-        if mapping_fund(mapping, o.ticker) is None:
+        if mapping is not None and mapping_fund(mapping, o.ticker) is None:
             raise ValueError("ETF_TICKER_NOT_IN_MAPPING")
         known.append(o)
-    applicable = mapping.applicable()
-    metrics = tuple(_metric(metric, applicable, known, provider, trade_date) for metric in EtfMetric)
+    metrics = tuple(_metric(metric, mapping, mapping_state, known, provider, trade_date, session) for metric in EtfMetric)
     return EtfEvidenceReport(
-        evaluation_time=T, asset=mapping.asset, mapping_version=mapping.mapping_version, mapping_digest=digest(mapping),
+        evaluation_time=T, asset="BTC", mapping_state=mapping_state,
+        mapping_version=mapping.mapping_version if mapping else None, mapping_digest=digest(mapping) if mapping else None,
+        mapping_as_of=mapping.identity_retrieved_on if mapping else None,
+        mapping_available_at=mapping.available_at if mapping else None, excluded_mappings_after_evaluation=later_mappings,
         provider=provider, provider_state="APPROVED" if provider else "NO_APPROVED_PROVIDER", metrics=metrics,
-        unverified_applicability=tuple(f.ticker for f in mapping.funds if f.applicability is not Applicability.CURATED_SPOT_BTC),
+        unverified_applicability=tuple(f.ticker for f in (mapping.funds if mapping else ())
+                                       if f.applicability is not Applicability.CURATED_SPOT_BTC),
         excluded_after_evaluation=later, excluded_unapproved=unapproved, providers=providers)
 
 
@@ -318,16 +385,33 @@ def mapping_fund(mapping: AssetEtfMapping, ticker: str) -> EtfFund | None:
     return next((f for f in mapping.funds if f.ticker == ticker), None)
 
 
-def _metric(metric: EtfMetric, funds, known, provider, trade_date) -> MetricCoverage:
+def _funds_on(mapping: AssetEtfMapping, day: date):
+    """Applicable funds on a trade date, or None when the mapping cannot say for that date."""
+    states = {f.ticker: f.valid_on(day, mapping.identity_retrieved_on) for f in mapping.applicable()}
+    if None in states.values():
+        return None
+    return tuple(f for f in mapping.applicable() if states[f.ticker])
+
+
+def _metric(metric: EtfMetric, mapping, mapping_state, known, provider, trade_date, session) -> MetricCoverage:
     unit = UNITS[metric]
+    rows = [o for o in known if o.metric is metric] if provider is not None else []
+    date_ = trade_date or (max(o.trade_date for o in rows) if rows else None)
+    if mapping is None:
+        why = mapping_state
+    else:
+        funds = _funds_on(mapping, date_ or session)
+        why = "FUND_VALIDITY_AT_TRADE_DATE_UNVERIFIED" if funds is None else (
+            "NO_MAPPED_FUND_VALID_AT_TRADE_DATE" if not funds else None)
+    if why is not None:
+        return MetricCoverage(metric=metric, trade_date=date_, coverage="NONE", aggregate=_na(unit, why),
+                              reasons=(why,), funds=())
     if provider is None:
         why = "NO_APPROVED_ETF_PROVIDER"
         return MetricCoverage(metric=metric, trade_date=trade_date, coverage="NONE", aggregate=_na(unit, why),
                               reasons=(why,), funds=tuple(FundMetric(ticker=f.ticker, status=FundStatus.NO_APPROVED_PROVIDER,
                                                                       value=_na(unit, why), trade_date=None, basis=None,
                                                                       observation=None) for f in funds))
-    rows = [o for o in known if o.metric is metric]
-    date_ = trade_date or (max(o.trade_date for o in rows) if rows else None)
     out, reasons = [], []
     for fund in funds:
         group = [o for o in rows if o.ticker == fund.ticker and o.trade_date == date_]

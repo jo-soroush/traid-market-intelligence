@@ -3,59 +3,88 @@
 Only observations TraID received by T are read; later ones are counted and never
 otherwise inspected. Release schedules come from the caller with their source.
 
-BLS series. The API returns currently published values without vintages, so a
-captured value means "what BLS published as of our receipt time". For the latest
-release due by T (reference period P, scheduled at S) the window ends at N, the
-scheduled release of the immediately following reference period. A capture received
-in [S, N) holds the value as published in that release (RELEASE_WINDOW) unless BLS
-corrected it out of schedule, which the API cannot show. If the schedule does not list
-the next period's release, the window is UNKNOWN and no release value is claimed. A
-capture received after T, such as a later backfill of current revised values, is never
-read at T. A capture already holding
-P before S contradicts the schedule and is excluded. "Previous" is the prior period
-as it stood in that same release-window capture. Distinct values of one period across
-captures are kept as revisions, in receipt order; nothing is overwritten. Consensus has
-no approved source: it is always unavailable, never zero, and a "surprise" is never
-computed.
+BLS series. The API returns currently published values with no vintage metadata, so a
+capture only shows "what BLS published as of our receipt time". Three facts stay apart:
+
+* Known at receipt: the latest capture received by T (``known_value``) and the prior
+  period as it stood in that same capture (``previous_known``).
+* Inferred release window: for the latest release due by T (reference period P, scheduled
+  at S) the window ends at N, the scheduled release of the immediately following period.
+  A capture received in [S, N) is inside the inferred window. That is a fact about the
+  receipt and the schedule, not evidence of what BLS published at S: BLS can correct a
+  value out of schedule before our capture, and the API cannot show it. If the schedule
+  does not list the next period's release, the window is UNBOUNDED.
+* Original-release vintage: no approved source establishes it (ALFRED is unavailable), so
+  ``release_value`` and ``previous_at_release`` are unavailable, never filled from a
+  receipt-time capture.
+
+A capture already holding P before S contradicts the schedule and is excluded. Captures
+received at one instant are compared field by field (P's value or stated unavailability,
+P's preliminary flag, and P-1's value): a field on which they disagree is withheld, the
+receipt is listed as a conflict, and it never enters the revision sequence. Numeric zero,
+"-" (unavailable) and an absent period are distinct; equal numbers in different spellings
+are one value. Distinct values of P across receipt times are kept as revisions in receipt
+order; nothing is overwritten. Consensus has no approved source: it is always unavailable,
+never zero, and a "surprise" is never computed.
 
 FOMC. A statement counts from its verified publication time (feed GMT time equal to the
-page's EST/EDT release time) and our receipt. The current target range is the latest
-known statement's; a raise/cut is cross-checked against the previous statement's range.
+page's EST/EDT release time) and our receipt. The latest known statement is the last
+verified decision. A change derived by comparing it with the previous known statement is
+evidence, kept apart from what the statement states, and it is withheld when the calendar
+lists an entry between the two without a known statement. Freshness of the latest expected
+announcement is judged on Board (America/New_York) dates, the dates the statement pages
+carry: a non-notation calendar meeting without a known statement is due once its curated,
+zone-verified release time has passed, or once its end date has passed in New York. On the
+meeting date itself without a verified time it is RELEASE_TIME_UNKNOWN; no release hour is
+assumed.
 
 PCE and GDP are BEA releases; BEA access is not configured, so they are UNSUPPORTED.
-No output interprets direction, scores surprises or authorizes anything.
+Arithmetic runs in an explicit exact Decimal context, never the ambient one. No output
+interprets direction, scores surprises or authorizes anything.
 """
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import datetime
-from decimal import Decimal
+from decimal import Decimal, localcontext
 from enum import StrEnum
 from typing import Literal
+from zoneinfo import ZoneInfo
 
-from pydantic import Field
+from pydantic import Field, model_validator
 
 from traid.domain.models import SourceProvenance
 from traid.liquidity import Metric
 from traid.macro.models import (
-    BLS_SERIES, EVENT_SOURCES, SOURCE_CAPABILITIES, FomcCalendar, FomcMeeting, FomcStatement, MacroEventType,
-    MacroModel, ScheduledRelease, SeriesCapture, SourceCapability, SupportState, capability, digest,
-    next_period, previous_period, rank, utc,
+    BLS_SERIES, CANONICAL, EVENT_SOURCES, SOURCE_CAPABILITIES, FomcCalendar, FomcMeeting, FomcStatement,
+    MacroEventType, MacroModel, PolicyAction, ScheduledRelease, SeriesCapture, SeriesValue, SourceCapability,
+    SupportState, capability, digest, next_period, previous_period, rank, utc,
 )
 
-ENGINE_VERSION = "c12-macro-evidence-1"
+ENGINE_VERSION = "c12-macro-evidence-2"
 MAX_OBSERVATIONS = 10000
+NEW_YORK = ZoneInfo("America/New_York")
+POINTS = "percentage points"
+NOT_ESTABLISHED = "ORIGINAL_RELEASE_VINTAGE_NOT_ESTABLISHED_NO_VINTAGE_SOURCE"
+CONFLICT = "CONFLICTING_CAPTURES_AT_ONE_RECEIPT_TIME"
 
 
-class Vintage(StrEnum):
-    RELEASE_WINDOW = "RELEASE_WINDOW"   # received between the release and the next period's scheduled release
-    UNKNOWN_WINDOW = "UNKNOWN_WINDOW"   # the schedule does not bound the release window
+class ReceiptWindow(StrEnum):
+    INFERRED_RELEASE_WINDOW = "INFERRED_RELEASE_WINDOW"   # received in [release, next period's scheduled release)
+    AFTER_INFERRED_WINDOW = "AFTER_INFERRED_WINDOW"       # received at or after the next period's scheduled release
+    UNBOUNDED = "UNBOUNDED"                               # the schedule does not bound the window
+
+
+class ReleaseVintage(StrEnum):
+    NOT_ESTABLISHED = "NOT_ESTABLISHED"   # no approved vintage source; receipt-time values are not release values
 
 
 class Freshness(StrEnum):
-    CURRENT = "CURRENT"                       # the latest due release is captured after its release
-    AWAITING_CAPTURE = "AWAITING_CAPTURE"     # a release is due by T but no capture after it holds its period
+    CURRENT = "CURRENT"                       # the latest due release is known
+    AWAITING_CAPTURE = "AWAITING_CAPTURE"     # a release is due by T but is not known
+    RELEASE_TIME_UNKNOWN = "RELEASE_TIME_UNKNOWN"   # expected on T's date at an unverified time: due or not is unknown
     NO_RELEASE_DUE = "NO_RELEASE_DUE"         # no scheduled release at or before T
-    SCHEDULE_UNKNOWN = "SCHEDULE_UNKNOWN"     # no usable schedule (time and zone) for this event
+    SCHEDULE_UNKNOWN = "SCHEDULE_UNKNOWN"     # no usable schedule (time and zone, or calendar) for this event
     UNSUPPORTED = "UNSUPPORTED"               # the source is not available
 
 
@@ -65,11 +94,17 @@ class Revision(MacroModel):
     value: Decimal | None
 
 
+class ReceiptConflict(MacroModel):
+    captured_at: datetime
+    fields: tuple[Literal["REFERENCE_PERIOD_VALUE", "PRELIMINARY", "PREVIOUS_PERIOD_VALUE"], ...]
+
+
 class SeriesEvidence(MacroModel):
     series_id: str
     event_type: MacroEventType
     description: str
     unit: str
+    measure: Literal["LEVEL", "RATE"]
     seasonal_adjustment: Literal["SA", "NSA"]
     freshness: Freshness
     reference_period: str | None
@@ -77,24 +112,38 @@ class SeriesEvidence(MacroModel):
     next_scheduled_at: datetime | None
     publication_time: datetime | None          # BLS API gives none
     first_observed_at: datetime | None
-    release_value: Metric                       # as published in the release (release-window capture only)
-    previous_at_release: Metric                 # prior period in that same capture
-    known_value: Metric                         # latest capture received by T
-    known_vintage: Vintage | None
-    captured_at: datetime | None
+    known_value: Metric                         # P as published at TraID's latest receipt by T
+    previous_known: Metric                      # P-1 in that same receipt
     preliminary: bool | None
+    captured_at: datetime | None
+    receipt_window: ReceiptWindow | None        # of the known receipt
+    release_vintage: ReleaseVintage
+    release_value: Metric                       # as originally published; needs an established vintage
+    previous_at_release: Metric
     consensus: Metric
-    revisions: tuple[Revision, ...]
+    revisions: tuple[Revision, ...]             # unambiguous receipts only, in receipt order
+    conflicting_receipts: tuple[ReceiptConflict, ...]
     provenance: SourceProvenance | None
     reasons: tuple[str, ...]
 
+    @model_validator(mode="after")
+    def no_unestablished_release_values(self):
+        if self.release_vintage is ReleaseVintage.NOT_ESTABLISHED and (
+                self.release_value.value is not None or self.previous_at_release.value is not None):
+            raise ValueError("original-release values require an established release vintage")
+        return self
+
 
 class FomcEvidence(MacroModel):
-    freshness: Freshness
-    statement: FomcStatement | None
+    freshness: Freshness                        # of the latest expected announcement
+    statement: FomcStatement | None             # the last verified decision known at T
     previous_statement: FomcStatement | None
-    consistency: Literal["CONSISTENT", "CONTRADICTORY", "NO_PREVIOUS_STATEMENT", "NO_STATEMENT"]
+    consistency: Literal["CONSISTENT", "CONTRADICTORY", "INTERVENING_MEETING_NOT_CAPTURED",
+                         "NO_PREVIOUS_STATEMENT", "NO_STATEMENT"]
+    range_change_since_previous: Metric         # TraID-derived from the two known statements, signed
     in_calendar: Literal["SCHEDULED_MEETING", "NOT_IN_CALENDAR", "CALENDAR_UNAVAILABLE", "NO_STATEMENT"]
+    expected_announcement: FomcMeeting | None   # the meeting whose statement is due or possibly due and not known
+    expected_announcement_at: datetime | None   # its curated, zone-verified release time, if any
     next_meeting: FomcMeeting | None
     calendar_provenance: SourceProvenance | None
     reasons: tuple[str, ...]
@@ -129,10 +178,12 @@ class MacroEvidenceReport(MacroModel):
         "OBSERVED_FACTS_ONLY_NO_MARKET_IMPACT_INTERPRETATION",
         "NOT_A_TRADE_SIGNAL_OR_AUTHORIZATION",
         "CONSENSUS_UNAVAILABLE_NO_APPROVED_SOURCE_NO_SURPRISE_COMPUTED",
-        "BLS_API_RETURNS_CURRENT_VALUES_RELEASE_WINDOW_INFERRED_FROM_RECEIPT_AND_SCHEDULE",
+        "BLS_API_RETURNS_CURRENT_VALUES_WITHOUT_VINTAGES_ORIGINAL_RELEASE_VALUES_NOT_ESTABLISHED",
+        "BLS_RELEASE_WINDOW_IS_INFERRED_FROM_RECEIPT_AND_SCHEDULE_NOT_A_VINTAGE",
         "BLS_OUT_OF_SCHEDULE_CORRECTIONS_NOT_DETECTABLE",
         "BLS_PUBLICATION_TIME_NOT_PROVIDED_BY_API",
         "SCHEDULES_CALLER_SUPPLIED_WITH_SOURCE",
+        "FOMC_UNSCHEDULED_ACTIONS_ABSENT_FROM_CALENDAR_CANNOT_BE_EXCLUDED",
         "PCE_AND_GDP_UNSUPPORTED_BEA_ACCESS_NOT_CONFIGURED",
     )
 
@@ -176,18 +227,67 @@ def _event_schedule(schedules, event_type):
 
 
 # ------------------------------------------------------------------------------- BLS
+def _number(v: SeriesValue | None) -> tuple:
+    """A value's identity: absent, stated unavailable, or an exact number in any spelling."""
+    if v is None:
+        return ("ABSENT",)
+    if v.value is None:
+        return ("UNAVAILABLE",)
+    return ("VALUE", format(v.value.normalize(CANONICAL), "f"))
+
+
+def _asserted(v: SeriesValue | None) -> tuple:
+    return _number(v) + ((v.unavailable_reason,) if v is not None and v.value is None else ())
+
+
+@dataclass(frozen=True)
+class _Receipt:
+    """Captures of one series received at one instant, compared field by field."""
+    at: datetime
+    capture: SeriesCapture          # deterministic representative (canonical rank)
+    holds: bool                     # some capture at this instant holds the reference period
+    conflicts: tuple[str, ...]      # fields on which the simultaneous captures disagree
+
+
+def _receipts(captures: list[SeriesCapture], period: str) -> list[_Receipt]:
+    by_time: dict[datetime, list[SeriesCapture]] = {}
+    for c in captures:
+        by_time.setdefault(c.provenance.received_timestamp, []).append(c)
+    fields = (("REFERENCE_PERIOD_VALUE", lambda c: _asserted(c.value(period))),
+              ("PRELIMINARY", lambda c: None if c.value(period) is None else c.value(period).preliminary),
+              ("PREVIOUS_PERIOD_VALUE", lambda c: _asserted(c.value(previous_period(period)))))
+    out = []
+    for at in sorted(by_time):
+        group = by_time[at]
+        conflicts = tuple(name for name, identity in fields if len({identity(c) for c in group}) > 1)
+        out.append(_Receipt(at=at, capture=min(group, key=rank), conflicts=conflicts,
+                            holds=any(c.value(period) is not None for c in group)))
+    return out
+
+
+def _metric(receipt: _Receipt, period: str, name: str, unit: str, absent: str) -> Metric:
+    if name in receipt.conflicts:
+        return _na(unit, CONFLICT)
+    v = receipt.capture.value(period)
+    if v is None:
+        return _na(unit, absent)
+    if v.value is None:
+        return _na(unit, f"PUBLISHED_UNAVAILABLE:{v.unavailable_reason}")
+    return Metric(value=v.value, unit=unit)
+
+
 def _series(spec, captures: list[SeriesCapture], schedule, conflicting, T) -> SeriesEvidence:
     unit = spec.unit
     base = dict(series_id=spec.series_id, event_type=spec.event_type, description=spec.description, unit=unit,
-                seasonal_adjustment=spec.seasonal_adjustment, publication_time=None,
-                consensus=_na(unit, "NO_APPROVED_CONSENSUS_SOURCE"))
+                measure=spec.measure, seasonal_adjustment=spec.seasonal_adjustment, publication_time=None,
+                release_vintage=ReleaseVintage.NOT_ESTABLISHED, release_value=_na(unit, NOT_ESTABLISHED),
+                previous_at_release=_na(unit, NOT_ESTABLISHED), consensus=_na(unit, "NO_APPROVED_CONSENSUS_SOURCE"))
     due = [(at, s) for at, s in schedule if at <= T and s.reference_period not in conflicting]
     upcoming = [(at, s) for at, s in schedule if at > T]
     reasons = ["BLS_API_PROVIDES_NO_PUBLICATION_TIMESTAMP"]
     if conflicting:
         reasons.append("CONFLICTING_SCHEDULE_ENTRIES:" + ",".join(sorted(conflicting)))
     captures = sorted(captures, key=lambda c: (c.provenance.received_timestamp, rank(c)))
-    latest = captures[-1] if captures else None
     if due:
         scheduled_at, release = due[-1]
         period = release.reference_period
@@ -198,81 +298,64 @@ def _series(spec, captures: list[SeriesCapture], schedule, conflicting, T) -> Se
             reasons.append("NEXT_PERIOD_RELEASE_NOT_SCHEDULED_WINDOW_UNBOUNDED")
     elif not schedule:
         reasons.append("NO_USABLE_SCHEDULE_FOR_EVENT")
-        scheduled_at = next_at = None
-        period = None
-        if latest:
-            published = [v for v in latest.values if v.value is not None]
+        scheduled_at = next_at = period = None
+        if captures:
+            published = [v for v in captures[-1].values if v.value is not None]
             period = published[-1].reference_period if published else None
     else:
         reasons.append("NO_RELEASE_DUE_BY_EVALUATION_TIME")
+        none = _na(unit, "NO_RELEASE_DUE")
         return SeriesEvidence(freshness=Freshness.NO_RELEASE_DUE, reference_period=None, scheduled_at=None,
                               next_scheduled_at=upcoming[0][0] if upcoming else None, first_observed_at=None,
-                              release_value=_na(unit, "NO_RELEASE_DUE"), previous_at_release=_na(unit, "NO_RELEASE_DUE"),
-                              known_value=_na(unit, "NO_RELEASE_DUE"), known_vintage=None, captured_at=None,
-                              preliminary=None, revisions=(), provenance=None, reasons=tuple(reasons), **base)
-    holding = [c for c in captures if period is not None and c.value(period) is not None]
-    revisions, last = [], None
-    for c in holding:
-        v = c.value(period)
-        if last is None or v.value != last.value or (v.value is None) != (last.value is None):
-            revisions.append(Revision(captured_at=c.provenance.received_timestamp, raw_value=v.raw_value, value=v.value))
+                              known_value=none, previous_known=none, preliminary=None, captured_at=None,
+                              receipt_window=None, revisions=(), conflicting_receipts=(), provenance=None,
+                              reasons=tuple(reasons), **base)
+    holding = [r for r in _receipts(captures, period) if r.holds] if period is not None else []
+    revisions, conflicts, last = [], [], None
+    for r in holding:
+        if r.conflicts:
+            conflicts.append(ReceiptConflict(captured_at=r.at, fields=r.conflicts))
+        if "REFERENCE_PERIOD_VALUE" in r.conflicts:
+            continue     # simultaneous disagreement is not a step in the revision sequence
+        v = r.capture.value(period)
+        if last is None or _number(v) != _number(last):
+            revisions.append(Revision(captured_at=r.at, raw_value=v.raw_value, value=v.value))
         last = v
+    if conflicts:
+        reasons.append(CONFLICT)
 
-    def vintage(c: SeriesCapture) -> Vintage:
-        received = c.provenance.received_timestamp
-        if scheduled_at is None or next_at is None or not scheduled_at <= received < next_at:
-            return Vintage.UNKNOWN_WINDOW
-        return Vintage.RELEASE_WINDOW
+    def window(at: datetime) -> ReceiptWindow:
+        if scheduled_at is None or next_at is None or at < scheduled_at:
+            return ReceiptWindow.UNBOUNDED
+        return ReceiptWindow.INFERRED_RELEASE_WINDOW if at < next_at else ReceiptWindow.AFTER_INFERRED_WINDOW
 
-    window = [c for c in holding if vintage(c) is Vintage.RELEASE_WINDOW]
-    first = window[0] if window else None
-    if first is not None and len({c.value(period).raw_value != "-" and c.value(period).value for c in window
-                                  if c.provenance.received_timestamp == first.provenance.received_timestamp}) > 1:
-        first = None
-        reasons.append("CONFLICTING_RELEASE_WINDOW_CAPTURES")
-    if first is not None and first.value(period).value is not None:
-        release_value = Metric(value=first.value(period).value, unit=unit)
-        prior = first.value(previous_period(period))
-        previous = (Metric(value=prior.value, unit=unit) if prior is not None and prior.value is not None
-                    else _na(unit, "PREVIOUS_PERIOD_UNAVAILABLE_IN_RELEASE_CAPTURE" if prior is None
-                             else f"PUBLISHED_UNAVAILABLE:{prior.unavailable_reason}"))
-    else:
-        why = ("PUBLISHED_UNAVAILABLE:" + first.value(period).unavailable_reason if first is not None
-               else "NO_CAPTURE_IN_RELEASE_WINDOW")
-        release_value = _na(unit, why)
-        previous = _na(unit, why)
-        if first is None:
-            reasons.append("RELEASE_VALUE_NOT_PROVEN_AS_PUBLISHED_AT_RELEASE")
     known = holding[-1] if holding else None
-    same_receipt = [c for c in holding if known is not None
-                    and c.provenance.received_timestamp == known.provenance.received_timestamp]
-    if len({c.value(period).raw_value != "-" and c.value(period).value for c in same_receipt}) > 1:
-        # Two responses received at one instant disagree: neither is what TraID knew.
-        known_value = _na(unit, "CONFLICTING_CAPTURES_AT_ONE_RECEIPT_TIME")
-        reasons.append("CONFLICTING_CAPTURES_AT_ONE_RECEIPT_TIME")
-    elif known is not None:
-        kv = known.value(period)
-        known_value = Metric(value=kv.value, unit=unit) if kv.value is not None else \
-            _na(unit, f"PUBLISHED_UNAVAILABLE:{kv.unavailable_reason}")
+    if known is None:
+        missing = _na(unit, "PERIOD_NOT_IN_ANY_KNOWN_CAPTURE" if period else "NO_KNOWN_CAPTURE")
+        known_value = previous_known = missing
+        preliminary = None
     else:
-        known_value = _na(unit, "PERIOD_NOT_IN_ANY_KNOWN_CAPTURE" if period else "NO_KNOWN_CAPTURE")
+        known_value = _metric(known, period, "REFERENCE_PERIOD_VALUE", unit, "PERIOD_NOT_IN_KNOWN_CAPTURE")
+        previous_known = _metric(known, previous_period(period), "PREVIOUS_PERIOD_VALUE", unit,
+                                 "PREVIOUS_PERIOD_NOT_IN_KNOWN_CAPTURE")
+        preliminary = None if {"REFERENCE_PERIOD_VALUE", "PRELIMINARY"} & set(known.conflicts) \
+            else known.capture.value(period).preliminary
     if len(revisions) > 1:
         reasons.append(f"REVISED_ACROSS_CAPTURES:{len(revisions) - 1}")
     if scheduled_at is None:
         freshness = Freshness.SCHEDULE_UNKNOWN
-    elif any(c.provenance.received_timestamp >= scheduled_at for c in holding):
+    elif any(r.at >= scheduled_at for r in holding):
         freshness = Freshness.CURRENT
     else:
         freshness = Freshness.AWAITING_CAPTURE
         reasons.append("LATEST_DUE_RELEASE_NOT_CAPTURED")
     return SeriesEvidence(
         freshness=freshness, reference_period=period, scheduled_at=scheduled_at, next_scheduled_at=next_at,
-        first_observed_at=holding[0].provenance.received_timestamp if holding else None,
-        release_value=release_value, previous_at_release=previous, known_value=known_value,
-        known_vintage=vintage(known) if known else None,
-        captured_at=known.provenance.received_timestamp if known else None,
-        preliminary=known.value(period).preliminary if known else None, revisions=tuple(revisions),
-        provenance=known.provenance if known else None, reasons=tuple(reasons), **base)
+        first_observed_at=holding[0].at if holding else None, known_value=known_value,
+        previous_known=previous_known, preliminary=preliminary, captured_at=known.at if known else None,
+        receipt_window=window(known.at) if known else None, revisions=tuple(revisions),
+        conflicting_receipts=tuple(conflicts), provenance=known.capture.provenance if known else None,
+        reasons=tuple(reasons), **base)
 
 
 def _inconsistent(capture: SeriesCapture, schedule) -> bool:
@@ -282,9 +365,48 @@ def _inconsistent(capture: SeriesCapture, schedule) -> bool:
 
 
 # ------------------------------------------------------------------------------ FOMC
-def _fomc(statements: list[FomcStatement], calendars: list[FomcCalendar], T) -> FomcEvidence:
+def _announcement_times(schedules) -> tuple[dict, list]:
+    """Curated FOMC release times by their New York date; a date listed with two times has no verified time."""
+    by_date: dict = {}
+    for s in schedules:
+        at = s.scheduled_at() if s.event_type is MacroEventType.FOMC_DECISION else None
+        if at is not None:
+            by_date.setdefault(at.astimezone(NEW_YORK).date(), set()).add(at)
+    return ({d: min(ats) for d, ats in by_date.items() if len(ats) == 1},
+            sorted(d for d, ats in by_date.items() if len(ats) > 1))
+
+
+def _compare(previous: FomcStatement | None, current: FomcStatement, calendar) -> tuple[str, Metric, list]:
+    if previous is None:
+        return "NO_PREVIOUS_STATEMENT", _na(POINTS, "NO_PREVIOUS_STATEMENT"), []
+    reasons = []
+    if calendar is None:
+        reasons.append("PREVIOUS_STATEMENT_ADJACENCY_UNVERIFIED_NO_CALENDAR")
+    elif any(previous.statement_date < m.end_date < current.statement_date for m in calendar.meetings):
+        # Notation votes count here: an action between the two statements may be unknown to TraID.
+        why = "INTERVENING_MEETING_NOT_CAPTURED"
+        return why, _na(POINTS, why), [why]
+    with localcontext(CANONICAL):   # exact for these magnitudes; never the ambient context
+        lower = current.target_lower_percent - previous.target_lower_percent
+        upper = current.target_upper_percent - previous.target_upper_percent
+    sign = 0 if lower == 0 else (-1 if lower.is_signed() else 1)
+    expected = {PolicyAction.MAINTAIN: 0, PolicyAction.RAISE: 1, PolicyAction.LOWER: -1}[current.action]
+    stated = current.stated_change_percentage_points
+    if lower != upper:
+        problem = "TARGET_RANGE_BOUNDS_MOVED_UNEQUALLY"
+    elif sign != expected:
+        problem = "DECISION_DIRECTION_CONTRADICTS_PREVIOUS_TARGET_RANGE"
+    elif stated is not None and lower.copy_abs() != stated:
+        problem = "STATED_CHANGE_CONTRADICTS_PREVIOUS_TARGET_RANGE"
+    else:
+        return "CONSISTENT", Metric(value=lower, unit=POINTS), reasons
+    return "CONTRADICTORY", _na(POINTS, problem), reasons + [problem]
+
+
+def _fomc(statements: list[FomcStatement], calendars: list[FomcCalendar], schedules, T) -> FomcEvidence:
+    today = T.astimezone(NEW_YORK).date()        # Board dates are New York dates
     calendar = max(calendars, key=lambda c: (c.provenance.received_timestamp, rank(c))) if calendars else None
-    upcoming = [m for m in calendar.meetings if m.end_date >= T.date()] if calendar else []
+    upcoming = [m for m in calendar.meetings if m.end_date >= today] if calendar else []
     next_meeting = upcoming[0] if upcoming else None
     reasons = []
     by_url: dict[str, list[FomcStatement]] = {}
@@ -300,39 +422,58 @@ def _fomc(statements: list[FomcStatement], calendars: list[FomcCalendar], T) -> 
     if "CONFLICTING_STATEMENT_COPIES" in reasons:
         unique = []
     unique.sort(key=lambda s: (s.published_at, s.url))
-    calendar_state = "CALENDAR_UNAVAILABLE" if calendar is None else None
+    current = unique[-1] if unique else None
+    previous = unique[-2] if len(unique) > 1 else None
+
+    times, conflicted = _announcement_times(schedules)
+    if conflicted:
+        reasons.append("CONFLICTING_FOMC_RELEASE_TIMES:" + ",".join(d.isoformat() for d in conflicted))
+    expected = expected_at = None
     if calendar is None:
         reasons.append("NO_FOMC_CALENDAR_KNOWN")
-    missed = [m for m in (calendar.meetings if calendar else ()) if m.end_date < T.date() and not m.notation_vote
-              and not any(s.statement_date == m.end_date for s in unique)]
-    if not unique:
-        return FomcEvidence(freshness=Freshness.AWAITING_CAPTURE if missed else Freshness.NO_RELEASE_DUE,
-                            statement=None, previous_statement=None, consistency="NO_STATEMENT",
-                            in_calendar="NO_STATEMENT", next_meeting=next_meeting,
-                            calendar_provenance=calendar.provenance if calendar else None,
-                            reasons=tuple(reasons + ["NO_FOMC_STATEMENT_KNOWN"]))
-    current = unique[-1]
-    previous = unique[-2] if len(unique) > 1 else None
-    if previous is None:
-        consistency = "NO_PREVIOUS_STATEMENT"
+        freshness = Freshness.SCHEDULE_UNKNOWN
     else:
-        step = {"MAINTAIN": Decimal(0), "RAISE": current.change_percentage_points or Decimal(0),
-                "LOWER": -(current.change_percentage_points or Decimal(0))}[current.action.value]
-        expected = (previous.target_lower_percent + step, previous.target_upper_percent + step)
-        consistency = "CONSISTENT" if (current.target_lower_percent, current.target_upper_percent) == expected \
-            else "CONTRADICTORY"
-        if consistency == "CONTRADICTORY":
-            reasons.append("DECISION_CHANGE_CONTRADICTS_PREVIOUS_TARGET_RANGE")
-    if calendar_state is None:
-        scheduled = any(m.end_date == current.statement_date for m in calendar.meetings)
-        calendar_state = "SCHEDULED_MEETING" if scheduled else "NOT_IN_CALENDAR"
-    latest_missed = [m for m in missed if m.end_date > current.statement_date]
-    freshness = Freshness.AWAITING_CAPTURE if latest_missed else Freshness.CURRENT
-    if latest_missed:
-        reasons.append("STATEMENT_FOR_PAST_MEETING_NOT_CAPTURED")
+        dated = {s.statement_date for s in unique}
+        pending = [m for m in calendar.meetings if not m.notation_vote and m.end_date <= today
+                   and m.end_date not in dated and (current is None or m.end_date > current.statement_date)]
+        due, unknown, later = [], [], []
+        for m in pending:
+            at = times.get(m.end_date)
+            if at is not None:
+                (due if at <= T else later).append((m, at))
+            elif m.end_date < today:
+                due.append((m, None))
+            else:
+                unknown.append((m, None))
+        if due:
+            expected, expected_at = due[-1]
+            freshness = Freshness.AWAITING_CAPTURE
+            reasons.append("STATEMENT_FOR_PAST_MEETING_NOT_CAPTURED")
+            reasons.append("DUE_BY_VERIFIED_RELEASE_TIME" if expected_at else "DUE_MEETING_DATE_PASSED_IN_NEW_YORK")
+        elif unknown:
+            expected, _ = unknown[-1]
+            freshness = Freshness.RELEASE_TIME_UNKNOWN
+            reasons.append("MEETING_ENDS_ON_EVALUATION_DATE_RELEASE_TIME_UNVERIFIED")
+        else:
+            freshness = Freshness.CURRENT if current else Freshness.NO_RELEASE_DUE
+            if later:
+                expected, expected_at = later[0]
+                reasons.append("ANNOUNCEMENT_SCHEDULED_LATER_ON_MEETING_DATE")
+    if current is None:
+        return FomcEvidence(freshness=freshness, statement=None, previous_statement=None, consistency="NO_STATEMENT",
+                            range_change_since_previous=_na(POINTS, "NO_STATEMENT"), in_calendar="NO_STATEMENT",
+                            expected_announcement=expected, expected_announcement_at=expected_at,
+                            next_meeting=next_meeting, calendar_provenance=calendar.provenance if calendar else None,
+                            reasons=tuple(reasons + ["NO_FOMC_STATEMENT_KNOWN"]))
+    consistency, change, compared = _compare(previous, current, calendar)
+    in_calendar = "CALENDAR_UNAVAILABLE" if calendar is None else (
+        "SCHEDULED_MEETING" if any(m.end_date == current.statement_date for m in calendar.meetings)
+        else "NOT_IN_CALENDAR")
     return FomcEvidence(freshness=freshness, statement=current, previous_statement=previous,
-                        consistency=consistency, in_calendar=calendar_state, next_meeting=next_meeting,
-                        calendar_provenance=calendar.provenance if calendar else None, reasons=tuple(reasons))
+                        consistency=consistency, range_change_since_previous=change, in_calendar=in_calendar,
+                        expected_announcement=expected, expected_announcement_at=expected_at,
+                        next_meeting=next_meeting, calendar_provenance=calendar.provenance if calendar else None,
+                        reasons=tuple(reasons + compared))
 
 
 # -------------------------------------------------------------------------------- API
@@ -375,7 +516,8 @@ def build_macro_evidence(
     inputs = MacroInputs(schedules=tuple(sorted(known_schedules, key=rank)), bls_captures=tuple(sorted(captures, key=rank)),
                          fomc_statements=tuple(sorted(statements, key=rank)), fomc_calendars=tuple(sorted(calendars, key=rank)))
     return MacroEvidenceReport(
-        evaluation_time=T, events=tuple(events), series=tuple(series), fomc=_fomc(statements, calendars, T),
+        evaluation_time=T, events=tuple(events), series=tuple(series),
+        fomc=_fomc(statements, calendars, known_schedules, T),
         excluded_after_evaluation=ExcludedCounts(bls_captures=late_captures, fomc_statements=late_statements,
                                                  fomc_calendars=late_calendars, schedules=late_schedules),
         inconsistent_bls_captures=tuple(sorted(inconsistent)), input_digest=digest(inputs))

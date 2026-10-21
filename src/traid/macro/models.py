@@ -15,7 +15,8 @@ Source capabilities below were verified on 2026-10-21 against official sources:
 * Federal Reserve Board (public domain, https://www.federalreserve.gov/disclaimer.htm):
   the monetary-policy press RSS feed carries GMT publication times; each FOMC
   statement page states its release time with an explicit EST/EDT zone and the
-  target-range decision; the FOMC calendar page lists meetings.
+  target-range decision (a change size only when the statement states one); the FOMC
+  calendar page lists meetings by their Board (Washington, America/New_York) dates.
 * BEA (PCE, GDP): the API requires a registered UserID that is not configured.
 * FRED/ALFRED: requires an API key and was in maintenance during verification.
 """
@@ -85,6 +86,7 @@ def previous_period(period: str) -> str:
 class MacroModel(CanonicalModel):
     @field_validator("retrieved_at", "published_at", "evaluation_time", "scheduled_at", "captured_at",
                      "first_observed_at", "next_scheduled_at", "observed_through", "as_of",
+                     "expected_announcement_at", "available_at",
                      mode="before", check_fields=False)
     @classmethod
     def aware(cls, value):
@@ -193,19 +195,22 @@ class SeriesSpec(MacroModel):
     event_type: MacroEventType
     description: str
     unit: str
+    measure: Literal["LEVEL", "RATE"]       # the published level or rate itself; no change is derived
     seasonal_adjustment: Literal["SA", "NSA"]
     unit_basis: Literal["BLS_SERIES_ID_DEFINITION"] = "BLS_SERIES_ID_DEFINITION"
 
 
 BLS_SERIES = {s.series_id: s for s in (
     SeriesSpec(series_id="CUUR0000SA0", event_type=MacroEventType.CPI, seasonal_adjustment="NSA",
-               description="CPI-U, all items, U.S. city average", unit="index, 1982-84=100"),
+               description="CPI-U, all items, U.S. city average", unit="index, 1982-84=100", measure="LEVEL"),
     SeriesSpec(series_id="CUSR0000SA0", event_type=MacroEventType.CPI, seasonal_adjustment="SA",
-               description="CPI-U, all items, U.S. city average", unit="index, 1982-84=100"),
+               description="CPI-U, all items, U.S. city average", unit="index, 1982-84=100", measure="LEVEL"),
     SeriesSpec(series_id="CES0000000001", event_type=MacroEventType.EMPLOYMENT_SITUATION, seasonal_adjustment="SA",
-               description="All employees, total nonfarm", unit="thousands of persons"),
+               # CES counts payroll jobs, not persons: a multiple jobholder is counted once per job.
+               description="All employees, total nonfarm (employment level, not the monthly change)",
+               unit="thousands of payroll jobs", measure="LEVEL"),
     SeriesSpec(series_id="LNS14000000", event_type=MacroEventType.EMPLOYMENT_SITUATION, seasonal_adjustment="SA",
-               description="Unemployment rate, 16 years and over", unit="percent"),
+               description="Unemployment rate, 16 years and over", unit="percent", measure="RATE"),
 )}
 
 
@@ -297,13 +302,18 @@ class PolicyAction(StrEnum):
 
 
 class FomcStatement(MacroModel):
-    """A published FOMC statement: the decision as stated, at its verified publication time."""
+    """A published FOMC statement: the decision as stated, at its verified publication time.
+
+    ``stated_change_percentage_points`` is the change size only when the statement states it
+    ("by 1/4 percentage point"); statements that only announce the new range ("decided to raise
+    the target range ... to 5-1/4 to 5-1/2 percent") leave it None. A change derived from an
+    earlier statement is evidence, not a statement fact."""
     statement_date: date
     url: str
     published_at: datetime          # feed GMT time, cross-checked with the page's EST/EDT release time
     release_time_text: str
     action: PolicyAction
-    change_percentage_points: Decimal | None
+    stated_change_percentage_points: Decimal | None
     target_lower_percent: Decimal = Field(ge=0)
     target_upper_percent: Decimal = Field(ge=0)
     decision_text: str
@@ -313,9 +323,9 @@ class FomcStatement(MacroModel):
     def coherent(self):
         if not self.target_lower_percent < self.target_upper_percent:
             raise ValueError("target range lower bound must be below the upper bound")
-        if (self.action is PolicyAction.MAINTAIN) != (self.change_percentage_points is None):
-            raise ValueError("a change size exists exactly for a raise or a cut")
-        if self.change_percentage_points is not None and self.change_percentage_points <= 0:
+        if self.action is PolicyAction.MAINTAIN and self.stated_change_percentage_points is not None:
+            raise ValueError("a maintained range has no change size")
+        if self.stated_change_percentage_points is not None and self.stated_change_percentage_points <= 0:
             raise ValueError("change size must be positive")
         if self.provenance.received_timestamp < self.published_at:
             raise ValueError("a statement cannot be received before its publication")
