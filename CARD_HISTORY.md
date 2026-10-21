@@ -33,3 +33,13 @@ This file records completed and merged V1 Cards. Add one short entry **after** e
 - **PR:** https://github.com/jo-soroush/traid-market-intelligence/pull/20
 - **Merged main commit:** `ea35f9b` (squash merge)
 - **Known limitations:** Thresholds remain uncalibrated; without configured thresholds, corresponding classifications remain UNKNOWN. Crowding remains UNKNOWN pending verified Open Interest/Basis. No verified market-wide liquidation source is integrated, and heuristic liquidation pressure is inactive. Source verification and some units remain caller-asserted. C06/C09 historical replay compatibility remains unresolved. Live-feed end-to-end behavior was not independently verified.
+
+## V1-C11 — Whale Intelligence Foundation
+
+- **Status:** MERGED — 2026-10-21
+- **Scope delivered:** Curated Hyperliquid BTC wallet tracking with a read-only account client, normalized positions and fills, deterministic OPEN/INCREASE/REDUCE/CLOSE/FLIP/LIQUIDATION lifecycle evidence, position reconciliation, current long/short exposure, activity and performance evidence, and transparent versioned Smart Money methodology.
+- **Verification:** 858 tests passed locally (2 existing dependency warnings); independent Codex review **PASS** after remediation; GitHub push and pull-request CI passed.
+- **Review history:** Codex identified and verified fixes for Decimal precision, continuity-gap eligibility, ambiguous same-millisecond fill ordering, duplicate serialization, partial scoring weights and direction-label contradictions. Fill-fragmentation sensitivity is explicitly disclosed.
+- **PR:** https://github.com/jo-soroush/traid-market-intelligence/pull/21
+- **Merged main commit:** `9832b19` (squash merge)
+- **Known limitations:** Provider history is capped at 10,000 recent fills; long performance windows may be incomplete. Net PnL composition and some liquidation semantics remain unverified. Smart Money scores are descriptive, fill-based, sensitive to fragmentation and not evidence of predictive skill. No universal wallet discovery or trading authority is provided.
