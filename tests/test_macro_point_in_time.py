@@ -383,6 +383,127 @@ def test_notation_votes_are_not_expected_statements_unless_explicitly_scheduled(
     assert "ANNOUNCEMENT_SCHEDULE_WITHOUT_CALENDAR_MEETING:2025-08-22" in explicit.reasons
 
 
+# ================================================= FOMC: schedules without a release hour
+def fomc_date(day=OCT22, tz=NY, hh=None, retrieved=datetime(2026, 10, 1, tzinfo=UTC)):
+    """A curated FOMC schedule carrying a date (and zone) but no verified release hour."""
+    return ScheduledRelease(event_type="FOMC_DECISION", reference_period=f"{day:%Y-%m}", release_date=day,
+                            release_time=None if hh is None else time(hh), timezone=tz,
+                            timezone_evidence=None if tz is None else "Curated for this test",
+                            source_url="https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm",
+                            retrieved_at=retrieved)
+
+
+def test_codex_date_only_schedule_on_its_new_york_date_is_uncertain():
+    f = fomc(datetime(2026, 10, 22, 20, tzinfo=UTC), schedules=(fomc_date(),))
+    assert f.freshness is Freshness.RELEASE_TIME_UNKNOWN and f.statement.statement_date == date(2026, 9, 16)
+    assert f.expected_announcement is None and f.expected_announcement_at is None
+    assert f.reasons == ("ANNOUNCEMENT_SCHEDULE_WITHOUT_CALENDAR_MEETING:2026-10-22",
+                         "ANNOUNCEMENT_ON_EVALUATION_DATE_RELEASE_TIME_UNVERIFIED")
+
+
+def test_codex_date_only_schedule_on_the_following_new_york_date_is_awaited():
+    f = fomc(datetime(2026, 10, 23, 16, tzinfo=UTC), schedules=(fomc_date(),))
+    assert f.freshness is Freshness.AWAITING_CAPTURE and f.statement.statement_date == date(2026, 9, 16)
+    assert f.expected_announcement_at is None
+    assert f.reasons == ("ANNOUNCEMENT_SCHEDULE_WITHOUT_CALENDAR_MEETING:2026-10-22",
+                         "STATEMENT_FOR_SCHEDULED_ANNOUNCEMENT_NOT_CAPTURED", "DUE_ANNOUNCEMENT_DATE_PASSED_IN_NEW_YORK")
+    satisfied = fomc(datetime(2026, 10, 23, 16, tzinfo=UTC), schedules=(fomc_date(),), statements=[*REAL, unscheduled()])
+    assert satisfied.freshness is Freshness.CURRENT and satisfied.reasons == ()
+
+
+def test_future_date_only_schedule_does_not_make_the_statement_stale():
+    f = fomc(datetime(2026, 10, 21, 12, tzinfo=UTC), schedules=(fomc_date(),))
+    assert f.freshness is Freshness.CURRENT and f.expected_announcement_at is None
+    assert f.reasons == ("ANNOUNCEMENT_SCHEDULE_WITHOUT_CALENDAR_MEETING:2026-10-22",)
+
+
+def test_date_only_schedule_without_a_calendar():
+    def nocal(at):
+        return build(at=at, schedules=(fomc_date(),), statements=REAL).fomc
+    assert nocal(datetime(2026, 10, 21, 12, tzinfo=UTC)).freshness is Freshness.SCHEDULE_UNKNOWN
+    same = nocal(datetime(2026, 10, 22, 20, tzinfo=UTC))
+    assert same.freshness is Freshness.RELEASE_TIME_UNKNOWN and "NO_FOMC_CALENDAR_KNOWN" in same.reasons
+    assert nocal(datetime(2026, 10, 23, 16, tzinfo=UTC)).freshness is Freshness.AWAITING_CAPTURE
+
+
+def test_date_only_schedule_received_after_evaluation_is_not_used():
+    late = fomc_date(retrieved=datetime(2026, 10, 22, 21, tzinfo=UTC))
+    r = build(at=datetime(2026, 10, 22, 20, tzinfo=UTC), schedules=(late,), statements=REAL, calendars=(CAL,))
+    assert r.fomc.freshness is Freshness.CURRENT and r.fomc.reasons == () and r.excluded_after_evaluation.schedules == 1
+
+
+def test_date_only_and_timed_schedules_for_one_date():
+    both = (fomc_date(), fomc_time(day=OCT22))                   # the timed entry refines the date-only one
+    before = fomc(datetime(2026, 10, 22, 17, tzinfo=UTC), schedules=both)
+    assert before.freshness is Freshness.CURRENT and before.expected_announcement_at == datetime(2026, 10, 22, 18, tzinfo=UTC)
+    due = fomc(datetime(2026, 10, 22, 18, tzinfo=UTC), schedules=both)
+    assert due.freshness is Freshness.AWAITING_CAPTURE and "DUE_BY_VERIFIED_RELEASE_TIME" in due.reasons
+    clash = (fomc_date(), fomc_time(day=OCT22), fomc_time(day=OCT22, hh=15))
+    unsure = fomc(datetime(2026, 10, 22, 17, tzinfo=UTC), schedules=clash)
+    assert unsure.freshness is Freshness.RELEASE_TIME_UNKNOWN and unsure.expected_announcement_at is None
+    assert "CONFLICTING_FOMC_RELEASE_TIMES:2026-10-22" in unsure.reasons
+
+
+def test_duplicate_and_permuted_date_only_schedules_are_deterministic():
+    at = datetime(2026, 10, 22, 20, tzinfo=UTC)
+    assert fomc(at, schedules=(fomc_date(),) * 3).model_dump_json() == fomc(at, schedules=(fomc_date(),)).model_dump_json()
+    mixed = [fomc_date(), fomc_time(day=OCT22, hh=15), fomc_date(day=date(2026, 10, 28)), fomc_date(tz=None),
+             fomc_date(day=date(2026, 10, 23), tz="Europe/London")]
+    baseline = build(at=at, schedules=mixed, statements=REAL, calendars=(CAL,)).model_dump_json()
+    for perm in itertools.permutations(mixed):
+        assert build(at=at, schedules=perm, statements=REAL, calendars=(CAL,)).model_dump_json() == baseline
+
+
+def test_date_only_schedule_follows_new_york_date_transitions():
+    midnight = datetime(2026, 10, 23, 4, tzinfo=UTC)             # 00:00 EDT on Oct 23
+    assert fomc(midnight - timedelta(microseconds=1), schedules=(fomc_date(),)).freshness is Freshness.RELEASE_TIME_UNKNOWN
+    assert fomc(midnight, schedules=(fomc_date(),)).freshness is Freshness.AWAITING_CAPTURE
+    # 03:00 UTC on Oct 22 is still Oct 21 in New York: the Oct 22 schedule is not yet on its date.
+    assert fomc(datetime(2026, 10, 22, 3, tzinfo=UTC), schedules=(fomc_date(),)).freshness is Freshness.CURRENT
+
+
+def test_schedules_without_a_determinable_new_york_date_are_one_window():
+    # Oct 22 in London (BST) is 23:00 UTC Oct 21 to 23:00 UTC Oct 22: two New York dates, one announcement.
+    london = (fomc_date(tz="Europe/London"),)
+    window_end = datetime(2026, 10, 22, 23, tzinfo=UTC)
+    assert fomc(datetime(2026, 10, 21, 22, 59, tzinfo=UTC), schedules=london).freshness is Freshness.CURRENT
+    for at in (datetime(2026, 10, 21, 23, tzinfo=UTC), window_end - timedelta(microseconds=1)):
+        f = fomc(at, schedules=london)
+        assert f.freshness is Freshness.RELEASE_TIME_UNKNOWN and f.expected_announcement_at is None
+        assert f.reasons == ("ANNOUNCEMENT_SCHEDULE_NEW_YORK_DATE_UNDETERMINED:2026-10-22",
+                             "EVALUATION_TIME_WITHIN_SCHEDULED_WINDOW_RELEASE_TIME_UNVERIFIED")
+    due = fomc(window_end, schedules=london)
+    assert due.freshness is Freshness.AWAITING_CAPTURE and "DUE_SCHEDULED_WINDOW_PASSED" in due.reasons
+    satisfied = fomc(window_end, schedules=london, statements=[*REAL, unscheduled()])   # published within the window
+    assert satisfied.freshness is Freshness.CURRENT and satisfied.reasons == ()
+
+
+@pytest.mark.parametrize("hh, earliest, latest", [
+    (None, datetime(2026, 10, 21, 10, tzinfo=UTC), datetime(2026, 10, 23, 12, tzinfo=UTC)),   # Oct 22, any zone
+    (14, datetime(2026, 10, 22, 0, tzinfo=UTC), datetime(2026, 10, 23, 2, tzinfo=UTC)),       # 14:00, any zone
+])
+def test_schedules_without_a_verified_zone_cover_every_possible_instant(hh, earliest, latest):
+    unzoned = (fomc_date(tz=None, hh=hh),)
+    assert fomc(earliest - timedelta(microseconds=1), schedules=unzoned).freshness is Freshness.CURRENT
+    inside = fomc(latest - timedelta(microseconds=1), schedules=unzoned)
+    assert inside.freshness is Freshness.RELEASE_TIME_UNKNOWN and inside.expected_announcement_at is None
+    assert "FOMC_SCHEDULE_TIMEZONE_UNVERIFIED:2026-10-22" in inside.reasons
+    assert fomc(latest, schedules=unzoned).freshness is Freshness.AWAITING_CAPTURE
+
+
+def test_the_latest_due_announcement_is_chosen_by_time_not_input_kind():
+    # A London window ending Oct 20 and a New York date-only Oct 22 schedule are both due on Oct 24.
+    mixed = (fomc_date(day=date(2026, 10, 20), tz="Europe/London"), fomc_date())
+    f = fomc(datetime(2026, 10, 24, 12, tzinfo=UTC), schedules=mixed)
+    assert f.freshness is Freshness.AWAITING_CAPTURE and f.reasons[-1] == "DUE_ANNOUNCEMENT_DATE_PASSED_IN_NEW_YORK"
+
+
+def test_date_only_schedule_for_a_calendar_meeting_keeps_meeting_semantics():
+    f = fomc(datetime(2026, 10, 28, 15, tzinfo=UTC), schedules=(fomc_date(day=OCT),))
+    assert f.freshness is Freshness.RELEASE_TIME_UNKNOWN and f.expected_announcement.end_date == OCT
+    assert f.reasons == ("MEETING_ENDS_ON_EVALUATION_DATE_RELEASE_TIME_UNVERIFIED",)
+
+
 # ============================================================= Decimal-context determinism
 def _scenarios():
     reduction = REAL[3].model_copy(update={"action": PolicyAction.LOWER, "target_lower_percent": D("3.25"),

@@ -35,10 +35,12 @@ lists an entry between the two without a known statement. Freshness of the lates
 announcement is judged on Board (America/New_York) dates, the dates the statement pages
 carry. Expected announcements are the non-notation calendar meetings plus every curated
 FOMC schedule known by T, including one whose date matches no calendar meeting (reported as
-such, never dropped and never turned into an invented meeting). One without a known
-statement is due once its zone-verified release time has passed, or once its date has
-passed in New York; on that date without a single verified time (none, or conflicting
-ones) it is RELEASE_TIME_UNKNOWN, and no release hour is assumed. A future schedule leaves
+such, never dropped and never turned into an invented meeting). A schedule's date counts
+even without a release hour; when its New York date cannot be determined (another zone's
+local day spanning two New York dates, or no verified zone) it counts as one window that is
+due only once every instant it could denote has passed. One without a known statement is due once its zone-verified release time has
+passed, or once its date has passed in New York; on that date without a single verified
+time (none, or conflicting ones) it is RELEASE_TIME_UNKNOWN, and no release hour is assumed. A future schedule leaves
 the latest statement current.
 
 PCE and GDP are BEA releases; BEA access is not configured, so they are UNSUPPORTED.
@@ -48,7 +50,7 @@ interprets direction, scores surprises or authorizes anything.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, time, timedelta, timezone
 from decimal import Decimal, localcontext
 from enum import StrEnum
 from typing import Literal
@@ -67,6 +69,7 @@ from traid.macro.models import (
 ENGINE_VERSION = "c12-macro-evidence-2"
 MAX_OBSERVATIONS = 10000
 NEW_YORK = ZoneInfo("America/New_York")
+UTC = timezone.utc
 POINTS = "percentage points"
 NOT_ESTABLISHED = "ORIGINAL_RELEASE_VINTAGE_NOT_ESTABLISHED_NO_VINTAGE_SOURCE"
 CONFLICT = "CONFLICTING_CAPTURES_AT_ONE_RECEIPT_TIME"
@@ -368,15 +371,47 @@ def _inconsistent(capture: SeriesCapture, schedule) -> bool:
 
 
 # ------------------------------------------------------------------------------ FOMC
-def _announcement_times(schedules) -> tuple[dict, list]:
-    """Curated FOMC release times by their New York date; a date listed with two times has no verified time."""
+def _new_york_dates(start: datetime, end: datetime) -> list:
+    """New York dates overlapped by the instants [start, end)."""
+    first, last = start.astimezone(NEW_YORK).date(), (end - timedelta(microseconds=1)).astimezone(NEW_YORK).date()
+    return [first + timedelta(days=k) for k in range((last - first).days + 1)]
+
+
+def _announcement_times(schedules) -> tuple[dict, list, list, list, list]:
+    """Curated FOMC announcements, their dates kept independently of their times.
+
+    A fully timed, zoned entry gives its New York date and time. An entry whose local day lies
+    within one New York date gives that date with no time. Any other entry (a local day that
+    spans New York dates, or no verified zone) gives a window: the instants it can fall on, its
+    stated hour (if any) read in every zone from UTC-12 to UTC+14 when the zone is unverified.
+    Returns dates with one verified time, dates with conflicting times, dates with no time,
+    windows as (earliest, latest, release date), and the release dates whose zone is unverified."""
     by_date: dict = {}
+    windows, unzoned = set(), set()
     for s in schedules:
-        at = s.scheduled_at() if s.event_type is MacroEventType.FOMC_DECISION else None
+        if s.event_type is not MacroEventType.FOMC_DECISION:
+            continue
+        at = s.scheduled_at()
         if at is not None:
             by_date.setdefault(at.astimezone(NEW_YORK).date(), set()).add(at)
+            continue
+        if s.timezone is None:
+            unzoned.add(s.release_date)
+            local = datetime.combine(s.release_date, s.release_time or time()).replace(tzinfo=UTC)
+            span = timedelta(0) if s.release_time else timedelta(days=1)
+            windows.add((local - timedelta(hours=14), local + span + timedelta(hours=12), s.release_date))
+            continue
+        zone = ZoneInfo(s.timezone)
+        start = datetime.combine(s.release_date, time()).replace(tzinfo=zone).astimezone(UTC)
+        end = datetime.combine(s.release_date + timedelta(days=1), time()).replace(tzinfo=zone).astimezone(UTC)
+        dates = _new_york_dates(start, end)
+        if len(dates) == 1:
+            by_date.setdefault(dates[0], set())
+        else:
+            windows.add((start, end, s.release_date))
     return ({d: min(ats) for d, ats in by_date.items() if len(ats) == 1},
-            sorted(d for d, ats in by_date.items() if len(ats) > 1))
+            sorted(d for d, ats in by_date.items() if len(ats) > 1),
+            sorted(d for d, ats in by_date.items() if not ats), sorted(windows), sorted(unzoned))
 
 
 def _compare(previous: FomcStatement | None, current: FomcStatement, calendar) -> tuple[str, Metric, list]:
@@ -428,46 +463,62 @@ def _fomc(statements: list[FomcStatement], calendars: list[FomcCalendar], schedu
     current = unique[-1] if unique else None
     previous = unique[-2] if len(unique) > 1 else None
 
-    times, conflicted = _announcement_times(schedules)
+    times, conflicted, untimed, windows, unzoned = _announcement_times(schedules)
     if conflicted:
         reasons.append("CONFLICTING_FOMC_RELEASE_TIMES:" + ",".join(d.isoformat() for d in conflicted))
+    if unzoned:
+        reasons.append("FOMC_SCHEDULE_TIMEZONE_UNVERIFIED:" + ",".join(d.isoformat() for d in unzoned))
     expected = expected_at = None
     if calendar is None:
         reasons.append("NO_FOMC_CALENDAR_KNOWN")
     # Announcement dates come from calendar meetings and from explicit curated schedules; a
-    # schedule whose date matches no meeting is still evidence and is never dropped.
+    # schedule whose date matches no meeting, or that has no release hour, is still evidence.
     meetings = {m.end_date: m for m in calendar.meetings if not m.notation_vote} if calendar else {}
-    candidates = sorted(set(meetings) | set(times) | set(conflicted))
+    candidates = sorted(set(meetings) | set(times) | set(conflicted) | set(untimed))
     open_dates = [d for d in candidates if current is None or d > current.statement_date]
     for d in open_dates:
         if d not in meetings:
             reasons.append(f"ANNOUNCEMENT_SCHEDULE_WITHOUT_CALENDAR_MEETING:{d.isoformat()}")
-    due, unknown, later = [], [], []
+    due, unknown, later = [], [], []          # (order, meeting, verified time, kind)
     for d in (d for d in open_dates if d <= today):
         meeting, at = meetings.get(d), times.get(d)
+        kind = "MEETING" if meeting else "DATE"
+        order = at or datetime.combine(d, time()).replace(tzinfo=NEW_YORK).astimezone(UTC)
         if at is not None:
-            (due if at <= T else later).append((meeting, at))
+            (due if at <= T else later).append((order, meeting, at, kind))
         elif d < today:
-            due.append((meeting, None))
+            due.append((order, meeting, None, kind))
         else:
-            unknown.append((meeting, None))
+            unknown.append((order, meeting, None, kind))
+    for earliest, latest, day in windows:
+        if current is not None and current.published_at >= earliest:
+            continue      # a known statement falls in or after the window: this one or a later one
+        reasons.append(f"ANNOUNCEMENT_SCHEDULE_NEW_YORK_DATE_UNDETERMINED:{day.isoformat()}")
+        if T >= latest:
+            due.append((earliest, None, None, "WINDOW"))
+        elif T >= earliest:
+            unknown.append((earliest, None, None, "WINDOW"))
+    due.sort(key=lambda e: (e[0], e[3]))
+    unknown.sort(key=lambda e: (e[0], e[3]))
     if due:
-        expected, expected_at = due[-1]
+        _, expected, expected_at, kind = due[-1]
         freshness = Freshness.AWAITING_CAPTURE
         reasons.append("STATEMENT_FOR_PAST_MEETING_NOT_CAPTURED" if expected
                        else "STATEMENT_FOR_SCHEDULED_ANNOUNCEMENT_NOT_CAPTURED")
-        reasons.append("DUE_BY_VERIFIED_RELEASE_TIME" if expected_at else
-                       "DUE_MEETING_DATE_PASSED_IN_NEW_YORK" if expected else "DUE_ANNOUNCEMENT_DATE_PASSED_IN_NEW_YORK")
+        reasons.append("DUE_BY_VERIFIED_RELEASE_TIME" if expected_at else {
+            "MEETING": "DUE_MEETING_DATE_PASSED_IN_NEW_YORK", "DATE": "DUE_ANNOUNCEMENT_DATE_PASSED_IN_NEW_YORK",
+            "WINDOW": "DUE_SCHEDULED_WINDOW_PASSED"}[kind])
     elif unknown:
-        expected, _ = unknown[-1]
+        _, expected, _, kind = unknown[-1]
         freshness = Freshness.RELEASE_TIME_UNKNOWN
-        reasons.append("MEETING_ENDS_ON_EVALUATION_DATE_RELEASE_TIME_UNVERIFIED" if expected
-                       else "ANNOUNCEMENT_ON_EVALUATION_DATE_RELEASE_TIME_UNVERIFIED")
+        reasons.append({"MEETING": "MEETING_ENDS_ON_EVALUATION_DATE_RELEASE_TIME_UNVERIFIED",
+                        "DATE": "ANNOUNCEMENT_ON_EVALUATION_DATE_RELEASE_TIME_UNVERIFIED",
+                        "WINDOW": "EVALUATION_TIME_WITHIN_SCHEDULED_WINDOW_RELEASE_TIME_UNVERIFIED"}[kind])
     else:
         freshness = (Freshness.SCHEDULE_UNKNOWN if calendar is None
                      else Freshness.CURRENT if current else Freshness.NO_RELEASE_DUE)
         if later:
-            expected, expected_at = later[0]
+            _, expected, expected_at, _ = min(later, key=lambda e: e[0])
             reasons.append("ANNOUNCEMENT_SCHEDULED_LATER_ON_MEETING_DATE" if expected
                            else "ANNOUNCEMENT_SCHEDULED_LATER_ON_EVALUATION_DATE")
     if current is None:
