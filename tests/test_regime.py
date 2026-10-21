@@ -59,29 +59,32 @@ def rates(values, last=FUND_LAST):
 CLOSES = (100, 101, 103, 104)  # momentum(1) = 104/103 - 1, momentum(2) = 104/101 - 1, both up
 
 
-def derivatives(cs=None, fs=None, at=NOW, lookbacks=(1, 2), quote="USD"):
+def derivatives(cs=None, fs=None, at=NOW, lookbacks=(1, 2), quote="USD", **kw):
     config = DerivativesConfig(symbol="BTC", base_asset="BTC", quote_currency=quote, atr_period=3,
                                volatility_period=2, momentum_lookbacks=lookbacks, funding_lookback_hours=4)
+    args = dict(config=config, candle_coverage=CapabilityCoverage(Capability.CANDLES, CapabilityAvailability.SUPPORTED),
+                funding_coverage=CapabilityCoverage(Capability.FUNDING, CapabilityAvailability.SUPPORTED),
+                evaluation_time=at, **PROVEN)
+    args.update(kw)
     return analyze_derivatives(
-        closes(CLOSES) if cs is None else tuple(cs), rates(["0.0001"] * 4) if fs is None else tuple(fs),
-        config=config, candle_coverage=CapabilityCoverage(Capability.CANDLES, CapabilityAvailability.SUPPORTED),
-        funding_coverage=CapabilityCoverage(Capability.FUNDING, CapabilityAvailability.SUPPORTED),
-        evaluation_time=at, **PROVEN)
+        closes(CLOSES) if cs is None else tuple(cs), rates(["0.0001"] * 4) if fs is None else tuple(fs), **args)
 
 
 TIGHT_BIDS = (("100", "2"), ("99.9", "3"))
 TIGHT_ASKS = (("100.1", "2"), ("100.2", "3"))
 
 
-def liquidity(bids=TIGHT_BIDS, asks=TIGHT_ASKS, age=0, at=NOW, quote="USD"):
+def liquidity(bids=TIGHT_BIDS, asks=TIGHT_ASKS, age=0, at=NOW, quote="USD", **kw):
     when = at - timedelta(seconds=age)
     book = OrderBookSnapshot(symbol="BTC", timestamp=when, provenance=SourceProvenance(
         source="fixture", source_type="public_websocket", source_timestamp=when, received_timestamp=when),
         bids=tuple(OrderBookLevel(price=D(p), quantity=D(q)) for p, q in bids),
         asks=tuple(OrderBookLevel(price=D(p), quantity=D(q)) for p, q in asks))
     config = LiquidityConfig(symbol="BTC", base_asset="BTC", quote_currency=quote, bands_bps=(D(100), D(200)))
-    return analyze_book(book, config=config, coverage=CapabilityCoverage(Capability.ORDER_BOOK, CapabilityAvailability.SUPPORTED),
-                        evaluation_time=at, policy=default_quality_policy(), **PROVEN)
+    args = dict(config=config, coverage=CapabilityCoverage(Capability.ORDER_BOOK, CapabilityAvailability.SUPPORTED),
+                evaluation_time=at, policy=default_quality_policy(), **PROVEN)
+    args.update(kw)
+    return analyze_book(book, **args)
 
 
 def trade(tid, side, qty, ago=1.0, lag=0.0):
@@ -94,11 +97,13 @@ def trade(tid, side, qty, ago=1.0, lag=0.0):
 BALANCE_3_TO_1 = (trade("t1", BUY, "2", ago=30), trade("t2", SELL, "1", ago=20), trade("t3", BUY, "1", ago=1))
 
 
-def flow(trades=BALANCE_3_TO_1, at=NOW, base="BTC"):
+def flow(trades=BALANCE_3_TO_1, at=NOW, base="BTC", **kw):
     config = FlowConfig(symbol="BTC", base_asset=base, window=timedelta(seconds=60), session_start=NOW - timedelta(seconds=300),
                         late_tolerance=timedelta(seconds=5))
-    return analyze_flow(tuple(trades), config=config, coverage=CapabilityCoverage(Capability.TRADES, CapabilityAvailability.SUPPORTED),
-                        evaluation_time=at, policy=default_quality_policy(), **PROVEN)
+    args = dict(config=config, coverage=CapabilityCoverage(Capability.TRADES, CapabilityAvailability.SUPPORTED),
+                evaluation_time=at, policy=default_quality_policy(), **PROVEN)
+    args.update(kw)
+    return analyze_flow(tuple(trades), **args)
 
 
 def liq(sid="L1", ago=10, lag=1, source="verified-feed", source_type="public_websocket", price="100", qty="1",
@@ -147,8 +152,8 @@ def test_all_dimensions_classify_from_trusted_reports_with_configured_rules():
 def test_facts_are_the_upstream_metrics_verbatim_with_their_real_windows():
     der, book, fl = derivatives(), liquidity(), flow()
     r = classify(derivatives=der, liquidity=book, flow=fl)
-    for m in der.candles.momentum:
-        f = fact(r.direction, f"candles.momentum[{m.lookback_bars}].simple_return")
+    for i, m in enumerate(der.candles.momentum):
+        f = fact(r.direction, f"candles.momentum[{i}].simple_return")
         assert f.metric == m.simple_return and f.source == "C09.candles"
         # The k-bar return runs from the close of candle (latest - k) to the latest close.
         assert (f.window_kind, f.window_start, f.window_end) == (
@@ -158,8 +163,8 @@ def test_facts_are_the_upstream_metrics_verbatim_with_their_real_windows():
     spread = fact(r.liquidity, "spread_bps")
     assert spread.metric == book.spread_bps and spread.window_start == spread.window_end == book.snapshot_timestamp
     assert spread.window_kind == WindowKind.BOOK_SNAPSHOT
-    assert fact(r.liquidity, "bands[100].bid_quote").metric == book.bands[0].bid_quote
-    assert fact(r.liquidity, "bands[200].imbalance").metric == book.bands[1].imbalance
+    assert fact(r.liquidity, "bands[0].bid_quote").metric == book.bands[0].bid_quote
+    assert fact(r.liquidity, "bands[1].imbalance").metric == book.bands[1].imbalance
     net = fact(r.flow, "window_net_delta")
     assert net.metric == fl.window_net_delta and (net.window_start, net.window_end) == (fl.window_start, NOW)
     cvd = fact(r.flow, "session_cvd")
@@ -204,7 +209,7 @@ def test_direction_states_from_momentum(values, state):
 def test_contradictory_momentum_is_unknown_and_both_facts_are_kept():
     r = classify(derivatives=derivatives(closes((100, 100, 110, 105))))  # 1 bar down, 2 bars up
     assert r.direction.state == DirectionState.UNKNOWN and r.direction.reasons == ("CONTRADICTORY_MOMENTUM",)
-    signs = [fact(r.direction, f"candles.momentum[{k}].simple_return").metric.value for k in (1, 2)]
+    signs = [fact(r.direction, f"candles.momentum[{i}].simple_return").metric.value for i in (0, 1)]
     assert signs[0] < 0 < signs[1]
     assert r.regime.state == RegimeState.UNKNOWN and "DIRECTION_UNKNOWN" in r.regime.reasons
 
@@ -341,10 +346,10 @@ def test_warming_up_and_unreported_lookbacks_are_unknown_with_upstream_reason():
     short = derivatives(closes((100, 101)), lookbacks=(1, 2))
     r = classify(derivatives=short)
     assert r.direction.state == DirectionState.UNKNOWN
-    assert any(x.startswith("METRIC_UNAVAILABLE:momentum[2]:") for x in r.direction.reasons)
-    assert fact(r.direction, "candles.momentum[2].simple_return").metric == short.candles.momentum[1].simple_return
+    assert any(x.startswith("METRIC_UNAVAILABLE:momentum(lookback_bars=2):") for x in r.direction.reasons)
+    assert fact(r.direction, "candles.momentum[1].simple_return").metric == short.candles.momentum[1].simple_return
     other = _with(direction=DirectionRules(momentum_lookbacks=(1, 3), trend_min_abs_return=D("0.005")))
-    assert "MOMENTUM_LOOKBACK_NOT_IN_REPORT:3" in classify(other).direction.reasons
+    assert "MOMENTUM_LOOKBACK_NOT_IN_REPORT:lookback_bars=3" in classify(other).direction.reasons
 
 
 # ------------------------------------------------------------- staleness and independent trust
@@ -468,7 +473,7 @@ def test_unexpected_c09_metric_units_are_unknown_not_reinterpreted():
     tampered = der.model_copy(update={"candles": c.model_copy(update={"momentum": momentum, "realized_volatility": vol}),
                                       "funding": der.funding.model_copy(update={"latest_rate": rate})})
     r = classify(derivatives=tampered)
-    assert r.direction.reasons == ("UNIT_MISMATCH:momentum[1]", "UNIT_MISMATCH:momentum[2]")
+    assert r.direction.reasons == ("UNIT_MISMATCH:momentum(lookback_bars=1)", "UNIT_MISMATCH:momentum(lookback_bars=2)")
     assert r.volatility.reasons == ("UNIT_MISMATCH:realized_volatility",)
     assert r.funding.reasons == ("UNIT_MISMATCH:funding.latest_rate",)
 
@@ -694,3 +699,342 @@ def test_sequential_evaluations_transition_from_point_in_time_evidence_only():
         assert r.regime.state == (RegimeState(state.value) if state != DirectionState.UNKNOWN else RegimeState.UNKNOWN)
         seen.append(r.direction.reasons)
     assert seen[2] == ("NO_DIRECTION_RULE_MATCHED",) and seen[4] == ("CONTRADICTORY_MOMENTUM",)
+
+
+# =============================================== audit regressions: internal timestamp consistency
+INCONSISTENT = "INTERNALLY_INCONSISTENT:"
+
+
+def excluded(dim, source, problem=None):
+    """The dimension read nothing from an internally inconsistent source."""
+    (ref,) = dim.sources
+    assert ref.source == source and ref.excluded_reason.startswith(INCONSISTENT), ref.excluded_reason
+    if problem is not None:
+        assert ref.excluded_reason == INCONSISTENT + problem
+    assert dim.state == "UNKNOWN" and dim.facts == () and not dim.inputs_trusted and not ref.trusted_for_current_use
+    assert dim.reasons[0] == f"{source}:{ref.excluded_reason}"
+    return ref
+
+
+def consistent(dim):
+    assert all(s.excluded_reason is None for s in dim.sources), [s.excluded_reason for s in dim.sources]
+
+
+def _old(prov, when):
+    return prov.model_copy(update={"source_timestamp": when, "received_timestamp": when})
+
+
+def test_ten_day_old_book_presented_as_live_is_excluded():
+    book = liquidity()
+    old = NOW - timedelta(days=10)
+    forged = book.model_copy(update={"snapshot_timestamp": old, "provenance": _old(book.provenance, old)})
+    assert forged.quality.trusted_for_current_use and forged.spread_bps.value is not None
+    r = classify(liquidity=forged)
+    excluded(r.liquidity, "C07.book", "QUALITY_CONTRADICTS_EVIDENCE")
+    assert r.liquidity.state == LiquidityState.UNKNOWN
+    assert r.flow.state == FlowState.BUY_DOMINANT  # only the inconsistent report is withheld
+
+
+@pytest.mark.parametrize("forge, problem", [
+    (lambda b: b.model_copy(update={"snapshot_timestamp": NOW - timedelta(days=10)}),
+     "SNAPSHOT_TIME_NOT_PROVENANCE_SOURCE_TIME"),
+    (lambda b: b.model_copy(update={"provenance": _old(b.provenance, NOW - timedelta(seconds=6)),
+                                    "snapshot_timestamp": NOW - timedelta(seconds=6)}),
+     "QUALITY_CONTRADICTS_EVIDENCE"),   # 6 s is DELAYED under C05, yet LIVE is claimed
+    (lambda b: b.model_copy(update={"quality": b.quality.model_copy(update={"capability": Capability.TRADES})}),
+     "QUALITY_CAPABILITY_MISMATCH"),
+    (lambda b: b.model_copy(update={"quality": b.quality.model_copy(update={"policy_version": "other"})}),
+     "QUALITY_POLICY_NOT_REPRODUCIBLE"),
+])
+def test_book_contradictions_fail_closed(forge, problem):
+    excluded(classify(liquidity=forge(liquidity())).liquidity, "C07.book", problem)
+
+
+def test_degraded_book_with_numbers_restored_is_excluded():
+    stale, good = liquidity(age=60), liquidity()
+    forged = stale.model_copy(update={"spread_bps": good.spread_bps})
+    excluded(classify(liquidity=forged).liquidity, "C07.book", "VALUES_PRESENT_WITHOUT_TRUSTED_QUALITY")
+    forged = stale.model_copy(update={"quality": good.quality})  # fresh label on stale evidence
+    excluded(classify(liquidity=forged).liquidity, "C07.book", "QUALITY_CONTRADICTS_EVIDENCE")
+
+
+@pytest.mark.parametrize("age", [0, 3, 5, 6, 15, 16, 60])
+@pytest.mark.parametrize("status", [dict(), dict(continuity=ContinuityStatus.UNKNOWN),
+                                    dict(recovery=RecoveryStatus.RECOVERING),
+                                    dict(coverage=CapabilityCoverage(Capability.ORDER_BOOK, CapabilityAvailability.LIMITED, "partial"))])
+def test_legitimate_books_of_any_age_and_status_are_consistent(age, status):
+    book = liquidity(age=age, **status)
+    r = classify(liquidity=book)
+    consistent(r.liquidity)
+    assert r.liquidity.inputs_trusted == book.quality.trusted_for_current_use
+    assert (r.liquidity.state != LiquidityState.UNKNOWN) == book.quality.trusted_for_current_use
+
+
+def test_custom_c05_policy_must_be_supplied_to_be_reproduced():
+    from traid.quality import FreshnessThreshold, QualityPolicy
+    custom = QualityPolicy(policy_version="custom-1", thresholds=tuple(
+        FreshnessThreshold(capability=c, live_max_age=timedelta(seconds=60), delayed_max_age=timedelta(seconds=120))
+        for c in (Capability.ORDER_BOOK, Capability.TRADES)))
+    book, fl = liquidity(age=30, policy=custom), flow(policy=custom)
+    r = classify(liquidity=book, flow=fl)
+    excluded(r.liquidity, "C07.book", "QUALITY_POLICY_NOT_REPRODUCIBLE")
+    excluded(r.flow, "C08.flow", "QUALITY_POLICY_NOT_REPRODUCIBLE")
+    r = classify(liquidity=book, flow=fl, quality_policy=custom)
+    consistent(r.liquidity)
+    assert r.liquidity.state == LiquidityState.NOT_THIN and r.flow.state == FlowState.BUY_DOMINANT
+    same_version = custom.model_copy(update={"policy_version": default_quality_policy().policy_version})
+    forged = liquidity(age=30, policy=same_version)  # LIVE only under the undisclosed thresholds
+    excluded(classify(liquidity=forged).liquidity, "C07.book", "QUALITY_CONTRADICTS_EVIDENCE")
+    with pytest.raises(ValueError):
+        classify(quality_policy=custom.model_dump())
+
+
+def _shift_flow(fl, when):
+    p = fl.provenance
+    newest = p.newest_trade_provenance.model_copy(update={"source_timestamp": when, "received_timestamp": when})
+    return p.model_copy(update={"earliest_event_time": when, "latest_event_time": when, "newest_trade_provenance": newest})
+
+
+@pytest.mark.parametrize("forge, problem", [
+    # trades an hour before the declared 60 s window still reported as a dominant current window
+    (lambda f: f.model_copy(update={"provenance": _shift_flow(f, NOW - HOUR)}), "TRADES_OUTSIDE_REPORTED_RANGE"),
+    (lambda f: f.model_copy(update={"provenance": f.provenance.model_copy(update={"latest_trade_id": "t1"})}),
+     "NEWEST_TRADE_PROVENANCE_MISMATCH"),
+    (lambda f: f.model_copy(update={"provenance": f.provenance.model_copy(update={"latest_event_time": NOW - timedelta(seconds=120)})}),
+     "TRADES_OUTSIDE_REPORTED_RANGE"),   # newest before earliest
+    (lambda f: f.model_copy(update={"provenance": _shift_flow(f, NOW - timedelta(seconds=120))}),
+     "AGGREGATES_WITHOUT_TRADES_IN_THEIR_WINDOW"),   # inside the session, outside the window
+    (lambda f: f.model_copy(update={"window_start": NOW - HOUR}), "WINDOW_START_NOT_EVALUATION_MINUS_WINDOW"),
+    (lambda f: f.model_copy(update={"session_start": NOW - HOUR}), "SESSION_START_NOT_CONFIGURED_SESSION"),
+    (lambda f: f.model_copy(update={"window_trade_count": 0}), "AGGREGATES_WITHOUT_TRADES_IN_THEIR_WINDOW"),
+    (lambda f: f.model_copy(update={"window_trade_count": 99}), "AGGREGATES_WITHOUT_TRADES_IN_THEIR_WINDOW"),
+    (lambda f: f.model_copy(update={"provenance": _shift_flow(f, NOW - timedelta(seconds=10))}),
+     "QUALITY_CONTRADICTS_EVIDENCE"),   # newest trade 10 s old is not LIVE, yet LIVE is claimed
+    (lambda f: f.model_copy(update={"provenance": None, "trusted_for_current_use": False, "reasons": ("X",),
+                                    **{k: getattr(f, k).model_copy(update={"value": None, "reason": "X"}) for k in (
+                                        "window_buy_volume", "window_sell_volume", "window_net_delta",
+                                        "session_buy_volume", "session_sell_volume", "session_cvd")}}),
+     "QUALITY_PROVENANCE_PRESENCE_MISMATCH"),   # an assessment with no record behind it
+])
+def test_flow_contradictions_fail_closed(forge, problem):
+    fl = flow()
+    assert classify(flow=fl).flow.state == FlowState.BUY_DOMINANT
+    r = classify(flow=forge(fl))
+    excluded(r.flow, "C08.flow", problem)
+    assert r.flow.state == FlowState.UNKNOWN
+
+
+def test_stale_flow_relabelled_trusted_is_excluded():
+    stale, good = flow((trade("a", BUY, "3", ago=40), trade("b", SELL, "1", ago=30))), flow()
+    assert not stale.trusted_for_current_use
+    forged = stale.model_copy(update={k: getattr(good, k) for k in (
+        "quality", "trusted_for_current_use", "reasons", "window_buy_volume", "window_sell_volume", "window_net_delta",
+        "session_buy_volume", "session_sell_volume", "session_cvd", "window_trade_count", "session_trade_count")})
+    excluded(classify(flow=forged).flow, "C08.flow")
+
+
+@pytest.mark.parametrize("trades", [
+    BALANCE_3_TO_1,
+    (trade("t1", BUY, "3", ago=30, lag=20), trade("t2", SELL, "1", ago=1)),     # late trade retained
+    (trade("t1", BUY, "3", ago=200), trade("t2", SELL, "1", ago=100)),          # stale, session only
+    (trade("t1", BUY, "3", ago=2), trade("t2", SELL, "1", ago=1)),
+    (trade("t1", BUY, "3", ago=8),),                                             # DELAYED newest trade
+    (),                                                                          # no trades at all
+    (trade("t1", None, "3", ago=1),),                                            # blocking: side unknown
+])
+@pytest.mark.parametrize("status", [dict(), dict(continuity=ContinuityStatus.UNKNOWN),
+                                    dict(recovery=RecoveryStatus.RECOVERED_WITHOUT_REPLAY_PROOF)])
+def test_legitimate_flow_reports_are_consistent(trades, status):
+    fl = flow(trades, **status)
+    r = classify(flow=fl)
+    consistent(r.flow)
+    assert r.flow.inputs_trusted == fl.trusted_for_current_use
+
+
+def _shift_section(section, **update):
+    return section.model_copy(update=update)
+
+
+def test_stale_candles_presented_as_current_are_excluded():
+    stale, good = derivatives(closes(CLOSES, last=LAST - 5 * HOUR)), derivatives()
+    assert not stale.candles.trusted_for_current_use and good.candles.trusted_for_current_use
+    fresh_claims = {k: getattr(good.candles, k) for k in (
+        "quality", "trusted_for_current_use", "reasons", "bars_behind", "atr", "realized_volatility", "vwap",
+        "vwap_session_volume", "momentum")}
+    forged = stale.model_copy(update={"candles": _shift_section(stale.candles, latest_start=LAST, **fresh_claims)})
+    r = classify(derivatives=forged)
+    excluded(r.direction, "C09.candles", "LATEST_START_NOT_PROVENANCE_TIME")
+    excluded(r.volatility, "C09.candles", "LATEST_START_NOT_PROVENANCE_TIME")
+    assert r.regime.state == RegimeState.UNKNOWN
+    p = stale.candles.provenance
+    forged_p = p.model_copy(update={"latest_time": LAST})   # receipt still five hours old
+    forged = stale.model_copy(update={"candles": _shift_section(stale.candles, latest_start=LAST, provenance=forged_p, **fresh_claims)})
+    excluded(classify(derivatives=forged).direction, "C09.candles", "LATEST_CANDLE_NOT_CLOSED_AT_RECEIPT")
+    forged = stale.model_copy(update={"candles": _shift_section(stale.candles, **fresh_claims)})
+    excluded(classify(derivatives=forged).direction, "C09.candles", "INTERVALS_BEHIND_CONTRADICT_EVIDENCE")
+    claims = dict(fresh_claims, bars_behind=stale.candles.bars_behind)
+    forged = stale.model_copy(update={"candles": _shift_section(stale.candles, **claims)})
+    excluded(classify(derivatives=forged).direction, "C09.candles", "QUALITY_CONTRADICTS_EVIDENCE")
+
+
+def test_stale_funding_presented_as_current_is_excluded():
+    stale, good = derivatives(fs=rates(["0.0001"] * 4, last=FUND_LAST - 3 * HOUR)), derivatives()
+    claims = {k: getattr(good.funding, k) for k in (
+        "quality", "trusted_for_current_use", "reasons", "bars_behind", "latest_rate", "cumulative_funding",
+        "mean_hourly_funding")}
+    forged = stale.model_copy(update={"funding": _shift_section(stale.funding, latest_start=FUND_LAST, **claims)})
+    r = classify(derivatives=forged)
+    excluded(r.funding, "C09.funding", "LATEST_START_NOT_PROVENANCE_TIME")
+    assert r.direction.state == DirectionState.TRENDING_UP   # the candle section is consistent on its own
+    claims["bars_behind"] = stale.funding.bars_behind
+    forged = stale.model_copy(update={"funding": _shift_section(stale.funding, **claims)})
+    excluded(classify(derivatives=forged).funding, "C09.funding", "QUALITY_CONTRADICTS_EVIDENCE")
+    forged = good.model_copy(update={"funding": _shift_section(good.funding, latest_start=FUND_LAST + timedelta(minutes=1))})
+    assert classify(derivatives=forged).funding.sources[0].excluded_reason is not None
+
+
+def test_c09_values_without_trusted_quality_are_excluded():
+    stale, good = derivatives(closes(CLOSES, last=LAST - 5 * HOUR)), derivatives()
+    forged = stale.model_copy(update={"candles": _shift_section(stale.candles, atr=good.candles.atr)})
+    excluded(classify(derivatives=forged).volatility, "C09.candles", "VALUES_PRESENT_WITHOUT_TRUSTED_QUALITY")
+
+
+@pytest.mark.parametrize("build", [
+    lambda: derivatives(),
+    lambda: derivatives(at=NOW + HOUR, fs=rates(["0.0001"] * 4, last=FUND_LAST + HOUR)),   # candles DELAYED
+    lambda: derivatives(closes(CLOSES, last=LAST - 5 * HOUR)),                            # candles STALE
+    lambda: derivatives(closes((100, 101))),                                              # warming up
+    lambda: derivatives(closes((100, 101, 102)) + (candle(LAST - 4 * HOUR, 99),)),       # gap in lookback
+    lambda: derivatives(closes(CLOSES), ()),                                              # no funding
+    lambda: derivatives(at=NOW + timedelta(minutes=50)),                                  # late in the hour
+    lambda: derivatives(continuity=ContinuityStatus.UNKNOWN),
+    lambda: derivatives(recovery=RecoveryStatus.RECOVERING),
+    lambda: derivatives(candle_coverage=CapabilityCoverage(Capability.CANDLES, CapabilityAvailability.LIMITED, "partial")),
+    lambda: derivatives(closes(CLOSES) + (candle(LAST, 999),)),                           # conflicting duplicate
+])
+def test_legitimate_derivatives_reports_are_consistent(build):
+    der = build()
+    at = der.evaluation_time
+    r = classify_market_state(evaluation_time=at, symbol="BTC", rules=rules(), derivatives=der)
+    consistent(r.direction)
+    consistent(r.funding)
+    assert r.direction.inputs_trusted == der.candles.trusted_for_current_use
+    assert r.funding.inputs_trusted == der.funding.trusted_for_current_use
+
+
+# ==================================================== audit regressions: deterministic deduplication
+WS_AND_INFO = (VerifiedLiquidationSource(source="verified-feed", source_type="public_info"), VERIFIED)
+
+
+def test_equal_values_in_different_decimal_spellings_serialize_identically_in_any_order():
+    import itertools
+    variants = [liq("L1", price="100"), liq("L1", price="100.0"), liq("L1", price="1E+2"),
+                liq("L1", price="100.00", source_type="public_info"),   # tied receipt, other transport
+                liq("L1", price="100", lag=3),                           # later receipt
+                liq("L2", ago=20, qty="2"), liq("L2", ago=20, qty="2.000")]
+    r = rules(liquidation=LiquidationRules(verified_sources=WS_AND_INFO, window=timedelta(minutes=5)))
+    outputs = {classify_market_state(evaluation_time=NOW, symbol="BTC", rules=r, liquidations=perm).model_dump_json()
+               for perm in itertools.permutations(variants)}
+    assert len(outputs) == 1
+    ctx = MarketStateReport.model_validate_json(outputs.pop()).liquidation
+    assert ctx.label == LiquidationLabel.AUTHORITATIVE_LIQUIDATION_EVENT and ctx.duplicate_count == 5
+    assert [e.provenance.source_id for e in ctx.authoritative_events] == ["L2", "L1"]
+    with localcontext() as c:
+        c.prec, c.rounding = 2, ROUND_DOWN
+        again = classify_market_state(evaluation_time=NOW, symbol="BTC", rules=r, liquidations=tuple(reversed(variants)))
+    assert again.liquidation == ctx
+
+
+def test_distinct_events_are_not_merged_and_real_conflicts_still_fail_closed():
+    same_content = classify(liq_events=(liq("A"), liq("B"))).liquidation
+    assert len(same_content.authoritative_events) == 2 and same_content.duplicate_count == 0
+    spelling = classify(liq_events=(liq("A", qty="1"), liq("A", qty="1.00"))).liquidation
+    assert spelling.label == LiquidationLabel.AUTHORITATIVE_LIQUIDATION_EVENT and spelling.duplicate_count == 1
+    conflict = classify(liq_events=(liq("A", qty="1"), liq("A", qty="1.01"))).liquidation
+    assert conflict.label == LiquidationLabel.UNKNOWN and "CONFLICTING_LIQUIDATION_IDENTITY" in conflict.reasons
+
+
+# ======================================================== audit regressions: future events first
+def _without_counters(report):
+    data = report.model_dump(mode="json")
+    data["liquidation"].pop("supplied_count")
+    data["liquidation"].pop("not_yet_received_count")
+    return data
+
+
+def _future(**fields):
+    """A record received after NOW; its content may be invalid or for another market."""
+    when = NOW + timedelta(seconds=5)
+    values = dict(symbol="BTC", price=D(100), quantity=D(1), timestamp=when, schema_version="1.0",
+                  provenance=SourceProvenance(source="verified-feed", source_type="public_websocket", source_id="F",
+                                              source_timestamp=when, received_timestamp=when))
+    values.update(fields)
+    return LiquidationEvent.model_construct(**values)
+
+
+@pytest.mark.parametrize("known", [(), (liq("L1"),)])
+def test_future_received_events_cannot_change_an_earlier_report(known):
+    baseline = classify(liq_events=known)
+    unknowable = (_future(symbol="ETH"), _future(quantity=D(-5)), _future(price=D(0)),
+                  _future(), _future(), _future(quantity=D(7)),          # duplicate and conflicting
+                  _future(source_id="L1", quantity=D(9)))                # would conflict with a known event
+    r = classify(liq_events=known + unknowable)
+    assert _without_counters(r) == _without_counters(baseline)
+    assert r.liquidation.supplied_count == len(known) + 7 and r.liquidation.not_yet_received_count == 7
+
+
+def test_once_received_the_same_records_are_fully_validated():
+    later = NOW + timedelta(seconds=5)
+    with pytest.raises(ValueError, match="INSTRUMENT_IDENTITY_MISMATCH"):
+        classify_market_state(evaluation_time=later, symbol="BTC", rules=rules(), liquidations=(_future(symbol="ETH"),))
+    with pytest.raises(ValidationError):
+        classify_market_state(evaluation_time=later, symbol="BTC", rules=rules(), liquidations=(_future(quantity=D(-5)),))
+    ctx = classify_market_state(evaluation_time=later, symbol="BTC", rules=rules(),
+                                liquidations=(_future(), _future(quantity=D(7)))).liquidation
+    assert "CONFLICTING_LIQUIDATION_IDENTITY" in ctx.reasons and ctx.label == LiquidationLabel.UNKNOWN
+
+
+@pytest.mark.parametrize("provenance", [
+    None,
+    {"received_timestamp": NOW},
+    SourceProvenance.model_construct(source="verified-feed", source_type="public_websocket", source_id="F",
+                                     source_timestamp=None, received_timestamp=NOW.replace(tzinfo=None)),
+    SourceProvenance.model_construct(source="verified-feed", source_type="public_websocket", source_id="F",
+                                     source_timestamp=None, received_timestamp="2026-10-15T12:05:00Z"),
+    SourceProvenance.model_construct(source="verified-feed", source_type="public_websocket", source_id="F"),
+])
+def test_malformed_or_missing_receipt_times_are_rejected_not_skipped(provenance):
+    with pytest.raises(ValueError):
+        classify(liq_events=(_future(provenance=provenance),))
+
+
+# ============================================================ audit regressions: evidence selectors
+def resolve(root, path):
+    obj = root
+    for part in path.split("."):
+        name, _, index = part.partition("[")
+        obj = getattr(obj, name)
+        if index:
+            obj = obj[int(index.rstrip("]"))]
+    return obj
+
+
+@pytest.mark.parametrize("lookbacks", [(1, 2), (1, 3, 6), (2, 5)])
+def test_every_fact_selector_resolves_to_its_original_metric(lookbacks):
+    cs = closes((100, 101, 103, 104, 102, 105, 106, 108))
+    der, book, fl = derivatives(cs, lookbacks=lookbacks), liquidity(), flow()
+    roots = {"C07.book": book, "C08.flow": fl, "C09.candles": der, "C09.funding": der, "C09": der}
+    r = classify(_with(direction=DirectionRules(momentum_lookbacks=lookbacks, trend_min_abs_return=D("0.001"))),
+                 derivatives=der, liquidity=book, flow=fl)
+    checked = 0
+    for dim in (r.direction, r.volatility, r.liquidity, r.flow, r.funding, r.crowding):
+        for f in dim.facts:
+            if f.source == "C10.derived":
+                continue
+            assert resolve(roots[f.source], f.field) == f.metric, f.field
+            checked += 1
+    assert checked == len(lookbacks) + 2 + (1 + 3 * len(book.bands)) + 4 + 3 + 2
+    for i, k in enumerate(lookbacks):
+        f = fact(r.direction, f"candles.momentum[{i}].simple_return")
+        assert resolve(der, f"candles.momentum[{i}]").lookback_bars == k
+        assert f.window_start == LAST - (k - 1) * HOUR

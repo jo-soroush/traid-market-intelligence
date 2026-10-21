@@ -41,6 +41,15 @@ formula version or conflicting asserted base/quote units raise. Upstream evidenc
 observed or received after T is excluded, never read. No timestamp is shifted: each
 fact keeps the real window of its source (book instant, trade window, closed candles,
 funding settlement hours).
+
+Internal consistency: a report section is excluded (INTERNALLY_INCONSISTENT, UNKNOWN)
+unless its own timestamps agree with its upstream contract and its freshness assessment
+is reproduced exactly from its own evidence at T: C05 ``assess_quality`` on the C07 book
+provenance and the newest C08 trade provenance (with the caller's C05 policy, by default
+the shipped V1 policy), C09's interval-aware rule on the newest candle/funding record.
+No freshness limit is introduced here; an assessment that cannot be reproduced fails
+closed. Liquidation events received after T are counted and never otherwise read: not
+even their symbol or content is validated.
 """
 from __future__ import annotations
 
@@ -57,10 +66,15 @@ from typing import Literal
 from pydantic import Field, field_validator, model_validator
 
 from traid.derivatives import FORMULA_VERSION as C09_VERSION, DerivativesReport
-from traid.derivatives.analytics import RATE_UNIT
+# C09's own interval-aware freshness rule is reused, never re-implemented, to check its reports.
+from traid.derivatives.analytics import (
+    CANDLE_OFFSET, FUNDING_OFFSET, RATE_UNIT, _assess as _c09_assess, _expected_hour, _floor_hour,
+)
 from traid.domain.models import CanonicalModel, DataQualityState, LiquidationEvent, SourceProvenance
+from traid.exchange import Capability, CapabilityCoverage
 from traid.flow import FORMULA_VERSION as C08_VERSION, FlowReport
 from traid.liquidity import FORMULA_VERSION as C07_VERSION, LiquidityReport, Metric
+from traid.quality import QualityAssessment, QualityPolicy, assess_quality, default_quality_policy
 
 ENGINE_VERSION = "c10-market-state-1"
 DIGEST_ALGORITHM = "sha256-canonical-rules-v1"
@@ -474,21 +488,135 @@ def _after(t: datetime | None, evaluation_time: datetime) -> bool:
     return t is not None and t > evaluation_time
 
 
-def _book_ref(book: LiquidityReport, T):
+def _metrics(model) -> list[Metric]:
+    """Every Metric reachable inside a report or section, in field order."""
+    found = []
+    for name in type(model).model_fields:
+        value = getattr(model, name)
+        for item in value if isinstance(value, tuple) else (value,):
+            if isinstance(item, Metric):
+                found.append(item)
+            elif isinstance(item, CanonicalModel) and not isinstance(item, (SourceProvenance, QualityAssessment)):
+                found += _metrics(item)
+    return found
+
+
+def _coverage(capability, quality: QualityAssessment) -> CapabilityCoverage:
+    return CapabilityCoverage(capability, quality.coverage_availability, quality.coverage_limitation or "")
+
+
+def _c05_problem(capability, quality: QualityAssessment, provenance, T, policy: QualityPolicy) -> str | None:
+    """The C05 assessment must be exactly what C05 says about this provenance at T."""
+    if quality.capability is not capability:
+        return "QUALITY_CAPABILITY_MISMATCH"
+    if quality.policy_version != policy.policy_version:
+        return "QUALITY_POLICY_NOT_REPRODUCIBLE"
+    try:
+        expected = assess_quality(
+            capability=capability, provenance=provenance, coverage=_coverage(capability, quality),
+            evaluation_time=T, policy=policy, continuity=quality.continuity, recovery=quality.recovery,
+            canonical_valid=True)
+    except (ValueError, KeyError):
+        return "QUALITY_NOT_REPRODUCIBLE_FROM_EVIDENCE"
+    return None if expected == quality else "QUALITY_CONTRADICTS_EVIDENCE"
+
+
+def _withheld_problem(model, quality) -> str | None:
+    # Upstream withholds every number unless its freshness assessment is trusted.
+    if (quality is None or not quality.trusted_for_current_use) and any(m.value is not None for m in _metrics(model)):
+        return "VALUES_PRESENT_WITHOUT_TRUSTED_QUALITY"
+    return None
+
+
+def _book_problem(book: LiquidityReport, T, policy) -> str | None:
+    p = book.provenance
+    if book.snapshot_timestamp != p.source_timestamp:  # C07 binds the snapshot to its source time
+        return "SNAPSHOT_TIME_NOT_PROVENANCE_SOURCE_TIME"
+    return _c05_problem(Capability.ORDER_BOOK, book.quality, p, T, policy) or _withheld_problem(book, book.quality)
+
+
+def _flow_problem(flow: FlowReport, T, policy) -> str | None:
+    config, p, q = flow.config, flow.provenance, flow.quality
+    if flow.window_start != T - config.window:
+        return "WINDOW_START_NOT_EVALUATION_MINUS_WINDOW"
+    if flow.session_start != config.session_start:
+        return "SESSION_START_NOT_CONFIGURED_SESSION"
+    if (p is None) != (q is None):
+        return "QUALITY_PROVENANCE_PRESENCE_MISMATCH"
+    if p is None:
+        return _withheld_problem(flow, q)
+    newest = p.newest_trade_provenance
+    # C08 retains trades from min(window, session) start and sorts them by (time, id).
+    if not min(flow.window_start, flow.session_start) <= p.earliest_event_time <= p.latest_event_time:
+        return "TRADES_OUTSIDE_REPORTED_RANGE"
+    if newest.source_timestamp != p.latest_event_time or newest.source_id != p.latest_trade_id:
+        return "NEWEST_TRADE_PROVENANCE_MISMATCH"
+    counts = (flow.window_trade_count, flow.session_trade_count)
+    window = (flow.window_buy_volume, flow.window_sell_volume, flow.window_net_delta)
+    session = (flow.session_buy_volume, flow.session_sell_volume, flow.session_cvd)
+    for metrics, count, start in ((window, counts[0], flow.window_start), (session, counts[1], flow.session_start)):
+        if any(m.value is not None for m in metrics) and (
+                count is None or not 1 <= count <= p.contributing_trade_count or p.latest_event_time < start):
+            return "AGGREGATES_WITHOUT_TRADES_IN_THEIR_WINDOW"
+    return _c05_problem(Capability.TRADES, q, newest, T, policy) or _withheld_problem(flow, q)
+
+
+def _section_problem(section, T, candles: bool) -> str | None:
+    p, q, start = section.provenance, section.quality, section.latest_start
+    if (p is None) != (q is None) or (p is None) != (start is None):
+        return "QUALITY_PROVENANCE_PRESENCE_MISMATCH"
+    if p is None:
+        return _withheld_problem(section, q)
+    newest = p.newest_record_provenance
+    if start != _floor_hour(start):
+        return "LATEST_START_NOT_HOUR_ALIGNED"
+    if candles:
+        # Provenance times are candle starts; a candle is known only once closed.
+        if p.latest_time != start:
+            return "LATEST_START_NOT_PROVENANCE_TIME"
+        if newest.received_timestamp < start + HOUR:
+            return "LATEST_CANDLE_NOT_CLOSED_AT_RECEIPT"
+        capability, anchor = Capability.CANDLES, start + HOUR
+        behind = max(0, int((_expected_hour(T, CANDLE_OFFSET) - start) / HOUR))
+    else:
+        # Provenance times are settlement timestamps inside their UTC hour.
+        if _floor_hour(p.latest_time) != start or newest.source_timestamp != p.latest_time:
+            return "LATEST_START_NOT_PROVENANCE_TIME"
+        capability, anchor = Capability.FUNDING, start
+        behind = max(0, int((_expected_hour(T, FUNDING_OFFSET) + HOUR - start) / HOUR))
+    if section.bars_behind != behind:
+        return "INTERVALS_BEHIND_CONTRADICT_EVIDENCE"
+    try:
+        expected = _c09_assess(capability, anchor, newest.received_timestamp, behind, _coverage(capability, q),
+                               q.continuity, q.recovery, T)
+    except ValueError:
+        return "QUALITY_NOT_REPRODUCIBLE_FROM_EVIDENCE"
+    if expected != q:
+        return "QUALITY_CONTRADICTS_EVIDENCE"
+    return _withheld_problem(section, q)
+
+
+def _exclusion(future: bool, problem: str | None) -> str | None:
+    if future:
+        return FUTURE_EXCLUDED
+    return None if problem is None else f"INTERNALLY_INCONSISTENT:{problem}"
+
+
+def _book_ref(book: LiquidityReport, T, policy):
     p = book.provenance
     future = (_after(book.snapshot_timestamp, T) or _after(p.received_timestamp, T)
               or _after(p.source_timestamp, T))
     return _ref("C07.book", book.formula_version, book.quality, book.quality.trusted_for_current_use,
-                None, p, book.quality.reasons, FUTURE_EXCLUDED if future else None)
+                None, p, book.quality.reasons, _exclusion(future, None if future else _book_problem(book, T, policy)))
 
 
-def _flow_ref(flow: FlowReport, T):
+def _flow_ref(flow: FlowReport, T, policy):
     p = flow.provenance
     future = _after(flow.window_start, T) or _after(flow.session_start, T) or (p is not None and (
         _after(p.latest_event_time, T) or _after(p.newest_trade_provenance.received_timestamp, T)))
     return _ref("C08.flow", flow.formula_version, flow.quality, flow.trusted_for_current_use, p,
                 None if p is None else p.newest_trade_provenance, flow.reasons,
-                FUTURE_EXCLUDED if future else None)
+                _exclusion(future, None if future else _flow_problem(flow, T, policy)))
 
 
 def _section_ref(name, report: DerivativesReport, section, T, closes_after_start: bool):
@@ -497,9 +625,9 @@ def _section_ref(name, report: DerivativesReport, section, T, closes_after_start
     known_at = None if section.latest_start is None else section.latest_start + (HOUR if closes_after_start else timedelta(0))
     future = _after(known_at, T) or (p is not None and (
         _after(p.latest_time, T) or _after(p.newest_record_provenance.received_timestamp, T)))
+    problem = None if future else _section_problem(section, T, closes_after_start)
     return _ref(name, report.formula_version, section.quality, section.trusted_for_current_use, p,
-                None if p is None else p.newest_record_provenance, section.reasons,
-                FUTURE_EXCLUDED if future else None)
+                None if p is None else p.newest_record_provenance, section.reasons, _exclusion(future, problem))
 
 
 def _not_trusted(ref: SourceRef) -> list[str]:
@@ -553,13 +681,13 @@ def _direction(report: DerivativesReport | None, T, rules: DirectionRules) -> Di
     facts, values = [], []
     if not ref.excluded_reason:
         fact = _candle_facts(section)
-        facts = [fact(f"candles.momentum[{m.lookback_bars}].simple_return", m.simple_return, m.lookback_bars)
-                 for m in section.momentum]
+        facts = [fact(f"candles.momentum[{i}].simple_return", m.simple_return, m.lookback_bars)
+                 for i, m in enumerate(section.momentum)]  # real tuple positions, not lookbacks
         by_k = {m.lookback_bars: m.simple_return for m in section.momentum}
         for k in rules.momentum_lookbacks:
             if k not in by_k:
-                reasons.append(f"MOMENTUM_LOOKBACK_NOT_IN_REPORT:{k}")
-            elif problem := _metric_problem(f"momentum[{k}]", by_k[k], MOMENTUM_UNIT):
+                reasons.append(f"MOMENTUM_LOOKBACK_NOT_IN_REPORT:lookback_bars={k}")
+            elif problem := _metric_problem(f"momentum(lookback_bars={k})", by_k[k], MOMENTUM_UNIT):
                 reasons.append(problem)
             else:
                 values.append(by_k[k])
@@ -609,7 +737,7 @@ def _volatility(report: DerivativesReport | None, T, rules: VolatilityRules) -> 
                             facts=tuple(facts), thresholds=thresholds, reasons=tuple(reasons))
 
 
-def _liquidity(book: LiquidityReport | None, T, rules: LiquidityRules) -> LiquidityResult:
+def _liquidity(book: LiquidityReport | None, T, rules: LiquidityRules, policy) -> LiquidityResult:
     thresholds = []
     if rules.thin_min_spread_bps is not None:
         thresholds.append(_threshold("thin_min_spread_bps", rules.thin_min_spread_bps, SPREAD_UNIT,
@@ -622,7 +750,7 @@ def _liquidity(book: LiquidityReport | None, T, rules: LiquidityRules) -> Liquid
     if book is None:
         return LiquidityResult(state=LiquidityState.UNKNOWN, inputs_trusted=False, sources=(), facts=(),
                                thresholds=tuple(thresholds), reasons=("C07_REPORT_NOT_PROVIDED",))
-    ref = _book_ref(book, T)
+    ref = _book_ref(book, T, policy)
     reasons = _not_trusted(ref)
     facts, thin = [], []
     if not ref.excluded_reason:
@@ -630,10 +758,9 @@ def _liquidity(book: LiquidityReport | None, T, rules: LiquidityRules) -> Liquid
             return Fact(source="C07.book", field=field, metric=metric, window_kind=WindowKind.BOOK_SNAPSHOT,
                         window_start=book.snapshot_timestamp, window_end=book.snapshot_timestamp)
         facts.append(fact("spread_bps", book.spread_bps))
-        for band in book.bands:
-            w = format(band.width_bps, "f")
-            facts += [fact(f"bands[{w}].bid_quote", band.bid_quote), fact(f"bands[{w}].ask_quote", band.ask_quote),
-                      fact(f"bands[{w}].imbalance", band.imbalance)]
+        for i, band in enumerate(book.bands):  # real tuple positions, not band widths
+            facts += [fact(f"bands[{i}].bid_quote", band.bid_quote), fact(f"bands[{i}].ask_quote", band.ask_quote),
+                      fact(f"bands[{i}].imbalance", band.imbalance)]
         if rules.thin_min_spread_bps is not None:
             if problem := _metric_problem("spread_bps", book.spread_bps, SPREAD_UNIT):
                 reasons.append(problem)
@@ -659,7 +786,7 @@ def _liquidity(book: LiquidityReport | None, T, rules: LiquidityRules) -> Liquid
                            facts=tuple(facts), thresholds=tuple(thresholds), reasons=tuple(reasons))
 
 
-def _flow(flow: FlowReport | None, T, rules: FlowRules) -> FlowResult:
+def _flow(flow: FlowReport | None, T, rules: FlowRules, policy) -> FlowResult:
     share = rules.dominant_min_net_share
     thresholds = () if share is None else (_threshold(
         "dominant_min_net_share", share, "fraction of window volume",
@@ -667,7 +794,7 @@ def _flow(flow: FlowReport | None, T, rules: FlowRules) -> FlowResult:
     if flow is None:
         return FlowResult(state=FlowState.UNKNOWN, inputs_trusted=False, sources=(), facts=(),
                           thresholds=thresholds, reasons=("C08_REPORT_NOT_PROVIDED",))
-    ref = _flow_ref(flow, T)
+    ref = _flow_ref(flow, T, policy)
     reasons = _not_trusted(ref)
     facts = []
     state = FlowState.UNKNOWN
@@ -750,18 +877,35 @@ def _crowding(report: DerivativesReport | None) -> CrowdingResult:
                           thresholds=(), reasons=tuple(reasons))
 
 
-def _liquidations(events, T, rules: LiquidationRules) -> LiquidationContext:
+def _received(event) -> datetime:
+    """The minimum needed to know whether an event was knowable: a valid receipt time."""
+    p = getattr(event, "provenance", None)
+    received = getattr(p, "received_timestamp", None)
+    if type(event) is not LiquidationEvent or type(p) is not SourceProvenance or not isinstance(received, datetime) \
+            or received.tzinfo is None or received.utcoffset() is None:
+        raise ValueError("canonical LiquidationEvent with a timezone-aware receipt time required")
+    return received
+
+
+def _representative(event: LiquidationEvent):
+    """Total order: earliest receipt, then transport, then the full canonical record.
+
+    Equal values in different Decimal spellings are one observation; the kept spelling
+    is a function of the set of deliveries, never of their order.
+    """
+    p = event.provenance
+    return (p.received_timestamp, p.source_type, json.dumps(event.model_dump(mode="json"), sort_keys=True))
+
+
+def _liquidations(events, supplied, later, T, rules: LiquidationRules) -> LiquidationContext:
+    """events: validated, received at or before T; later: excluded unread."""
     window = rules.window
     start = None if window is None else T - window
     verified = {(s.source, s.source_type) for s in rules.verified_sources}
-    later = 0
     rejected: dict[str, int] = {}
     groups: dict[tuple[str, str], list[LiquidationEvent]] = {}
     for e in events:
         p = e.provenance
-        if _after(p.received_timestamp, T) or _after(e.timestamp, T):
-            later += 1  # counted, never read
-            continue
         if (p.source, p.source_type) not in verified:
             why = "LIQUIDATION_SOURCE_NOT_VERIFIED"
         elif p.source_id is None or p.source_timestamp is None:
@@ -785,7 +929,7 @@ def _liquidations(events, T, rules: LiquidationRules) -> LiquidationContext:
             reasons.append("CONFLICTING_LIQUIDATION_IDENTITY")
             continue
         duplicates += len(group) - 1
-        accepted.append(min(group, key=lambda e: (e.provenance.received_timestamp, e.provenance.source_type)))
+        accepted.append(min(group, key=_representative))
     if "CONFLICTING_LIQUIDATION_IDENTITY" in reasons:
         accepted = []  # fail closed: a conflicted feed cannot be authoritative for this window
     accepted.sort(key=lambda e: (e.timestamp, e.provenance.source, e.provenance.source_id))
@@ -795,7 +939,7 @@ def _liquidations(events, T, rules: LiquidationRules) -> LiquidationContext:
     return LiquidationContext(
         label=LiquidationLabel.AUTHORITATIVE_LIQUIDATION_EVENT if accepted else LiquidationLabel.UNKNOWN,
         authoritative_events=tuple(accepted), window_start=start, window_end=T,
-        supplied_count=len(events), not_yet_received_count=later, duplicate_count=duplicates,
+        supplied_count=supplied, not_yet_received_count=later, duplicate_count=duplicates,
         reasons=tuple(dict.fromkeys(reasons)))
 
 
@@ -822,13 +966,17 @@ def classify_market_state(
     liquidity: LiquidityReport | None = None, flow: FlowReport | None = None,
     derivatives: DerivativesReport | None = None,
     liquidations: tuple[LiquidationEvent, ...] = (),
+    quality_policy: QualityPolicy | None = None,
 ) -> MarketStateReport:
     """Classify each market-state dimension at one explicit evaluation time.
 
     Pure and deterministic: no clock, network, I/O, AI or persistent state, and
     liquidation input order does not matter. Caller contract violations (wrong
     types, time, symbol, formula version or conflicting asserted units) raise;
-    insufficient, untrusted or future evidence yields UNKNOWN with reasons.
+    insufficient, untrusted, future or internally inconsistent evidence yields
+    UNKNOWN with reasons. ``quality_policy`` is the C05 policy the C07/C08 reports
+    were assessed with (default: the shipped V1 policy); it is used only to
+    reproduce those assessments, never to grade freshness anew.
     """
     if type(rules) is not MarketStateRules:
         raise ValueError("MarketStateRules required")
@@ -842,11 +990,18 @@ def classify_market_state(
     liquidity = _revalidated(liquidity, LiquidityReport, C07_VERSION)
     flow = _revalidated(flow, FlowReport, C08_VERSION)
     derivatives = _revalidated(derivatives, DerivativesReport, C09_VERSION)
-    events = []
+    if quality_policy is None:
+        quality_policy = default_quality_policy()
+    elif type(quality_policy) is not QualityPolicy:
+        raise ValueError("QualityPolicy required")
+    quality_policy = QualityPolicy.model_validate(quality_policy.model_dump())
+    # Exclude unknowable events first: nothing but the receipt time is read from them.
+    events, later = [], 0
     for e in liquidations:
-        if type(e) is not LiquidationEvent:
-            raise ValueError("LiquidationEvent required")
-        events.append(LiquidationEvent.model_validate(e.model_dump()))
+        if _received(e) > T:
+            later += 1
+        else:
+            events.append(LiquidationEvent.model_validate(e.model_dump()))
 
     times = []
     if liquidity is not None:
@@ -872,7 +1027,8 @@ def classify_market_state(
     return MarketStateReport(
         symbol=symbol, evaluation_time=T, rules=rules, rules_digest=rules_digest(rules),
         direction=direction, volatility=volatility,
-        liquidity=_liquidity(liquidity, T, rules.liquidity), flow=_flow(flow, T, rules.flow),
+        liquidity=_liquidity(liquidity, T, rules.liquidity, quality_policy),
+        flow=_flow(flow, T, rules.flow, quality_policy),
         funding=_funding(derivatives, T), crowding=_crowding(derivatives),
-        liquidation=_liquidations(tuple(events), T, rules.liquidation),
+        liquidation=_liquidations(tuple(events), len(liquidations), later, T, rules.liquidation),
         regime=_regime(direction, volatility))
