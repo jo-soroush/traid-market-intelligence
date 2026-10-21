@@ -1,0 +1,95 @@
+{
+ "_source": "https://www.sec.gov/files/company_tickers_exchange.json (retrieved 2026-10-21; subset)",
+ "fields": [
+  "cik",
+  "name",
+  "ticker",
+  "exchange"
+ ],
+ "data": [
+  [
+   1588489,
+   "Grayscale Bitcoin Trust ETF",
+   "GBTC",
+   "NYSE"
+  ],
+  [
+   1763415,
+   "Bitwise Bitcoin ETF",
+   "BITB",
+   "NYSE"
+  ],
+  [
+   1767057,
+   "Osprey Bitcoin Trust",
+   "OBTC",
+   "Nasdaq"
+  ],
+  [
+   1838028,
+   "VanEck Bitcoin ETF",
+   "HODL",
+   "CBOE"
+  ],
+  [
+   1841175,
+   "CoinShares Bitcoin ETF",
+   "BRRR",
+   "Nasdaq"
+  ],
+  [
+   1850391,
+   "WisdomTree Bitcoin Fund",
+   "BTCW",
+   "CBOE"
+  ],
+  [
+   1852317,
+   "Fidelity Wise Origin Bitcoin Fund",
+   "FBTC",
+   "CBOE"
+  ],
+  [
+   1855781,
+   "Invesco Galaxy Bitcoin ETF",
+   "BTCO",
+   "CBOE"
+  ],
+  [
+   1869699,
+   "Ark 21Shares Bitcoin ETF",
+   "ARKB",
+   "CBOE"
+  ],
+  [
+   1980994,
+   "iShares Bitcoin Trust ETF",
+   "IBIT",
+   "Nasdaq"
+  ],
+  [
+   1992870,
+   "Franklin Templeton Digital Holdings Trust",
+   "EZBC",
+   "CBOE"
+  ],
+  [
+   2015034,
+   "Grayscale Bitcoin Mini Trust ETF",
+   "BTC",
+   "NYSE"
+  ],
+  [
+   2089969,
+   "iShares Bitcoin Premium Income ETF",
+   "BITA",
+   "Nasdaq"
+  ],
+  [
+   2103612,
+   "Morgan Stanley Bitcoin Trust",
+   "MSBT",
+   "NYSE"
+  ]
+ ]
+}

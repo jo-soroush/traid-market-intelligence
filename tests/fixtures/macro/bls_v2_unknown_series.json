@@ -1,0 +1,15 @@
+{
+ "status": "REQUEST_SUCCEEDED",
+ "responseTime": 92,
+ "message": [
+  "Database is locked for Series XXXX0000000"
+ ],
+ "Results": {
+  "series": [
+   {
+    "seriesID": "XXXX0000000",
+    "data": []
+   }
+  ]
+ }
+}
