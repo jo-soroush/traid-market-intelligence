@@ -33,10 +33,13 @@ verified decision. A change derived by comparing it with the previous known stat
 evidence, kept apart from what the statement states, and it is withheld when the calendar
 lists an entry between the two without a known statement. Freshness of the latest expected
 announcement is judged on Board (America/New_York) dates, the dates the statement pages
-carry: a non-notation calendar meeting without a known statement is due once its curated,
-zone-verified release time has passed, or once its end date has passed in New York. On the
-meeting date itself without a verified time it is RELEASE_TIME_UNKNOWN; no release hour is
-assumed.
+carry. Expected announcements are the non-notation calendar meetings plus every curated
+FOMC schedule known by T, including one whose date matches no calendar meeting (reported as
+such, never dropped and never turned into an invented meeting). One without a known
+statement is due once its zone-verified release time has passed, or once its date has
+passed in New York; on that date without a single verified time (none, or conflicting
+ones) it is RELEASE_TIME_UNKNOWN, and no release hour is assumed. A future schedule leaves
+the latest statement current.
 
 PCE and GDP are BEA releases; BEA access is not configured, so they are UNSUPPORTED.
 Arithmetic runs in an explicit exact Decimal context, never the ambient one. No output
@@ -431,34 +434,42 @@ def _fomc(statements: list[FomcStatement], calendars: list[FomcCalendar], schedu
     expected = expected_at = None
     if calendar is None:
         reasons.append("NO_FOMC_CALENDAR_KNOWN")
-        freshness = Freshness.SCHEDULE_UNKNOWN
-    else:
-        dated = {s.statement_date for s in unique}
-        pending = [m for m in calendar.meetings if not m.notation_vote and m.end_date <= today
-                   and m.end_date not in dated and (current is None or m.end_date > current.statement_date)]
-        due, unknown, later = [], [], []
-        for m in pending:
-            at = times.get(m.end_date)
-            if at is not None:
-                (due if at <= T else later).append((m, at))
-            elif m.end_date < today:
-                due.append((m, None))
-            else:
-                unknown.append((m, None))
-        if due:
-            expected, expected_at = due[-1]
-            freshness = Freshness.AWAITING_CAPTURE
-            reasons.append("STATEMENT_FOR_PAST_MEETING_NOT_CAPTURED")
-            reasons.append("DUE_BY_VERIFIED_RELEASE_TIME" if expected_at else "DUE_MEETING_DATE_PASSED_IN_NEW_YORK")
-        elif unknown:
-            expected, _ = unknown[-1]
-            freshness = Freshness.RELEASE_TIME_UNKNOWN
-            reasons.append("MEETING_ENDS_ON_EVALUATION_DATE_RELEASE_TIME_UNVERIFIED")
+    # Announcement dates come from calendar meetings and from explicit curated schedules; a
+    # schedule whose date matches no meeting is still evidence and is never dropped.
+    meetings = {m.end_date: m for m in calendar.meetings if not m.notation_vote} if calendar else {}
+    candidates = sorted(set(meetings) | set(times) | set(conflicted))
+    open_dates = [d for d in candidates if current is None or d > current.statement_date]
+    for d in open_dates:
+        if d not in meetings:
+            reasons.append(f"ANNOUNCEMENT_SCHEDULE_WITHOUT_CALENDAR_MEETING:{d.isoformat()}")
+    due, unknown, later = [], [], []
+    for d in (d for d in open_dates if d <= today):
+        meeting, at = meetings.get(d), times.get(d)
+        if at is not None:
+            (due if at <= T else later).append((meeting, at))
+        elif d < today:
+            due.append((meeting, None))
         else:
-            freshness = Freshness.CURRENT if current else Freshness.NO_RELEASE_DUE
-            if later:
-                expected, expected_at = later[0]
-                reasons.append("ANNOUNCEMENT_SCHEDULED_LATER_ON_MEETING_DATE")
+            unknown.append((meeting, None))
+    if due:
+        expected, expected_at = due[-1]
+        freshness = Freshness.AWAITING_CAPTURE
+        reasons.append("STATEMENT_FOR_PAST_MEETING_NOT_CAPTURED" if expected
+                       else "STATEMENT_FOR_SCHEDULED_ANNOUNCEMENT_NOT_CAPTURED")
+        reasons.append("DUE_BY_VERIFIED_RELEASE_TIME" if expected_at else
+                       "DUE_MEETING_DATE_PASSED_IN_NEW_YORK" if expected else "DUE_ANNOUNCEMENT_DATE_PASSED_IN_NEW_YORK")
+    elif unknown:
+        expected, _ = unknown[-1]
+        freshness = Freshness.RELEASE_TIME_UNKNOWN
+        reasons.append("MEETING_ENDS_ON_EVALUATION_DATE_RELEASE_TIME_UNVERIFIED" if expected
+                       else "ANNOUNCEMENT_ON_EVALUATION_DATE_RELEASE_TIME_UNVERIFIED")
+    else:
+        freshness = (Freshness.SCHEDULE_UNKNOWN if calendar is None
+                     else Freshness.CURRENT if current else Freshness.NO_RELEASE_DUE)
+        if later:
+            expected, expected_at = later[0]
+            reasons.append("ANNOUNCEMENT_SCHEDULED_LATER_ON_MEETING_DATE" if expected
+                           else "ANNOUNCEMENT_SCHEDULED_LATER_ON_EVALUATION_DATE")
     if current is None:
         return FomcEvidence(freshness=freshness, statement=None, previous_statement=None, consistency="NO_STATEMENT",
                             range_change_since_previous=_na(POINTS, "NO_STATEMENT"), in_calendar="NO_STATEMENT",
