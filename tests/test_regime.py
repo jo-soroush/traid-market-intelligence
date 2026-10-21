@@ -867,7 +867,11 @@ def test_stale_candles_presented_as_current_are_excluded():
     excluded(r.volatility, "C09.candles", "LATEST_START_NOT_PROVENANCE_TIME")
     assert r.regime.state == RegimeState.UNKNOWN
     p = stale.candles.provenance
-    forged_p = p.model_copy(update={"latest_time": LAST})   # receipt still five hours old
+    forged_p = p.model_copy(update={"latest_time": LAST})   # newest record still five hours old
+    forged = stale.model_copy(update={"candles": _shift_section(stale.candles, latest_start=LAST, provenance=forged_p, **fresh_claims)})
+    excluded(classify(derivatives=forged).direction, "C09.candles", "NEWEST_RECORD_SOURCE_TIME_NOT_LATEST_START")
+    unclosed = p.newest_record_provenance.model_copy(update={"source_timestamp": LAST, "received_timestamp": LAST + 30 * timedelta(minutes=1)})
+    forged_p = p.model_copy(update={"latest_time": LAST, "newest_record_provenance": unclosed})
     forged = stale.model_copy(update={"candles": _shift_section(stale.candles, latest_start=LAST, provenance=forged_p, **fresh_claims)})
     excluded(classify(derivatives=forged).direction, "C09.candles", "LATEST_CANDLE_NOT_CLOSED_AT_RECEIPT")
     forged = stale.model_copy(update={"candles": _shift_section(stale.candles, **fresh_claims)})
@@ -1038,3 +1042,117 @@ def test_every_fact_selector_resolves_to_its_original_metric(lookbacks):
         f = fact(r.direction, f"candles.momentum[{i}].simple_return")
         assert resolve(der, f"candles.momentum[{i}]").lookback_bars == k
         assert f.window_start == LAST - (k - 1) * HOUR
+
+
+# ================================================== audit regressions: C09 record provenance binding
+def _with_prov(der, section, **update):
+    sec = getattr(der, section)
+    return der.model_copy(update={section: sec.model_copy(update={"provenance": sec.provenance.model_copy(update=update)})})
+
+
+def _newest(der, section, **update):
+    newest = getattr(der, section).provenance.newest_record_provenance
+    return _with_prov(der, section, newest_record_provenance=newest.model_copy(update=update))
+
+
+@pytest.mark.parametrize("source_time, problem", [
+    (None, "NEWEST_RECORD_SOURCE_TIME_NOT_LATEST_START"),
+    (LAST - timedelta(days=10), "NEWEST_RECORD_SOURCE_TIME_NOT_LATEST_START"),
+    (LAST - HOUR, "NEWEST_RECORD_SOURCE_TIME_NOT_LATEST_START"),
+    (LAST + MS, "NEWEST_RECORD_SOURCE_TIME_NOT_LATEST_START"),
+])
+def test_newest_candle_source_time_must_be_the_latest_candle_start(source_time, problem):
+    der = derivatives()
+    assert classify(derivatives=der).direction.state == DirectionState.TRENDING_UP
+    r = classify(derivatives=_newest(der, "candles", source_timestamp=source_time))
+    excluded(r.direction, "C09.candles", problem)
+    excluded(r.volatility, "C09.candles", problem)
+    assert r.regime.state == RegimeState.UNKNOWN
+    # Unaffected dimensions stay usable.
+    assert r.funding.state == FundingPolarity.LONGS_PAY_SHORTS and r.funding.inputs_trusted
+    assert r.flow.state == FlowState.BUY_DOMINANT and r.liquidity.state == LiquidityState.NOT_THIN
+
+
+@pytest.mark.parametrize("section, after_latest", [("candles", HOUR), ("funding", timedelta(minutes=1))])
+def test_reversed_provenance_ranges_fail_closed(section, after_latest):
+    der = derivatives()
+    p = getattr(der, section).provenance
+    source = f"C09.{section}"
+
+    def dim(r):
+        return r.direction if section == "candles" else r.funding
+    swapped = _with_prov(der, section, earliest_time=p.latest_time, latest_time=p.earliest_time)
+    excluded(dim(classify(derivatives=swapped)), source, "PROVENANCE_RANGE_REVERSED")
+    later = _with_prov(der, section, earliest_time=p.latest_time + after_latest)   # still before NOW
+    assert p.latest_time + after_latest <= NOW
+    r = classify(derivatives=later)
+    excluded(dim(r), source, "PROVENANCE_RANGE_REVERSED")
+    # The other C09 section and the other reports stay usable.
+    other = r.funding if section == "candles" else r.direction
+    assert other.inputs_trusted and other.state != "UNKNOWN"
+    assert r.flow.state == FlowState.BUY_DOMINANT
+
+
+def test_provenance_range_must_be_able_to_hold_its_records():
+    der = derivatives()
+    p = der.candles.provenance
+    collapsed = _with_prov(der, "candles", earliest_time=p.latest_time)   # four candles cannot share one hour
+    excluded(classify(derivatives=collapsed).direction, "C09.candles", "PROVENANCE_RANGE_CONTRADICTS_COUNT")
+    single = derivatives(closes((100,)), rates(["0.0001"]))
+    widened = _with_prov(single, "funding", earliest_time=single.funding.provenance.latest_time - HOUR)
+    r = classify_market_state(evaluation_time=NOW, symbol="BTC", rules=rules(), derivatives=widened)
+    excluded(r.funding, "C09.funding", "PROVENANCE_RANGE_CONTRADICTS_COUNT")
+
+
+@pytest.mark.parametrize("section, update", [
+    ("candles", lambda p: dict(earliest_time=NOW + HOUR)),
+    ("candles", lambda p: dict(latest_time=NOW + HOUR)),
+    ("funding", lambda p: dict(earliest_time=NOW + HOUR)),
+    ("funding", lambda p: dict(latest_time=NOW + MS)),
+])
+def test_future_dated_provenance_endpoints_are_excluded(section, update):
+    der = derivatives()
+    forged = _with_prov(der, section, **update(getattr(der, section).provenance))
+    r = classify(derivatives=forged)
+    dim = r.direction if section == "candles" else r.funding
+    assert dim.sources[0].excluded_reason == "FUTURE_EVIDENCE_EXCLUDED" and dim.facts == () and dim.state == "UNKNOWN"
+
+
+@pytest.mark.parametrize("section, update, problem", [
+    ("candles", dict(contributing_count=3), "PROVENANCE_COUNT_NOT_RETAINED_COUNT"),
+    ("funding", dict(contributing_count=99), "PROVENANCE_COUNT_NOT_RETAINED_COUNT"),
+    ("candles", dict(source="elsewhere"), "NEWEST_RECORD_NOT_IN_PROVENANCE"),
+    ("funding", dict(source_types=("public_websocket",)), "NEWEST_RECORD_NOT_IN_PROVENANCE"),
+    ("candles", dict(earliest_time=LAST - 3 * HOUR + MS), "LATEST_START_NOT_PROVENANCE_TIME"),
+])
+def test_provenance_summary_must_describe_the_retained_series(section, update, problem):
+    r = classify(derivatives=_with_prov(derivatives(), section, **update))
+    excluded(r.direction if section == "candles" else r.funding, f"C09.{section}", problem)
+
+
+def test_missing_or_mismatched_newest_funding_source_time_fails_closed():
+    der = derivatives()
+    for value in (None, FUND_LAST - timedelta(days=10), FUND_LAST):
+        r = classify(derivatives=_newest(der, "funding", source_timestamp=value))
+        excluded(r.funding, "C09.funding", "LATEST_START_NOT_PROVENANCE_TIME")
+        assert r.direction.state == DirectionState.TRENDING_UP
+
+
+@pytest.mark.parametrize("build", [
+    lambda: derivatives(),
+    lambda: derivatives(closes((100,)), rates(["0.0001"])),                                  # single records
+    lambda: derivatives(at=NOW + HOUR, fs=rates(["0.0001"] * 4, last=FUND_LAST + HOUR)),     # candles DELAYED
+    lambda: derivatives(closes(CLOSES, last=LAST - 5 * HOUR), rates(["0.0001"] * 4, last=FUND_LAST - 5 * HOUR)),
+    lambda: derivatives(recovery=RecoveryStatus.RECOVERED_WITHOUT_REPLAY_PROOF),
+    lambda: derivatives(closes((100, 101))),                                                 # warming up
+    lambda: derivatives(closes((100, 101, 102)) + (candle(LAST - 4 * HOUR, 99),),           # gapped series
+                        rates(["0.0001", "0.0002"]) + (fund(FUND_LAST - 5 * HOUR, "0.0003"),)),
+    lambda: derivatives(closes(CLOSES) + closes(CLOSES, lag=40)),                            # duplicate deliveries
+])
+def test_legitimate_c09_provenance_is_accepted(build):
+    der = build()
+    r = classify_market_state(evaluation_time=der.evaluation_time, symbol="BTC", rules=rules(), derivatives=der)
+    consistent(r.direction)
+    consistent(r.funding)
+    assert r.direction.inputs_trusted == der.candles.trusted_for_current_use
+    assert r.funding.inputs_trusted == der.funding.trusted_for_current_use

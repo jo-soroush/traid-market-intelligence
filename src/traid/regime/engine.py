@@ -570,10 +570,23 @@ def _section_problem(section, T, candles: bool) -> str | None:
     newest = p.newest_record_provenance
     if start != _floor_hour(start):
         return "LATEST_START_NOT_HOUR_ALIGNED"
+    # C09 provenance summarizes its retained series: sorted, one record per UTC hour, one
+    # source, and the newest record's own provenance.
+    if not p.earliest_time <= p.latest_time:
+        return "PROVENANCE_RANGE_REVERSED"
+    if p.contributing_count != section.retained_count:
+        return "PROVENANCE_COUNT_NOT_RETAINED_COUNT"
+    hours = int((_floor_hour(p.latest_time) - _floor_hour(p.earliest_time)) / HOUR)
+    if p.contributing_count > hours + 1 or (p.contributing_count == 1 and p.earliest_time != p.latest_time):
+        return "PROVENANCE_RANGE_CONTRADICTS_COUNT"
+    if p.source != newest.source or newest.source_type not in p.source_types:
+        return "NEWEST_RECORD_NOT_IN_PROVENANCE"
     if candles:
         # Provenance times are candle starts; a candle is known only once closed.
-        if p.latest_time != start:
+        if p.latest_time != start or p.earliest_time != _floor_hour(p.earliest_time):
             return "LATEST_START_NOT_PROVENANCE_TIME"
+        if newest.source_timestamp != start:  # C09 binds each candle's source time to its start
+            return "NEWEST_RECORD_SOURCE_TIME_NOT_LATEST_START"
         if newest.received_timestamp < start + HOUR:
             return "LATEST_CANDLE_NOT_CLOSED_AT_RECEIPT"
         capability, anchor = Capability.CANDLES, start + HOUR
@@ -624,7 +637,8 @@ def _section_ref(name, report: DerivativesReport, section, T, closes_after_start
     # A candle is only known once closed; a funding hour once settled.
     known_at = None if section.latest_start is None else section.latest_start + (HOUR if closes_after_start else timedelta(0))
     future = _after(known_at, T) or (p is not None and (
-        _after(p.latest_time, T) or _after(p.newest_record_provenance.received_timestamp, T)))
+        _after(p.earliest_time, T) or _after(p.latest_time, T)
+        or _after(p.newest_record_provenance.received_timestamp, T)))
     problem = None if future else _section_problem(section, T, closes_after_start)
     return _ref(name, report.formula_version, section.quality, section.trusted_for_current_use, p,
                 None if p is None else p.newest_record_provenance, section.reasons, _exclusion(future, problem))
