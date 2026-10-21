@@ -23,3 +23,13 @@ This file records completed and merged V1 Cards. Add one short entry **after** e
 - **PR:** https://github.com/jo-soroush/traid-market-intelligence/pull/19
 - **Merged main commit:** `3dbd703` (squash merge)
 - **Known limitations:** C06 modeled historical availability is not yet interoperable with C09 actual-receipt evaluation: replayed history fetched after the evaluation time is excluded (no lookahead) and needs a separate explicit contract. Live funding exposes only the latest observation. Candle and funding sections share continuity/recovery inputs. VWAP is a candle approximation, not trade-level VWAP. OI and Basis remain unavailable pending verification of OI units/aggregation/timing and a canonical, timestamped mark/oracle price pair. Live-endpoint behavior was not verified end to end and candle finality is not provable from receipt time.
+
+## V1-C10 — Market State & Evidence Engine
+
+- **Status:** MERGED — 2026-10-21
+- **Scope delivered:** Deterministic, versioned market-state classification combining C07 liquidity, C08 trade flow and C09 derivatives evidence. Independent direction, volatility, liquidity, aggressive-flow, funding, crowding and liquidation dimensions with a conservative composite regime. Point-in-time consistency checks, source provenance, dimension-level trust, explicit UNKNOWN states, configurable thresholds, and deterministic liquidation deduplication.
+- **Verification:** 711 tests passed locally (2 existing dependency warnings); independent Codex review **PASS** after remediation; GitHub push and pull-request CI passed, including tests and secret scan.
+- **Review history:** Codex identified and verified fixes for internally inconsistent timestamps and C09 provenance, order-dependent liquidation serialization, future-received event contamination, and incorrect evidence selectors.
+- **PR:** https://github.com/jo-soroush/traid-market-intelligence/pull/20
+- **Merged main commit:** `ea35f9b` (squash merge)
+- **Known limitations:** Thresholds remain uncalibrated; without configured thresholds, corresponding classifications remain UNKNOWN. Crowding remains UNKNOWN pending verified Open Interest/Basis. No verified market-wide liquidation source is integrated, and heuristic liquidation pressure is inactive. Source verification and some units remain caller-asserted. C06/C09 historical replay compatibility remains unresolved. Live-feed end-to-end behavior was not independently verified.
