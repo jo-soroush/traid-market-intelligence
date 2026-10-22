@@ -366,7 +366,9 @@ def test_unmatched_schedule_uses_its_new_york_date_and_exact_time():
 
 def test_unmatched_schedules_before_the_latest_statement_or_without_calendar():
     old = fomc(datetime(2026, 10, 22, 20, tzinfo=UTC), schedules=(fomc_time(day=date(2026, 9, 1)),))
-    assert old.freshness is Freshness.CURRENT and old.reasons == ()   # superseded by the Sep 16 statement
+    assert old.freshness is Freshness.CURRENT                        # superseded by the Sep 16 statement
+    # ... but it falls between the Jul 29 and Sep 16 statements uncaptured: continuity is unverified.
+    assert old.consistency == "CONTINUITY_UNVERIFIED" and old.reasons == ("INTERVENING_ANNOUNCEMENT_NOT_CAPTURED:2026-09-01",)
     nocal = build(at=datetime(2026, 10, 22, 20, tzinfo=UTC), schedules=(fomc_time(day=OCT22),), statements=REAL).fomc
     assert nocal.freshness is Freshness.AWAITING_CAPTURE and "NO_FOMC_CALENDAR_KNOWN" in nocal.reasons
     ahead = build(at=datetime(2026, 10, 21, tzinfo=UTC), schedules=(fomc_time(day=OCT22),), statements=REAL).fomc
@@ -479,7 +481,8 @@ def test_schedules_without_a_determinable_new_york_date_are_one_window():
     within = fomc(window_end, schedules=london, statements=[*REAL, unscheduled()])
     assert within.freshness is Freshness.AWAITING_CAPTURE and "DUE_SCHEDULED_WINDOW_PASSED" in within.reasons
     later = fomc(window_end, schedules=london, statements=[*REAL, unscheduled(published=window_end)])
-    assert later.freshness is Freshness.CURRENT and later.reasons == ()
+    assert later.freshness is Freshness.CURRENT and later.consistency == "CONTINUITY_UNVERIFIED"
+    assert later.reasons == ("POSSIBLY_INTERVENING_ANNOUNCEMENT_UNRESOLVED:2026-10-22",)   # not linked to the window
 
 
 @pytest.mark.parametrize("hh, earliest, latest", [
@@ -521,15 +524,18 @@ def test_codex_statement_inside_an_uncertain_window_does_not_settle_it():
     assert same.freshness is Freshness.RELEASE_TIME_UNKNOWN and same.expected_announcement_at is None
     assert same.reasons == ("FOMC_SCHEDULE_TIMEZONE_UNVERIFIED:2026-10-22",
                             "ANNOUNCEMENT_SCHEDULE_NEW_YORK_DATE_UNDETERMINED:2026-10-22",
-                            "EVALUATION_TIME_WITHIN_SCHEDULED_WINDOW_RELEASE_TIME_UNVERIFIED")
+                            "EVALUATION_TIME_WITHIN_SCHEDULED_WINDOW_RELEASE_TIME_UNVERIFIED",
+                            "POSSIBLY_INTERVENING_ANNOUNCEMENT_UNRESOLVED:2026-10-22")
     after = fomc(datetime(2026, 10, 23, 16, tzinfo=UTC), schedules=UNZONED, statements=statements)
     assert after.freshness is Freshness.AWAITING_CAPTURE and after.expected_announcement_at is None
     assert after.reasons == ("FOMC_SCHEDULE_TIMEZONE_UNVERIFIED:2026-10-22",
                              "ANNOUNCEMENT_SCHEDULE_NEW_YORK_DATE_UNDETERMINED:2026-10-22",
-                             "STATEMENT_FOR_SCHEDULED_ANNOUNCEMENT_NOT_CAPTURED", "DUE_SCHEDULED_WINDOW_PASSED")
+                             "STATEMENT_FOR_SCHEDULED_ANNOUNCEMENT_NOT_CAPTURED", "DUE_SCHEDULED_WINDOW_PASSED",
+                             "POSSIBLY_INTERVENING_ANNOUNCEMENT_UNRESOLVED:2026-10-22")
     for f in (same, after):                   # the last verified decision stays visible, unchanged
         assert f.statement == earlier and f.previous_statement.statement_date == date(2026, 9, 16)
-        assert f.consistency == "CONSISTENT" and f.range_change_since_previous.value == 0
+        # The window opens at 10:00Z Oct 21, before the Oct 21 statement: it may lie between the two.
+        assert f.consistency == "CONTINUITY_UNVERIFIED" and f.range_change_since_previous.value is None
 
 
 def test_unrelated_statement_before_an_uncertain_window():
@@ -650,6 +656,189 @@ def test_matching_is_deterministic_over_duplicates_and_order():
     assert baseline.fomc.freshness is Freshness.AWAITING_CAPTURE and baseline.fomc.statement == inside
     for perm in itertools.permutations(schedules):
         assert build(at=at, schedules=perm, statements=statements[::-1], calendars=(CAL,)).model_dump_json() \
+            == baseline.model_dump_json()
+
+
+# ============================================ FOMC: policy continuity across scheduled announcements
+OCT23 = date(2026, 10, 23)
+AFTER = datetime(2026, 10, 24, 12, tzinfo=UTC)
+
+
+def decision(day, published, action=PolicyAction.MAINTAIN, change=None, lower="3.75", upper="4"):
+    """Test-only decision record; not a real statement."""
+    return unscheduled(day=day, published=published).model_copy(update={
+        "action": action, "stated_change_percentage_points": None if change is None else D(change),
+        "target_lower_percent": D(lower), "target_upper_percent": D(upper)})
+
+
+HOLD23 = decision(OCT23, datetime(2026, 10, 23, 18, tzinfo=UTC))
+RAISE23 = decision(OCT23, datetime(2026, 10, 23, 18, tzinfo=UTC), PolicyAction.RAISE, "0.25")
+CUT22 = decision(OCT22, datetime(2026, 10, 22, 18, tzinfo=UTC), PolicyAction.LOWER, "0.25", "3.5", "3.75")
+
+
+def assert_unverified(f, reasons):
+    assert f.consistency == "CONTINUITY_UNVERIFIED" and f.reasons[-len(reasons):] == reasons
+    assert f.range_change_since_previous.value is None
+    assert f.range_change_since_previous.reason == "CONTINUITY_UNVERIFIED"
+
+
+def test_without_intervening_schedules_the_comparison_stands():
+    hold, raise_ = fomc(AFTER, statements=[*REAL, HOLD23]), fomc(AFTER, statements=[*REAL, RAISE23])
+    assert hold.consistency == "CONSISTENT" and hold.range_change_since_previous.value == 0
+    assert raise_.consistency == "CONTRADICTORY"
+
+
+@pytest.mark.parametrize("schedule", [fomc_time(day=OCT22), fomc_date()], ids=["timed", "date-only"])
+def test_codex_hold_across_an_uncaptured_announcement_is_not_consistent(schedule):
+    f = fomc(AFTER, schedules=(schedule,), statements=[*REAL, HOLD23])
+    assert f.freshness is Freshness.CURRENT and f.statement == HOLD23            # freshness is independent
+    assert_unverified(f, ("INTERVENING_ANNOUNCEMENT_NOT_CAPTURED:2026-10-22",))
+    # The observed ranges stay on both statements; no intermediate range or decision is made up.
+    assert (f.previous_statement.target_lower_percent, f.previous_statement.target_upper_percent) == (D("3.75"), D(4))
+    assert (f.statement.target_lower_percent, f.statement.target_upper_percent) == (D("3.75"), D(4))
+
+
+@pytest.mark.parametrize("schedule", [fomc_time(day=OCT22), fomc_date()], ids=["timed", "date-only"])
+def test_codex_raise_across_an_uncaptured_announcement_is_not_contradictory(schedule):
+    f = fomc(AFTER, schedules=(schedule,), statements=[*REAL, RAISE23])
+    assert f.freshness is Freshness.CURRENT and f.statement.stated_change_percentage_points == D("0.25")
+    assert_unverified(f, ("INTERVENING_ANNOUNCEMENT_NOT_CAPTURED:2026-10-22",))
+    assert not any(r.startswith("DECISION_DIRECTION") or "CONTRADICTS" in r for r in f.reasons)
+
+
+def test_captured_intervening_announcement_restores_the_comparison():
+    schedules = (fomc_time(day=OCT22),)
+    # The captured Oct 22 reduction explains the Oct 23 raise.
+    f = fomc(AFTER, schedules=schedules, statements=[*REAL, CUT22, RAISE23])
+    assert f.consistency == "CONSISTENT" and f.previous_statement == CUT22 and f.reasons == ()
+    assert f.range_change_since_previous.value == D("0.25")
+    # The Oct 22 statement is the scheduled announcement itself, compared with Sep 16.
+    cut = fomc(datetime(2026, 10, 22, 20, tzinfo=UTC), schedules=schedules, statements=[*REAL, CUT22])
+    assert cut.consistency == "CONSISTENT" and cut.range_change_since_previous.value == D("-0.25")
+    assert cut.freshness is Freshness.CURRENT and cut.reasons == ()
+
+
+def test_statement_before_the_verified_time_does_not_account_for_the_announcement():
+    morning = decision(OCT22, datetime(2026, 10, 22, 12, tzinfo=UTC))   # 08:00 EDT; scheduled 14:00 EDT
+    f = fomc(AFTER, schedules=(fomc_time(day=OCT22),), statements=[*REAL, morning, HOLD23])
+    assert f.previous_statement == morning and f.freshness is Freshness.CURRENT
+    assert_unverified(f, ("INTERVENING_ANNOUNCEMENT_NOT_CAPTURED:2026-10-22",))
+    # Before Oct 23, Sep 16 -> morning: the 14:00 EDT announcement is after the morning statement.
+    before = fomc(datetime(2026, 10, 22, 16, tzinfo=UTC), schedules=(fomc_time(day=OCT22),), statements=[*REAL, morning])
+    assert before.consistency == "CONSISTENT"
+
+
+def test_multiple_intervening_announcements():
+    schedules = (fomc_date(day=date(2026, 10, 20)), fomc_time(day=OCT22))
+    both = fomc(AFTER, schedules=schedules, statements=[*REAL, HOLD23])
+    assert_unverified(both, ("INTERVENING_ANNOUNCEMENT_NOT_CAPTURED:2026-10-20",
+                             "INTERVENING_ANNOUNCEMENT_NOT_CAPTURED:2026-10-22"))
+    oct20 = decision(date(2026, 10, 20), datetime(2026, 10, 20, 18, tzinfo=UTC))
+    one = fomc(AFTER, schedules=schedules, statements=[*REAL, oct20, HOLD23])
+    assert one.previous_statement == oct20
+    assert_unverified(one, ("INTERVENING_ANNOUNCEMENT_NOT_CAPTURED:2026-10-22",))
+    hold22 = decision(OCT22, datetime(2026, 10, 22, 18, tzinfo=UTC))
+    full = fomc(AFTER, schedules=schedules, statements=[*REAL, oct20, hold22, HOLD23])
+    assert full.consistency == "CONSISTENT" and full.range_change_since_previous.value == 0
+
+
+def test_schedules_received_after_evaluation_do_not_affect_continuity():
+    late = fomc_time(day=OCT22, retrieved=AFTER + timedelta(seconds=1))
+    r = build(at=AFTER, schedules=(late,), statements=[*REAL, HOLD23], calendars=(CAL,))
+    assert r.fomc.consistency == "CONSISTENT" and r.excluded_after_evaluation.schedules == 1
+    # Known by T, even though retrieved after both statements: it counts.
+    known = fomc(AFTER, schedules=(fomc_time(day=OCT22, retrieved=AFTER),), statements=[*REAL, HOLD23])
+    assert known.consistency == "CONTINUITY_UNVERIFIED"
+
+
+@pytest.mark.parametrize("previous_at, current_at, gap", [
+    (datetime(2026, 10, 20, 18, tzinfo=UTC), datetime(2026, 10, 23, 18, tzinfo=UTC), True),      # spans the window
+    (datetime(2026, 10, 20, 18, tzinfo=UTC), UNZONED_START, True),                               # current at its start
+    (datetime(2026, 10, 20, 18, tzinfo=UTC), UNZONED_START - timedelta(microseconds=1), False),  # window after both
+    (UNZONED_END - timedelta(microseconds=1), datetime(2026, 10, 23, 18, tzinfo=UTC), True),     # previous inside it
+    (UNZONED_END, datetime(2026, 10, 23, 18, tzinfo=UTC), False),                                # window before both
+])
+def test_uncertain_window_between_statements(previous_at, current_at, gap):
+    ny = ZoneInfo(NY)
+    prev = decision(previous_at.astimezone(ny).date(), previous_at)
+    cur = decision(current_at.astimezone(ny).date(), current_at)
+    if prev.statement_date == cur.statement_date:
+        cur = cur.model_copy(update={"url": cur.url.replace("a.htm", "b.htm")})
+    f = fomc(AFTER, schedules=UNZONED, statements=[prev, cur])
+    assert f.previous_statement == prev and f.statement == cur
+    assert (f.consistency == "CONTINUITY_UNVERIFIED") is gap
+    assert ("POSSIBLY_INTERVENING_ANNOUNCEMENT_UNRESOLVED:2026-10-22" in f.reasons) is gap
+
+
+def test_foreign_zone_window_between_statements():
+    london = (fomc_date(tz="Europe/London"),)       # 23:00Z Oct 21 .. 23:00Z Oct 22
+    f = fomc(AFTER, schedules=london, statements=[*REAL, HOLD23])
+    assert_unverified(f, ("POSSIBLY_INTERVENING_ANNOUNCEMENT_UNRESOLVED:2026-10-22",))
+    # Inside the window: not linked to it, and the window may still run on after it.
+    within = decision(OCT22, datetime(2026, 10, 22, 18, tzinfo=UTC))
+    assert fomc(AFTER, schedules=london, statements=[*REAL, within]).consistency == "CONTINUITY_UNVERIFIED"
+    assert fomc(AFTER, schedules=london, statements=[*REAL, within, HOLD23]).consistency == "CONTINUITY_UNVERIFIED"
+    closed = decision(OCT22, datetime(2026, 10, 22, 23, tzinfo=UTC))      # 19:00 EDT, as the window closes
+    assert fomc(AFTER, schedules=london, statements=[*REAL, closed, HOLD23]).consistency == "CONSISTENT"
+
+
+def test_conflicting_release_times_fall_back_to_the_board_date():
+    clash = (fomc_time(day=OCT22), fomc_time(day=OCT22, hh=15))
+    f = fomc(AFTER, schedules=clash, statements=[*REAL, HOLD23])
+    assert_unverified(f, ("INTERVENING_ANNOUNCEMENT_NOT_CAPTURED:2026-10-22",))
+    # A statement dated and published on Oct 22 is that date's statement whichever time is right.
+    hold22 = decision(OCT22, datetime(2026, 10, 22, 19, tzinfo=UTC))
+    assert fomc(AFTER, schedules=clash, statements=[*REAL, hold22, HOLD23]).consistency == "CONSISTENT"
+    assert fomc(AFTER, schedules=clash, statements=[*REAL, hold22]).consistency == "CONSISTENT"
+
+
+def test_calendar_meetings_and_unmatched_schedules_between_statements():
+    nov = decision(date(2026, 11, 2), datetime(2026, 11, 2, 18, tzinfo=UTC))
+    at = datetime(2026, 11, 3, tzinfo=UTC)
+    # A calendar meeting strictly between the statements keeps its existing classification.
+    meeting = fomc(at, statements=[*REAL, nov])
+    assert meeting.consistency == "INTERVENING_MEETING_NOT_CAPTURED" and meeting.range_change_since_previous.value is None
+    # The Oct 28 statement at 08:00 EDT is not the meeting's verified 14:00 EDT announcement.
+    early = october(published=datetime(2026, 10, 28, 12, tzinfo=UTC))
+    f = fomc(at, schedules=(fomc_time(),), statements=[*REAL, early, nov])
+    assert f.previous_statement == early
+    assert_unverified(f, ("INTERVENING_ANNOUNCEMENT_NOT_CAPTURED:2026-10-28",))
+    assert fomc(at, statements=[*REAL, early, nov]).consistency == "CONSISTENT"           # no verified time
+    assert fomc(at, schedules=(fomc_time(),), statements=[*REAL, october(), nov]).consistency == "CONSISTENT"
+    # An unmatched schedule between the statements, with and without its statement.
+    unmatched = (fomc_time(day=date(2026, 10, 30)),)
+    assert fomc(at, schedules=unmatched, statements=[*REAL, october(), nov]).consistency == "CONTINUITY_UNVERIFIED"
+    oct30 = decision(date(2026, 10, 30), datetime(2026, 10, 30, 18, tzinfo=UTC))
+    assert fomc(at, schedules=unmatched, statements=[*REAL, october(), oct30, nov]).consistency == "CONSISTENT"
+
+
+@pytest.mark.parametrize("statement_date, published, gap", [
+    (OCT22, datetime(2026, 10, 23, 2, tzinfo=UTC), False),    # 22:00 EDT Oct 22: the Oct 22 statement itself
+    (OCT21, datetime(2026, 10, 22, 3, tzinfo=UTC), False),    # 23:00 EDT Oct 21: before the Oct 22 announcement
+    (OCT22, datetime(2026, 10, 23, 18, tzinfo=UTC), True),    # dated Oct 22 but published on Oct 23 in New York
+    (OCT21, datetime(2026, 10, 22, 18, tzinfo=UTC), True),    # published on Oct 22 but dated Oct 21
+])
+def test_current_statement_accounts_for_a_date_only_announcement_by_new_york_dates(statement_date, published, gap):
+    current = decision(OCT22, published).model_copy(update={"statement_date": statement_date})
+    f = fomc(AFTER, schedules=(fomc_date(),), statements=[*REAL, current])
+    assert f.statement == current and f.previous_statement == REAL[3]
+    assert (f.consistency == "CONTINUITY_UNVERIFIED") is gap
+
+
+def test_continuity_without_a_calendar_still_uses_schedules():
+    f = build(at=AFTER, schedules=(fomc_time(day=OCT22),), statements=[*REAL, HOLD23]).fomc
+    assert f.consistency == "CONTINUITY_UNVERIFIED" and "PREVIOUS_STATEMENT_ADJACENCY_UNVERIFIED_NO_CALENDAR" in f.reasons
+    assert f.reasons[-1] == "INTERVENING_ANNOUNCEMENT_NOT_CAPTURED:2026-10-22"
+
+
+def test_continuity_is_deterministic_over_duplicates_and_order():
+    schedules = [fomc_time(day=OCT22), fomc_time(day=OCT22), fomc_time(day=OCT22, hh=15),
+                 fomc_date(day=date(2026, 10, 20)), *UNZONED, fomc_date(tz="Europe/London")]
+    statements = [*REAL, HOLD23]
+    baseline = build(at=AFTER, schedules=schedules, statements=statements, calendars=(CAL,))
+    assert baseline.fomc.consistency == "CONTINUITY_UNVERIFIED"
+    for perm in itertools.permutations(schedules):
+        assert build(at=AFTER, schedules=perm, statements=statements[::-1], calendars=(CAL,)).model_dump_json() \
             == baseline.model_dump_json()
 
 

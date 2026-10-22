@@ -31,7 +31,9 @@ FOMC. A statement counts from its verified publication time (feed GMT time equal
 page's EST/EDT release time) and our receipt. The latest known statement is the last
 verified decision. A change derived by comparing it with the previous known statement is
 evidence, kept apart from what the statement states, and it is withheld when the calendar
-lists an entry between the two without a known statement. Freshness of the latest expected
+lists an entry between the two without a known statement, or when an expected announcement
+(meeting or curated schedule) may fall between them and is neither of them: continuity is
+then unverified, and neither consistency nor contradiction is claimed. Freshness of the latest expected
 announcement is judged on Board (America/New_York) dates, the dates the statement pages
 carry. Expected announcements are the non-notation calendar meetings plus every curated
 FOMC schedule known by T, including one whose date matches no calendar meeting (reported as
@@ -149,9 +151,11 @@ class FomcEvidence(MacroModel):
     freshness: Freshness                        # of the latest expected announcement
     statement: FomcStatement | None             # the last verified decision known at T
     previous_statement: FomcStatement | None
-    consistency: Literal["CONSISTENT", "CONTRADICTORY", "INTERVENING_MEETING_NOT_CAPTURED",
+    consistency: Literal["CONSISTENT", "CONTRADICTORY", "INTERVENING_MEETING_NOT_CAPTURED", "CONTINUITY_UNVERIFIED",
                          "NO_PREVIOUS_STATEMENT", "NO_STATEMENT"]
-    range_change_since_previous: Metric         # TraID-derived from the two known statements, signed
+    # TraID-derived, signed: the difference between the two statements' observed range endpoints,
+    # reported only when no uncaptured meeting or scheduled announcement may lie between them.
+    range_change_since_previous: Metric
     in_calendar: Literal["SCHEDULED_MEETING", "NOT_IN_CALENDAR", "CALENDAR_UNAVAILABLE", "NO_STATEMENT"]
     expected_announcement: FomcMeeting | None   # the meeting whose statement is due or possibly due and not known
     expected_announcement_at: datetime | None   # its curated, zone-verified release time, if any
@@ -419,7 +423,38 @@ def _announcement_times(schedules) -> tuple[dict, list, list, list, list]:
             sorted(d for d, ats in by_date.items() if not ats), sorted(windows), sorted(unzoned))
 
 
-def _compare(previous: FomcStatement | None, current: FomcStatement, calendar) -> tuple[str, Metric, list]:
+def _settles(s: FomcStatement, d: date, at: datetime | None) -> bool:
+    """``s`` is the announcement dated ``d`` (verified release time ``at``, if any) or definitely later."""
+    if at is not None:
+        return s.published_at >= at
+    published_on = s.published_at.astimezone(NEW_YORK).date()
+    # The Board dates its statement pages; one dated and published on the scheduled New York
+    # date is that date's statement. One published on a later New York date is later.
+    return published_on > d or published_on == d == s.statement_date
+
+
+def _precedes(s: FomcStatement, d: date, at: datetime | None) -> bool:
+    """``s`` is the announcement dated ``d`` or definitely earlier than it."""
+    if at is not None:
+        return s.published_at <= at
+    published_on = s.published_at.astimezone(NEW_YORK).date()
+    return published_on < d or published_on == d == s.statement_date
+
+
+def _gaps(previous: FomcStatement, current: FomcStatement, dated, windows) -> list:
+    """Expected announcements that may fall between two consecutive known statements.
+
+    No known statement lies between the two, so an announcement in between was not captured,
+    unless it is one of them. Dated ones are ``(date, verified time or None)``; a window is
+    clear only if it definitely ends by the previous statement or starts after the current one."""
+    gaps = [f"INTERVENING_ANNOUNCEMENT_NOT_CAPTURED:{d.isoformat()}" for d, at in dated
+            if not _settles(previous, d, at) and not _precedes(current, d, at)]
+    gaps += [f"POSSIBLY_INTERVENING_ANNOUNCEMENT_UNRESOLVED:{day.isoformat()}" for earliest, latest, day in windows
+             if previous.published_at < latest and current.published_at >= earliest]
+    return list(dict.fromkeys(gaps))
+
+
+def _compare(previous: FomcStatement | None, current: FomcStatement, calendar, gaps) -> tuple[str, Metric, list]:
     if previous is None:
         return "NO_PREVIOUS_STATEMENT", _na(POINTS, "NO_PREVIOUS_STATEMENT"), []
     reasons = []
@@ -429,6 +464,12 @@ def _compare(previous: FomcStatement | None, current: FomcStatement, calendar) -
         # Notation votes count here: an action between the two statements may be unknown to TraID.
         why = "INTERVENING_MEETING_NOT_CAPTURED"
         return why, _na(POINTS, why), [why]
+    if gaps:
+        # An uncaptured scheduled announcement may have changed the range in between: neither
+        # agreement nor contradiction with the previous statement is established. The observed
+        # ranges stay on both statements; no intermediate decision is assumed.
+        why = "CONTINUITY_UNVERIFIED"
+        return why, _na(POINTS, why), reasons + gaps
     with localcontext(CANONICAL):   # exact for these magnitudes; never the ambient context
         lower = current.target_lower_percent - previous.target_lower_percent
         upper = current.target_upper_percent - previous.target_upper_percent
@@ -484,16 +525,7 @@ def _fomc(statements: list[FomcStatement], calendars: list[FomcCalendar], schedu
     # later than it. Being published after the earliest instant the announcement could take is not
     # enough: a statement on its Board date but before its verified release time, or inside an
     # undetermined window, may be a different action, and no source links the two.
-    def settled(d: date, at: datetime | None) -> bool:
-        if current is None:
-            return False
-        if at is not None:                    # a verified release instant
-            return current.published_at >= at
-        published_on = current.published_at.astimezone(NEW_YORK).date()
-        # The Board dates its statement pages; one dated and published on the scheduled New York
-        # date is that date's statement. One published on a later New York date is later.
-        return published_on > d or published_on == d == current.statement_date
-    open_dates = [d for d in candidates if not settled(d, times.get(d))]
+    open_dates = [d for d in candidates if current is None or not _settles(current, d, times.get(d))]
     for d in open_dates:
         if d not in meetings:
             reasons.append(f"ANNOUNCEMENT_SCHEDULE_WITHOUT_CALENDAR_MEETING:{d.isoformat()}")
@@ -545,7 +577,8 @@ def _fomc(statements: list[FomcStatement], calendars: list[FomcCalendar], schedu
                             expected_announcement=expected, expected_announcement_at=expected_at,
                             next_meeting=next_meeting, calendar_provenance=calendar.provenance if calendar else None,
                             reasons=tuple(reasons + ["NO_FOMC_STATEMENT_KNOWN"]))
-    consistency, change, compared = _compare(previous, current, calendar)
+    gaps = _gaps(previous, current, [(d, times.get(d)) for d in candidates], windows) if previous else []
+    consistency, change, compared = _compare(previous, current, calendar, gaps)
     in_calendar = "CALENDAR_UNAVAILABLE" if calendar is None else (
         "SCHEDULED_MEETING" if any(m.end_date == current.statement_date for m in calendar.meetings)
         else "NOT_IN_CALENDAR")
