@@ -275,9 +275,13 @@ def test_release_times_unknown_at_evaluation_or_contradictory_are_not_used():
     at = datetime(2026, 10, 28, 19, tzinfo=UTC)
     future_schedule = fomc_time(retrieved=datetime(2026, 10, 28, 20, tzinfo=UTC))
     assert fomc(at, schedules=(future_schedule,)).freshness is Freshness.RELEASE_TIME_UNKNOWN
-    contradictory = fomc(at, schedules=(fomc_time(), fomc_time(hh=15)))
-    assert contradictory.freshness is Freshness.RELEASE_TIME_UNKNOWN
-    assert "CONFLICTING_FOMC_RELEASE_TIMES:2026-10-28" in contradictory.reasons
+    # Contradictory 14:00 and 15:00 EDT times: neither is used as the release time.
+    between = fomc(at - timedelta(minutes=30), schedules=(fomc_time(), fomc_time(hh=15)))
+    assert between.freshness is Freshness.RELEASE_TIME_UNKNOWN and between.expected_announcement_at is None
+    assert "CONFLICTING_FOMC_RELEASE_TIMES:2026-10-28" in between.reasons
+    contradictory = fomc(at, schedules=(fomc_time(), fomc_time(hh=15)))      # 15:00 EDT: both have passed
+    assert contradictory.freshness is Freshness.AWAITING_CAPTURE and contradictory.expected_announcement_at is None
+    assert contradictory.reasons[-1] == "DUE_EVERY_CONFLICTING_RELEASE_TIME_PASSED"
 
 
 def test_without_a_calendar_announcement_freshness_is_unknown():
@@ -341,12 +345,14 @@ def test_unmatched_schedule_received_after_evaluation_is_not_used():
 
 def test_conflicting_or_duplicate_unmatched_schedules():
     two = (fomc_time(day=OCT22), fomc_time(day=OCT22, hh=15))
-    today = fomc(datetime(2026, 10, 22, 20, tzinfo=UTC), schedules=two)
+    today = fomc(datetime(2026, 10, 22, 18, 30, tzinfo=UTC), schedules=two)
     assert today.freshness is Freshness.RELEASE_TIME_UNKNOWN and today.expected_announcement_at is None
     assert "CONFLICTING_FOMC_RELEASE_TIMES:2026-10-22" in today.reasons
-    assert "ANNOUNCEMENT_ON_EVALUATION_DATE_RELEASE_TIME_UNVERIFIED" in today.reasons
-    passed = fomc(datetime(2026, 10, 23, 12, tzinfo=UTC), schedules=two)
-    assert passed.freshness is Freshness.AWAITING_CAPTURE and "DUE_ANNOUNCEMENT_DATE_PASSED_IN_NEW_YORK" in passed.reasons
+    assert "EVALUATION_TIME_BETWEEN_CONFLICTING_RELEASE_TIMES" in today.reasons
+    for at in (datetime(2026, 10, 22, 20, tzinfo=UTC), datetime(2026, 10, 23, 12, tzinfo=UTC)):
+        passed = fomc(at, schedules=two)
+        assert passed.freshness is Freshness.AWAITING_CAPTURE and passed.expected_announcement_at is None
+        assert passed.reasons[-1] == "DUE_EVERY_CONFLICTING_RELEASE_TIME_PASSED"
     at = datetime(2026, 10, 22, 20, tzinfo=UTC)
     single = fomc(at, schedules=(fomc_time(day=OCT22),)).model_dump_json()
     assert fomc(at, schedules=(fomc_time(day=OCT22),) * 3).model_dump_json() == single      # duplicates are one
@@ -441,10 +447,14 @@ def test_date_only_and_timed_schedules_for_one_date():
     assert before.freshness is Freshness.CURRENT and before.expected_announcement_at == datetime(2026, 10, 22, 18, tzinfo=UTC)
     due = fomc(datetime(2026, 10, 22, 18, tzinfo=UTC), schedules=both)
     assert due.freshness is Freshness.AWAITING_CAPTURE and "DUE_BY_VERIFIED_RELEASE_TIME" in due.reasons
+    # Conflicting times stay a 14:00-15:00 EDT span; the date-only entry does not widen it.
     clash = (fomc_date(), fomc_time(day=OCT22), fomc_time(day=OCT22, hh=15))
-    unsure = fomc(datetime(2026, 10, 22, 17, tzinfo=UTC), schedules=clash)
+    ahead = fomc(datetime(2026, 10, 22, 17, tzinfo=UTC), schedules=clash)
+    assert ahead.freshness is Freshness.CURRENT and ahead.expected_announcement_at is None
+    assert ahead.reasons[0] == "CONFLICTING_FOMC_RELEASE_TIMES:2026-10-22"
+    unsure = fomc(datetime(2026, 10, 22, 18, tzinfo=UTC), schedules=clash)
     assert unsure.freshness is Freshness.RELEASE_TIME_UNKNOWN and unsure.expected_announcement_at is None
-    assert "CONFLICTING_FOMC_RELEASE_TIMES:2026-10-22" in unsure.reasons
+    assert fomc(datetime(2026, 10, 22, 19, tzinfo=UTC), schedules=clash).freshness is Freshness.AWAITING_CAPTURE
 
 
 def test_duplicate_and_permuted_date_only_schedules_are_deterministic():
@@ -782,14 +792,15 @@ def test_foreign_zone_window_between_statements():
     assert fomc(AFTER, schedules=london, statements=[*REAL, closed, HOLD23]).consistency == "CONSISTENT"
 
 
-def test_conflicting_release_times_fall_back_to_the_board_date():
+def test_conflicting_release_times_do_not_fall_back_to_the_board_date():
     clash = (fomc_time(day=OCT22), fomc_time(day=OCT22, hh=15))
     f = fomc(AFTER, schedules=clash, statements=[*REAL, HOLD23])
     assert_unverified(f, ("INTERVENING_ANNOUNCEMENT_NOT_CAPTURED:2026-10-22",))
-    # A statement dated and published on Oct 22 is that date's statement whichever time is right.
+    # At 15:00 EDT, the latest candidate, an Oct 22 statement is the announcement or later than it.
     hold22 = decision(OCT22, datetime(2026, 10, 22, 19, tzinfo=UTC))
     assert fomc(AFTER, schedules=clash, statements=[*REAL, hold22, HOLD23]).consistency == "CONSISTENT"
-    assert fomc(AFTER, schedules=clash, statements=[*REAL, hold22]).consistency == "CONSISTENT"
+    # Compared with Sep 16, the announcement may have come at 14:00 EDT, before it: unverified.
+    assert fomc(AFTER, schedules=clash, statements=[*REAL, hold22]).consistency == "CONTINUITY_UNVERIFIED"
 
 
 def test_calendar_meetings_and_unmatched_schedules_between_statements():
@@ -837,6 +848,127 @@ def test_continuity_is_deterministic_over_duplicates_and_order():
     statements = [*REAL, HOLD23]
     baseline = build(at=AFTER, schedules=schedules, statements=statements, calendars=(CAL,))
     assert baseline.fomc.consistency == "CONTINUITY_UNVERIFIED"
+    for perm in itertools.permutations(schedules):
+        assert build(at=AFTER, schedules=perm, statements=statements[::-1], calendars=(CAL,)).model_dump_json() \
+            == baseline.model_dump_json()
+
+
+# ======================================================== FOMC: conflicting release times
+def timed(day, hh, mm=0, tz=NY, retrieved=datetime(2026, 10, 1, tzinfo=UTC)):
+    return ScheduledRelease(event_type="FOMC_DECISION", reference_period=f"{day:%Y-%m}", release_date=day,
+                            release_time=time(hh, mm), timezone=tz, timezone_evidence="Curated for this test",
+                            source_url="https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm",
+                            retrieved_at=retrieved)
+
+
+CLASH = (timed(OCT22, 14), timed(OCT22, 15))           # 18:00Z and 19:00Z on Oct 22
+MORNING = decision(OCT22, datetime(2026, 10, 22, 12, tzinfo=UTC))   # 08:00 EDT
+
+
+def test_codex_morning_statement_does_not_satisfy_conflicting_afternoon_times():
+    between = fomc(datetime(2026, 10, 22, 18, 30, tzinfo=UTC), schedules=CLASH, statements=[*REAL, MORNING])
+    assert between.freshness is Freshness.RELEASE_TIME_UNKNOWN and between.expected_announcement_at is None
+    assert between.reasons[-1] == "EVALUATION_TIME_BETWEEN_CONFLICTING_RELEASE_TIMES"
+    f = fomc(datetime(2026, 10, 22, 20, tzinfo=UTC), schedules=CLASH, statements=[*REAL, MORNING])
+    assert f.freshness is Freshness.AWAITING_CAPTURE and f.statement == MORNING and f.expected_announcement_at is None
+    assert f.reasons == ("CONFLICTING_FOMC_RELEASE_TIMES:2026-10-22",
+                         "ANNOUNCEMENT_SCHEDULE_WITHOUT_CALENDAR_MEETING:2026-10-22",
+                         "STATEMENT_FOR_SCHEDULED_ANNOUNCEMENT_NOT_CAPTURED", "DUE_EVERY_CONFLICTING_RELEASE_TIME_PASSED")
+
+
+@pytest.mark.parametrize("later", [HOLD23, RAISE23], ids=["hold", "raise"])
+def test_codex_continuity_across_conflicting_times_is_unverified(later):
+    f = fomc(AFTER, schedules=CLASH, statements=[*REAL, MORNING, later])
+    assert f.freshness is Freshness.CURRENT and f.previous_statement == MORNING and f.statement == later
+    assert_unverified(f, ("INTERVENING_ANNOUNCEMENT_NOT_CAPTURED:2026-10-22",))       # neither consistent nor contradictory
+    assert f.statement.stated_change_percentage_points == later.stated_change_percentage_points
+    assert (f.previous_statement.target_lower_percent, f.statement.target_upper_percent) == (D("3.75"), D(4))
+    # Without the conflicting schedules the same pair is compared as before.
+    assert fomc(AFTER, statements=[*REAL, MORNING, later]).consistency == ("CONSISTENT" if later is HOLD23
+                                                                           else "CONTRADICTORY")
+
+
+@pytest.mark.parametrize("published, settled, after_sep16, before_oct23", [
+    (datetime(2026, 10, 22, 12, tzinfo=UTC), False, "CONSISTENT", "CONTINUITY_UNVERIFIED"),            # before all
+    (datetime(2026, 10, 22, 18, tzinfo=UTC), False, "CONTINUITY_UNVERIFIED", "CONTINUITY_UNVERIFIED"),  # at earliest
+    (datetime(2026, 10, 22, 18, 30, tzinfo=UTC), False, "CONTINUITY_UNVERIFIED", "CONTINUITY_UNVERIFIED"),  # between
+    (datetime(2026, 10, 22, 19, tzinfo=UTC), True, "CONTINUITY_UNVERIFIED", "CONSISTENT"),             # at latest
+    (datetime(2026, 10, 22, 20, tzinfo=UTC), True, "CONTINUITY_UNVERIFIED", "CONSISTENT"),             # after all
+], ids=["before", "earliest", "between", "latest", "after"])
+def test_statement_against_every_candidate_time(published, settled, after_sep16, before_oct23):
+    s = decision(OCT22, published)
+    alone = fomc(AFTER, schedules=CLASH, statements=[*REAL, s])
+    assert alone.freshness is (Freshness.CURRENT if settled else Freshness.AWAITING_CAPTURE)
+    assert alone.statement == s and alone.consistency == after_sep16
+    assert fomc(AFTER, schedules=CLASH, statements=[*REAL, s, HOLD23]).consistency == before_oct23
+
+
+def test_identical_duplicate_schedules_are_not_a_conflict():
+    at = datetime(2026, 10, 22, 17, tzinfo=UTC)
+    single = fomc(at, schedules=(timed(OCT22, 14),))
+    assert fomc(at, schedules=(timed(OCT22, 14),) * 3).model_dump_json() == single.model_dump_json()
+    assert single.expected_announcement_at == datetime(2026, 10, 22, 18, tzinfo=UTC)
+    assert not any(r.startswith("CONFLICTING") for r in single.reasons)
+    assert fomc(at, schedules=CLASH * 2).model_dump_json() == fomc(at, schedules=CLASH).model_dump_json()
+
+
+def test_date_only_entry_does_not_restore_board_date_matching_for_conflicting_times():
+    schedules = (fomc_date(), *CLASH)
+    for published in (MORNING.published_at, datetime(2026, 10, 22, 18, 30, tzinfo=UTC)):
+        s = decision(OCT22, published)                  # dated and published on Oct 22
+        f = fomc(datetime(2026, 10, 22, 20, tzinfo=UTC), schedules=schedules, statements=[*REAL, s])
+        assert f.freshness is Freshness.AWAITING_CAPTURE and "DUE_EVERY_CONFLICTING_RELEASE_TIME_PASSED" in f.reasons
+    # The date-only entry alone keeps Board-date matching.
+    assert fomc(datetime(2026, 10, 22, 20, tzinfo=UTC), schedules=(fomc_date(),), statements=[*REAL, MORNING]).freshness \
+        is Freshness.CURRENT
+
+
+def test_conflicting_schedules_across_timezones():
+    at = datetime(2026, 10, 22, 18, 30, tzinfo=UTC)
+    # 14:00 EDT and 19:00 BST are one instant: they agree.
+    same = fomc(at - timedelta(hours=1), schedules=(timed(OCT22, 14), timed(OCT22, 19, tz="Europe/London")))
+    assert same.expected_announcement_at == datetime(2026, 10, 22, 18, tzinfo=UTC)
+    assert not any(r.startswith("CONFLICTING") for r in same.reasons)
+    # 14:00 EDT and 04:00 JST on Oct 23 (19:00Z, still Oct 22 in New York) conflict on one New York date.
+    tokyo = (timed(OCT22, 14), timed(OCT23, 4, tz="Asia/Tokyo"))
+    f = fomc(at, schedules=tokyo, statements=[*REAL, MORNING])
+    assert f.freshness is Freshness.RELEASE_TIME_UNKNOWN and "CONFLICTING_FOMC_RELEASE_TIMES:2026-10-22" in f.reasons
+    assert fomc(datetime(2026, 10, 22, 19, tzinfo=UTC), schedules=tokyo, statements=[*REAL, MORNING]).freshness \
+        is Freshness.AWAITING_CAPTURE
+
+
+def test_conflicting_schedule_received_after_evaluation_is_not_used():
+    at = datetime(2026, 10, 22, 18, 30, tzinfo=UTC)
+    late = (timed(OCT22, 14), timed(OCT22, 15, retrieved=at + timedelta(seconds=1)))
+    r = build(at=at, schedules=late, statements=[*REAL, MORNING], calendars=(CAL,))
+    assert r.excluded_after_evaluation.schedules == 1 and r.fomc.freshness is Freshness.AWAITING_CAPTURE
+    assert r.fomc.expected_announcement_at == datetime(2026, 10, 22, 18, tzinfo=UTC)
+    assert r.fomc.reasons[-1] == "DUE_BY_VERIFIED_RELEASE_TIME" and not any("CONFLICTING" in x for x in r.fomc.reasons)
+    known = fomc(at, schedules=(timed(OCT22, 14), timed(OCT22, 15, retrieved=at)), statements=[*REAL, MORNING])
+    assert known.freshness is Freshness.RELEASE_TIME_UNKNOWN
+
+
+def test_conflicting_times_at_the_new_york_date_boundary():
+    # 23:00 and 23:30 EDT on Oct 22 are 03:00Z and 03:30Z on Oct 23: one New York date, one span.
+    late = (timed(OCT22, 23), timed(OCT22, 23, 30))
+    evening = decision(OCT22, datetime(2026, 10, 23, 3, 10, tzinfo=UTC))      # 23:10 EDT Oct 22
+    f = fomc(datetime(2026, 10, 23, 3, 15, tzinfo=UTC), schedules=late, statements=[*REAL, evening])
+    assert f.freshness is Freshness.RELEASE_TIME_UNKNOWN and "CONFLICTING_FOMC_RELEASE_TIMES:2026-10-22" in f.reasons
+    assert fomc(datetime(2026, 10, 23, 3, 30, tzinfo=UTC), schedules=late, statements=[*REAL, evening]).freshness \
+        is Freshness.AWAITING_CAPTURE
+    # 23:30 EDT Oct 22 and 00:30 EDT Oct 23 fall on two New York dates: two announcements, no conflict.
+    split = (timed(OCT22, 23, 30), timed(OCT23, 0, 30))
+    g = fomc(datetime(2026, 10, 23, 4, tzinfo=UTC), schedules=split)
+    assert not any(r.startswith("CONFLICTING") for r in g.reasons)
+    assert g.freshness is Freshness.AWAITING_CAPTURE and g.expected_announcement_at == datetime(2026, 10, 23, 3, 30, tzinfo=UTC)
+
+
+def test_conflicting_times_report_is_deterministic_under_permutations():
+    schedules = [*CLASH, timed(OCT22, 14), fomc_date(), timed(OCT23, 4, tz="Asia/Tokyo"),
+                 timed(OCT22, 16, retrieved=AFTER + timedelta(days=1))]
+    statements = [*REAL, MORNING, HOLD23]
+    baseline = build(at=AFTER, schedules=schedules, statements=statements, calendars=(CAL,))
+    assert baseline.fomc.consistency == "CONTINUITY_UNVERIFIED" and baseline.excluded_after_evaluation.schedules == 1
     for perm in itertools.permutations(schedules):
         assert build(at=AFTER, schedules=perm, statements=statements[::-1], calendars=(CAL,)).model_dump_json() \
             == baseline.model_dump_json()

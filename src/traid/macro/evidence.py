@@ -46,8 +46,11 @@ after a verified release time; dated and published on the scheduled New York dat
 verified time); published on a later New York date; or, for a window, published after every
 instant the window denotes. A statement published merely after a window's earliest instant
 is never assumed to be the scheduled announcement. One not settled is due once its zone-verified release time has
-passed, or once its date has passed in New York; on that date without a single verified
-time (none, or conflicting ones) it is RELEASE_TIME_UNKNOWN, and no release hour is assumed. A future schedule leaves
+passed, or once its date has passed in New York; on that date without a verified time it is
+RELEASE_TIME_UNKNOWN, and no release hour is assumed. Conflicting verified times for one date
+are kept as a span from the earliest to the latest candidate, never reduced to the date alone:
+only a statement at or after the latest candidate settles it, it is RELEASE_TIME_UNKNOWN
+between them and due once every candidate has passed. A future schedule leaves
 the latest statement current.
 
 PCE and GDP are BEA releases; BEA access is not configured, so they are UNSUPPORTED.
@@ -393,8 +396,10 @@ def _announcement_times(schedules) -> tuple[dict, list, list, list, list]:
     within one New York date gives that date with no time. Any other entry (a local day that
     spans New York dates, or no verified zone) gives a window: the instants it can fall on, its
     stated hour (if any) read in every zone from UTC-12 to UTC+14 when the zone is unverified.
-    Returns dates with one verified time, dates with conflicting times, dates with no time,
-    windows as (earliest, latest, release date), and the release dates whose zone is unverified."""
+    Returns each date with verified times as its (earliest, latest) candidate time, equal when
+    the entries agree and kept as a bounded span when they conflict (never collapsed into a
+    date-only entry or a single invented time); the dates with conflicting times; dates with no
+    time; windows as (earliest, latest, release date); and the release dates whose zone is unverified."""
     by_date: dict = {}
     windows, unzoned = set(), set()
     for s in schedules:
@@ -418,25 +423,31 @@ def _announcement_times(schedules) -> tuple[dict, list, list, list, list]:
             by_date.setdefault(dates[0], set())
         else:
             windows.add((start, end, s.release_date))
-    return ({d: min(ats) for d, ats in by_date.items() if len(ats) == 1},
+    return ({d: (min(ats), max(ats)) for d, ats in by_date.items() if ats},
             sorted(d for d, ats in by_date.items() if len(ats) > 1),
             sorted(d for d, ats in by_date.items() if not ats), sorted(windows), sorted(unzoned))
 
 
-def _settles(s: FomcStatement, d: date, at: datetime | None) -> bool:
-    """``s`` is the announcement dated ``d`` (verified release time ``at``, if any) or definitely later."""
-    if at is not None:
-        return s.published_at >= at
+def _settles(s: FomcStatement, d: date, span: tuple[datetime, datetime] | None) -> bool:
+    """``s`` is the announcement dated ``d`` or definitely later. ``span`` holds its earliest and
+    latest verified candidate release times (equal unless curated entries conflict), if any."""
+    if span is not None:
+        # At or after every candidate time: the announcement itself or a later statement. Earlier
+        # than the latest candidate, it may precede the announcement, whatever its date.
+        return s.published_at >= span[1]
     published_on = s.published_at.astimezone(NEW_YORK).date()
     # The Board dates its statement pages; one dated and published on the scheduled New York
     # date is that date's statement. One published on a later New York date is later.
     return published_on > d or published_on == d == s.statement_date
 
 
-def _precedes(s: FomcStatement, d: date, at: datetime | None) -> bool:
+def _precedes(s: FomcStatement, d: date, span: tuple[datetime, datetime] | None) -> bool:
     """``s`` is the announcement dated ``d`` or definitely earlier than it."""
-    if at is not None:
-        return s.published_at <= at
+    if span is not None:
+        lo, hi = span
+        # At the one verified time it is the announcement; at the earliest of conflicting times
+        # the announcement may still come later.
+        return s.published_at < lo or s.published_at == lo == hi
     published_on = s.published_at.astimezone(NEW_YORK).date()
     return published_on < d or published_on == d == s.statement_date
 
@@ -445,7 +456,7 @@ def _gaps(previous: FomcStatement, current: FomcStatement, dated, windows) -> li
     """Expected announcements that may fall between two consecutive known statements.
 
     No known statement lies between the two, so an announcement in between was not captured,
-    unless it is one of them. Dated ones are ``(date, verified time or None)``; a window is
+    unless it is one of them. Dated ones are ``(date, candidate time span or None)``; a window is
     clear only if it definitely ends by the previous statement or starts after the current one."""
     gaps = [f"INTERVENING_ANNOUNCEMENT_NOT_CAPTURED:{d.isoformat()}" for d, at in dated
             if not _settles(previous, d, at) and not _precedes(current, d, at)]
@@ -509,7 +520,7 @@ def _fomc(statements: list[FomcStatement], calendars: list[FomcCalendar], schedu
     current = unique[-1] if unique else None
     previous = unique[-2] if len(unique) > 1 else None
 
-    times, conflicted, untimed, windows, unzoned = _announcement_times(schedules)
+    spans, conflicted, untimed, windows, unzoned = _announcement_times(schedules)
     if conflicted:
         reasons.append("CONFLICTING_FOMC_RELEASE_TIMES:" + ",".join(d.isoformat() for d in conflicted))
     if unzoned:
@@ -520,23 +531,32 @@ def _fomc(statements: list[FomcStatement], calendars: list[FomcCalendar], schedu
     # Announcement dates come from calendar meetings and from explicit curated schedules; a
     # schedule whose date matches no meeting, or that has no release hour, is still evidence.
     meetings = {m.end_date: m for m in calendar.meetings if not m.notation_vote} if calendar else {}
-    candidates = sorted(set(meetings) | set(times) | set(conflicted) | set(untimed))
+    candidates = sorted(set(meetings) | set(spans) | set(untimed))
     # The latest statement settles an announcement only when it is that announcement or definitely
     # later than it. Being published after the earliest instant the announcement could take is not
     # enough: a statement on its Board date but before its verified release time, or inside an
     # undetermined window, may be a different action, and no source links the two.
-    open_dates = [d for d in candidates if current is None or not _settles(current, d, times.get(d))]
+    open_dates = [d for d in candidates if current is None or not _settles(current, d, spans.get(d))]
     for d in open_dates:
         if d not in meetings:
             reasons.append(f"ANNOUNCEMENT_SCHEDULE_WITHOUT_CALENDAR_MEETING:{d.isoformat()}")
     due, unknown, later = [], [], []          # (order, meeting, verified time, kind)
     for d in (d for d in open_dates if d <= today):
-        meeting, at = meetings.get(d), times.get(d)
+        meeting, span = meetings.get(d), spans.get(d)
         kind = "MEETING" if meeting else "DATE"
-        order = at or datetime.combine(d, time()).replace(tzinfo=NEW_YORK).astimezone(UTC)
-        if at is not None:
-            (due if at <= T else later).append((order, meeting, at, kind))
-        elif d < today:
+        if span is not None:
+            lo, hi = span
+            at = lo if lo == hi else None     # conflicting candidates give no single release time
+            kind = kind if at else "CONFLICT"
+            if hi <= T:
+                due.append((lo, meeting, at, kind))
+            elif lo <= T:                     # some candidate times have passed, others not
+                unknown.append((lo, meeting, None, kind))
+            else:
+                later.append((lo, meeting, at, kind))
+            continue
+        order = datetime.combine(d, time()).replace(tzinfo=NEW_YORK).astimezone(UTC)
+        if d < today:
             due.append((order, meeting, None, kind))
         else:
             unknown.append((order, meeting, None, kind))
@@ -557,13 +577,14 @@ def _fomc(statements: list[FomcStatement], calendars: list[FomcCalendar], schedu
                        else "STATEMENT_FOR_SCHEDULED_ANNOUNCEMENT_NOT_CAPTURED")
         reasons.append("DUE_BY_VERIFIED_RELEASE_TIME" if expected_at else {
             "MEETING": "DUE_MEETING_DATE_PASSED_IN_NEW_YORK", "DATE": "DUE_ANNOUNCEMENT_DATE_PASSED_IN_NEW_YORK",
-            "WINDOW": "DUE_SCHEDULED_WINDOW_PASSED"}[kind])
+            "WINDOW": "DUE_SCHEDULED_WINDOW_PASSED", "CONFLICT": "DUE_EVERY_CONFLICTING_RELEASE_TIME_PASSED"}[kind])
     elif unknown:
         _, expected, _, kind = unknown[-1]
         freshness = Freshness.RELEASE_TIME_UNKNOWN
         reasons.append({"MEETING": "MEETING_ENDS_ON_EVALUATION_DATE_RELEASE_TIME_UNVERIFIED",
                         "DATE": "ANNOUNCEMENT_ON_EVALUATION_DATE_RELEASE_TIME_UNVERIFIED",
-                        "WINDOW": "EVALUATION_TIME_WITHIN_SCHEDULED_WINDOW_RELEASE_TIME_UNVERIFIED"}[kind])
+                        "WINDOW": "EVALUATION_TIME_WITHIN_SCHEDULED_WINDOW_RELEASE_TIME_UNVERIFIED",
+                        "CONFLICT": "EVALUATION_TIME_BETWEEN_CONFLICTING_RELEASE_TIMES"}[kind])
     else:
         freshness = (Freshness.SCHEDULE_UNKNOWN if calendar is None
                      else Freshness.CURRENT if current else Freshness.NO_RELEASE_DUE)
@@ -577,7 +598,7 @@ def _fomc(statements: list[FomcStatement], calendars: list[FomcCalendar], schedu
                             expected_announcement=expected, expected_announcement_at=expected_at,
                             next_meeting=next_meeting, calendar_provenance=calendar.provenance if calendar else None,
                             reasons=tuple(reasons + ["NO_FOMC_STATEMENT_KNOWN"]))
-    gaps = _gaps(previous, current, [(d, times.get(d)) for d in candidates], windows) if previous else []
+    gaps = _gaps(previous, current, [(d, spans.get(d)) for d in candidates], windows) if previous else []
     consistency, change, compared = _compare(previous, current, calendar, gaps)
     in_calendar = "CALENDAR_UNAVAILABLE" if calendar is None else (
         "SCHEDULED_MEETING" if any(m.end_date == current.statement_date for m in calendar.meetings)
