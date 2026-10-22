@@ -43,3 +43,13 @@ This file records completed and merged V1 Cards. Add one short entry **after** e
 - **PR:** https://github.com/jo-soroush/traid-market-intelligence/pull/21
 - **Merged main commit:** `9832b19` (squash merge)
 - **Known limitations:** Provider history is capped at 10,000 recent fills; long performance windows may be incomplete. Net PnL composition and some liquidation semantics remain unverified. Smart Money scores are descriptive, fill-based, sensitive to fragmentation and not evidence of predictive skill. No universal wallet discovery or trading authority is provided.
+
+## V1-C12 — Macro Intelligence
+
+- **Status:** MERGED — 2026-10-22
+- **Scope delivered:** Source-aware BLS CPI and employment data, Federal Reserve FOMC statements and schedules, deterministic macro evidence, point-in-time safeguards, revision and conflict handling, and provider-neutral BTC ETF identity, applicability and coverage contracts.
+- **Verification:** 1,067 tests passed locally, including 209 C12 tests; independent Codex audit PASS; GitHub push and pull-request CI PASS.
+- **Review history:** Corrected original-release vintage claims, FOMC statement parsing and freshness, Decimal precision, simultaneous BLS conflicts, ETF mapping lookahead, payroll units, announcement matching, conflicting schedules and policy-continuity validation.
+- **PR:** https://github.com/jo-soroush/traid-market-intelligence/pull/22
+- **Merged main commit:** `121c3cd` (squash merge)
+- **Known limitations:** PCE and GDP unavailable without BEA credentials; no approved ETF numeric or consensus provider; BLS original-release vintages unavailable; schedules require curated evidence; historical FOMC statement parsing is bounded and unrecognized wording fails closed. Macro and ETF evidence has no trading authority.
