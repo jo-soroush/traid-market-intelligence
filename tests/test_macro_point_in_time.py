@@ -4,6 +4,7 @@ import copy
 from datetime import date, datetime, time, timedelta, timezone
 from decimal import ROUND_DOWN, ROUND_UP, Decimal, localcontext
 import itertools
+from zoneinfo import ZoneInfo
 
 import pytest
 from pydantic import ValidationError
@@ -474,8 +475,11 @@ def test_schedules_without_a_determinable_new_york_date_are_one_window():
                              "EVALUATION_TIME_WITHIN_SCHEDULED_WINDOW_RELEASE_TIME_UNVERIFIED")
     due = fomc(window_end, schedules=london)
     assert due.freshness is Freshness.AWAITING_CAPTURE and "DUE_SCHEDULED_WINDOW_PASSED" in due.reasons
-    satisfied = fomc(window_end, schedules=london, statements=[*REAL, unscheduled()])   # published within the window
-    assert satisfied.freshness is Freshness.CURRENT and satisfied.reasons == ()
+    # A statement published within the window is not shown to be the scheduled announcement.
+    within = fomc(window_end, schedules=london, statements=[*REAL, unscheduled()])
+    assert within.freshness is Freshness.AWAITING_CAPTURE and "DUE_SCHEDULED_WINDOW_PASSED" in within.reasons
+    later = fomc(window_end, schedules=london, statements=[*REAL, unscheduled(published=window_end)])
+    assert later.freshness is Freshness.CURRENT and later.reasons == ()
 
 
 @pytest.mark.parametrize("hh, earliest, latest", [
@@ -502,6 +506,151 @@ def test_date_only_schedule_for_a_calendar_meeting_keeps_meeting_semantics():
     f = fomc(datetime(2026, 10, 28, 15, tzinfo=UTC), schedules=(fomc_date(day=OCT),))
     assert f.freshness is Freshness.RELEASE_TIME_UNKNOWN and f.expected_announcement.end_date == OCT
     assert f.reasons == ("MEETING_ENDS_ON_EVALUATION_DATE_RELEASE_TIME_UNVERIFIED",)
+
+
+# ======================================== FOMC: matching scheduled announcements to statements
+OCT21 = date(2026, 10, 21)
+UNZONED_START, UNZONED_END = datetime(2026, 10, 21, 10, tzinfo=UTC), datetime(2026, 10, 23, 12, tzinfo=UTC)
+UNZONED = (fomc_date(tz=None),)                 # Oct 22, no hour, no verified zone: UNZONED_START..UNZONED_END
+
+
+def test_codex_statement_inside_an_uncertain_window_does_not_settle_it():
+    earlier = unscheduled(day=OCT21, published=datetime(2026, 10, 21, 18, tzinfo=UTC))   # inside the window
+    statements = [*REAL, earlier]
+    same = fomc(datetime(2026, 10, 22, 20, tzinfo=UTC), schedules=UNZONED, statements=statements)
+    assert same.freshness is Freshness.RELEASE_TIME_UNKNOWN and same.expected_announcement_at is None
+    assert same.reasons == ("FOMC_SCHEDULE_TIMEZONE_UNVERIFIED:2026-10-22",
+                            "ANNOUNCEMENT_SCHEDULE_NEW_YORK_DATE_UNDETERMINED:2026-10-22",
+                            "EVALUATION_TIME_WITHIN_SCHEDULED_WINDOW_RELEASE_TIME_UNVERIFIED")
+    after = fomc(datetime(2026, 10, 23, 16, tzinfo=UTC), schedules=UNZONED, statements=statements)
+    assert after.freshness is Freshness.AWAITING_CAPTURE and after.expected_announcement_at is None
+    assert after.reasons == ("FOMC_SCHEDULE_TIMEZONE_UNVERIFIED:2026-10-22",
+                             "ANNOUNCEMENT_SCHEDULE_NEW_YORK_DATE_UNDETERMINED:2026-10-22",
+                             "STATEMENT_FOR_SCHEDULED_ANNOUNCEMENT_NOT_CAPTURED", "DUE_SCHEDULED_WINDOW_PASSED")
+    for f in (same, after):                   # the last verified decision stays visible, unchanged
+        assert f.statement == earlier and f.previous_statement.statement_date == date(2026, 9, 16)
+        assert f.consistency == "CONSISTENT" and f.range_change_since_previous.value == 0
+
+
+def test_unrelated_statement_before_an_uncertain_window():
+    before = [*REAL, unscheduled(day=OCT21, published=UNZONED_START - timedelta(hours=1))]
+    assert fomc(UNZONED_START - timedelta(microseconds=1), schedules=UNZONED, statements=before).freshness \
+        is Freshness.CURRENT
+    assert fomc(UNZONED_START, schedules=UNZONED, statements=before).freshness is Freshness.RELEASE_TIME_UNKNOWN
+    assert fomc(UNZONED_END, schedules=UNZONED, statements=before).freshness is Freshness.AWAITING_CAPTURE
+
+
+@pytest.mark.parametrize("published, settled", [
+    (UNZONED_START, False),                                 # the earliest instant the announcement could take
+    (datetime(2026, 10, 22, 18, tzinfo=UTC), False),        # mid-window, even on the schedule's own date
+    (UNZONED_END - timedelta(microseconds=1), False),       # the last instant the window denotes
+    (UNZONED_END, True),                                    # after every instant: definitely later
+    (UNZONED_END + timedelta(days=1), True),
+])
+def test_window_is_settled_only_by_a_definitely_later_statement(published, settled):
+    record = unscheduled(day=published.astimezone(ZoneInfo(NY)).date(), published=published)
+    f = fomc(UNZONED_END + timedelta(days=2), schedules=UNZONED, statements=[*REAL, record])
+    assert f.statement == record
+    assert f.freshness is (Freshness.CURRENT if settled else Freshness.AWAITING_CAPTURE)
+    assert ("DUE_SCHEDULED_WINDOW_PASSED" in f.reasons) is not settled
+
+
+def test_window_with_an_unzoned_hour_includes_its_last_possible_instant():
+    unzoned = (fomc_date(tz=None, hh=14),)          # 14:00 in some zone: Oct 22 00:00Z .. Oct 23 02:00Z inclusive
+    last = datetime(2026, 10, 23, 2, tzinfo=UTC)
+    for published, status in ((last - timedelta(microseconds=1), Freshness.AWAITING_CAPTURE), (last, Freshness.CURRENT)):
+        record = unscheduled(day=published.astimezone(ZoneInfo(NY)).date(), published=published)
+        assert fomc(last + timedelta(hours=1), schedules=unzoned, statements=[*REAL, record]).freshness is status
+
+
+def test_foreign_zone_window_is_not_settled_by_a_statement_within_it():
+    london = (fomc_date(tz="Europe/London"),)       # 23:00Z Oct 21 .. 23:00Z Oct 22
+    evening = unscheduled(day=OCT21, published=datetime(2026, 10, 21, 23, 30, tzinfo=UTC))   # 19:30 EDT Oct 21
+    f = fomc(datetime(2026, 10, 23, 16, tzinfo=UTC), schedules=london, statements=[*REAL, evening])
+    assert f.freshness is Freshness.AWAITING_CAPTURE and f.statement == evening
+    tokyo = (fomc_date(tz="Asia/Tokyo"),)           # 15:00Z Oct 21 .. 15:00Z Oct 22
+    after = unscheduled(published=datetime(2026, 10, 22, 15, tzinfo=UTC))
+    assert fomc(datetime(2026, 10, 23, 16, tzinfo=UTC), schedules=tokyo, statements=[*REAL, after]).freshness \
+        is Freshness.CURRENT
+
+
+def test_new_york_date_only_schedule_is_settled_by_the_statement_for_that_board_date():
+    at = datetime(2026, 10, 23, 16, tzinfo=UTC)
+    # Dated and published on Oct 22 in New York: the Board's statement for that date.
+    for published in (datetime(2026, 10, 22, 4, tzinfo=UTC), datetime(2026, 10, 23, 3, 59, tzinfo=UTC)):
+        assert fomc(at, schedules=(fomc_date(),), statements=[*REAL, unscheduled(published=published)]).freshness \
+            is Freshness.CURRENT
+    # 03:00 UTC on Oct 22 is still Oct 21 in New York: an Oct 21 statement, not the Oct 22 one.
+    late_21 = unscheduled(day=OCT21, published=datetime(2026, 10, 22, 3, tzinfo=UTC))
+    assert fomc(datetime(2026, 10, 22, 20, tzinfo=UTC), schedules=(fomc_date(),), statements=[*REAL, late_21]).freshness \
+        is Freshness.RELEASE_TIME_UNKNOWN
+    assert fomc(at, schedules=(fomc_date(),), statements=[*REAL, late_21]).freshness is Freshness.AWAITING_CAPTURE
+
+
+@pytest.mark.parametrize("statement_date, published", [
+    (OCT22, datetime(2026, 10, 22, 3, tzinfo=UTC)),     # dated Oct 22 but published on Oct 21 in New York
+    (OCT21, datetime(2026, 10, 22, 18, tzinfo=UTC)),    # published on Oct 22 but dated Oct 21
+])
+def test_board_date_match_needs_both_the_statement_date_and_its_publication_date(statement_date, published):
+    record = unscheduled(published=published).model_copy(update={"statement_date": statement_date})
+    f = fomc(datetime(2026, 10, 23, 16, tzinfo=UTC), schedules=(fomc_date(),), statements=[*REAL, record])
+    assert f.freshness is Freshness.AWAITING_CAPTURE and f.statement == record
+
+
+def test_statement_before_a_verified_release_time_does_not_settle_it():
+    morning = unscheduled(published=datetime(2026, 10, 22, 12, tzinfo=UTC))   # 08:00 EDT; scheduled 14:00 EDT
+    timed = (fomc_time(day=OCT22),)
+    before = fomc(datetime(2026, 10, 22, 17, tzinfo=UTC), schedules=timed, statements=[*REAL, morning])
+    assert before.freshness is Freshness.CURRENT and before.expected_announcement_at == datetime(2026, 10, 22, 18, tzinfo=UTC)
+    assert "ANNOUNCEMENT_SCHEDULED_LATER_ON_EVALUATION_DATE" in before.reasons
+    due = fomc(datetime(2026, 10, 22, 18, tzinfo=UTC), schedules=timed, statements=[*REAL, morning])
+    assert due.freshness is Freshness.AWAITING_CAPTURE and due.statement == morning
+    assert due.reasons[-2:] == ("STATEMENT_FOR_SCHEDULED_ANNOUNCEMENT_NOT_CAPTURED", "DUE_BY_VERIFIED_RELEASE_TIME")
+    on_time = unscheduled(published=datetime(2026, 10, 22, 18, tzinfo=UTC))
+    assert fomc(datetime(2026, 10, 22, 18, tzinfo=UTC), schedules=timed, statements=[*REAL, on_time]).freshness \
+        is Freshness.CURRENT
+
+
+def test_calendar_meeting_matching_with_and_without_a_verified_time():
+    at = datetime(2026, 10, 28, 19, tzinfo=UTC)
+    early = october(published=datetime(2026, 10, 28, 12, tzinfo=UTC))       # dated Oct 28, 08:00 EDT
+    # The calendar alone gives no time: the Board's statement for the meeting date settles it.
+    assert fomc(at, statements=[*REAL, early]).freshness is Freshness.CURRENT
+    # A verified 14:00 EDT release time is not met by an 08:00 EDT statement.
+    timed = fomc(at, schedules=(fomc_time(),), statements=[*REAL, early])
+    assert timed.freshness is Freshness.AWAITING_CAPTURE and timed.expected_announcement.end_date == OCT
+    assert timed.reasons[-2:] == ("STATEMENT_FOR_PAST_MEETING_NOT_CAPTURED", "DUE_BY_VERIFIED_RELEASE_TIME")
+    assert fomc(at, schedules=(fomc_time(),), statements=[*REAL, october()]).freshness is Freshness.CURRENT
+
+
+def test_multiple_statements_and_announcements():
+    schedules = (fomc_date(day=date(2026, 10, 20)), *UNZONED, fomc_time())     # Oct 20, Oct 22 window, Oct 28 14:00 EDT
+    oct20 = unscheduled(day=date(2026, 10, 20), published=datetime(2026, 10, 20, 18, tzinfo=UTC))
+    oct23 = unscheduled(day=date(2026, 10, 23), published=datetime(2026, 10, 23, 13, tzinfo=UTC))   # after the window
+    one = fomc(datetime(2026, 10, 23, 16, tzinfo=UTC), schedules=schedules, statements=[*REAL, oct20])
+    assert one.freshness is Freshness.AWAITING_CAPTURE and one.statement == oct20
+    assert one.reasons[-1] == "DUE_SCHEDULED_WINDOW_PASSED"
+    two = fomc(datetime(2026, 10, 23, 16, tzinfo=UTC), schedules=schedules, statements=[*REAL, oct20, oct23])
+    assert two.freshness is Freshness.CURRENT and two.statement == oct23 and two.previous_statement == oct20
+    meeting = fomc(datetime(2026, 10, 28, 19, tzinfo=UTC), schedules=schedules, statements=[*REAL, oct20, oct23])
+    assert meeting.freshness is Freshness.AWAITING_CAPTURE and meeting.statement == oct23
+    assert meeting.expected_announcement_at == datetime(2026, 10, 28, 18, tzinfo=UTC)
+    settled = fomc(datetime(2026, 10, 28, 19, tzinfo=UTC), schedules=schedules, statements=[*REAL, oct20, oct23, october()])
+    assert settled.freshness is Freshness.CURRENT and settled.reasons == ("FOMC_SCHEDULE_TIMEZONE_UNVERIFIED:2026-10-22",)
+
+
+def test_matching_is_deterministic_over_duplicates_and_order():
+    at = datetime(2026, 10, 23, 16, tzinfo=UTC)
+    inside = unscheduled(day=OCT21, published=datetime(2026, 10, 21, 18, tzinfo=UTC))
+    copy = inside.model_copy(update={"provenance": inside.provenance.model_copy(
+        update={"received_timestamp": datetime(2026, 10, 21, 19, tzinfo=UTC)})})
+    schedules = [*UNZONED, *UNZONED, fomc_date(day=date(2026, 10, 20)), fomc_date(tz="Europe/London")]
+    statements = [*REAL, inside, copy]
+    baseline = build(at=at, schedules=schedules, statements=statements, calendars=(CAL,))
+    assert baseline.fomc.freshness is Freshness.AWAITING_CAPTURE and baseline.fomc.statement == inside
+    for perm in itertools.permutations(schedules):
+        assert build(at=at, schedules=perm, statements=statements[::-1], calendars=(CAL,)).model_dump_json() \
+            == baseline.model_dump_json()
 
 
 # ============================================================= Decimal-context determinism

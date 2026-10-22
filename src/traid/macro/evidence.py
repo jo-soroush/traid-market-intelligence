@@ -38,7 +38,12 @@ FOMC schedule known by T, including one whose date matches no calendar meeting (
 such, never dropped and never turned into an invented meeting). A schedule's date counts
 even without a release hour; when its New York date cannot be determined (another zone's
 local day spanning two New York dates, or no verified zone) it counts as one window that is
-due only once every instant it could denote has passed. One without a known statement is due once its zone-verified release time has
+due only once every instant it could denote has passed. The latest statement settles an
+expected announcement only when it is that announcement or definitely later: published at or
+after a verified release time; dated and published on the scheduled New York date (no
+verified time); published on a later New York date; or, for a window, published after every
+instant the window denotes. A statement published merely after a window's earliest instant
+is never assumed to be the scheduled announcement. One not settled is due once its zone-verified release time has
 passed, or once its date has passed in New York; on that date without a single verified
 time (none, or conflicting ones) it is RELEASE_TIME_UNKNOWN, and no release hour is assumed. A future schedule leaves
 the latest statement current.
@@ -50,7 +55,7 @@ interprets direction, scores surprises or authorizes anything.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, time, timedelta, timezone
+from datetime import date, datetime, time, timedelta, timezone
 from decimal import Decimal, localcontext
 from enum import StrEnum
 from typing import Literal
@@ -475,7 +480,20 @@ def _fomc(statements: list[FomcStatement], calendars: list[FomcCalendar], schedu
     # schedule whose date matches no meeting, or that has no release hour, is still evidence.
     meetings = {m.end_date: m for m in calendar.meetings if not m.notation_vote} if calendar else {}
     candidates = sorted(set(meetings) | set(times) | set(conflicted) | set(untimed))
-    open_dates = [d for d in candidates if current is None or d > current.statement_date]
+    # The latest statement settles an announcement only when it is that announcement or definitely
+    # later than it. Being published after the earliest instant the announcement could take is not
+    # enough: a statement on its Board date but before its verified release time, or inside an
+    # undetermined window, may be a different action, and no source links the two.
+    def settled(d: date, at: datetime | None) -> bool:
+        if current is None:
+            return False
+        if at is not None:                    # a verified release instant
+            return current.published_at >= at
+        published_on = current.published_at.astimezone(NEW_YORK).date()
+        # The Board dates its statement pages; one dated and published on the scheduled New York
+        # date is that date's statement. One published on a later New York date is later.
+        return published_on > d or published_on == d == current.statement_date
+    open_dates = [d for d in candidates if not settled(d, times.get(d))]
     for d in open_dates:
         if d not in meetings:
             reasons.append(f"ANNOUNCEMENT_SCHEDULE_WITHOUT_CALENDAR_MEETING:{d.isoformat()}")
@@ -491,8 +509,8 @@ def _fomc(statements: list[FomcStatement], calendars: list[FomcCalendar], schedu
         else:
             unknown.append((order, meeting, None, kind))
     for earliest, latest, day in windows:
-        if current is not None and current.published_at >= earliest:
-            continue      # a known statement falls in or after the window: this one or a later one
+        if current is not None and current.published_at >= latest:
+            continue      # published once every instant the window denotes has passed: definitely later
         reasons.append(f"ANNOUNCEMENT_SCHEDULE_NEW_YORK_DATE_UNDETERMINED:{day.isoformat()}")
         if T >= latest:
             due.append((earliest, None, None, "WINDOW"))
