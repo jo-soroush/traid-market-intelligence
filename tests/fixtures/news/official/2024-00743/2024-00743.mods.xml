@@ -1,0 +1,194 @@
+<?xml version="1.0" encoding="UTF-8"?><mods xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://www.loc.gov/mods/v3" version="3.3" xsi:schemaLocation="http://www.loc.gov/mods/v3 http://www.loc.gov/standards/mods/v3/mods-3-3.xsd" ID="id-2024-00743">
+    <name type="corporate">
+        <namePart>United States Government Publishing Office</namePart>
+        <role>
+            <roleTerm authority="marcrelator" type="text">publisher</roleTerm>
+            <roleTerm authority="marcrelator" type="code">pbl</roleTerm>
+        </role>
+        <role>
+            <roleTerm authority="marcrelator" type="text">distributor</roleTerm>
+            <roleTerm authority="marcrelator" type="code">dst</roleTerm>
+        </role>
+    </name>
+    <name type="corporate">
+        <namePart>United States</namePart>
+        <namePart>National Archives and Records Administration</namePart>
+        <namePart>Office of the Federal Register</namePart>
+        <role>
+            <roleTerm authority="marcrelator" type="text">author</roleTerm>
+            <roleTerm authority="marcrelator" type="code">aut</roleTerm>
+        </role>
+        <description>Government Organization</description>
+    </name>
+    <typeOfResource>text</typeOfResource>
+    <genre authority="marcgt">government publication</genre>
+    <language>
+        <languageTerm type="code" authority="iso639-2b">eng</languageTerm>
+    </language>
+    <extension>
+        <collectionCode>FR</collectionCode>
+        <category>Regulatory Information</category>
+        <waisDatabaseName>2024_register</waisDatabaseName>
+        <branch>executive</branch>
+        <dateIngested>2024-01-17</dateIngested>
+    </extension>
+    <genre authority="marcgt">article</genre>
+    <titleInfo>
+        <title>Self-Regulatory Organizations; NYSE Arca, Inc.; The Nasdaq Stock Market LLC; Cboe BZX Exchange, Inc.; Order Granting Accelerated Approval of Proposed Rule Changes, as Modified by Amendments Thereto, To List and Trade Bitcoin-Based Commodity-Based Trust Shares and Trust Units</title>
+        <partName>Notices</partName>
+    </titleInfo>
+    <relatedItem type="otherFormat" xlink:href="https://www.govinfo.gov/content/pkg/FR-2024-01-17/html/2024-00743.htm">
+        <identifier type="FDsys Unique ID">D09002ee1c793b8cf</identifier>
+    </relatedItem>
+    <relatedItem type="otherFormat" xlink:href="https://www.govinfo.gov/content/pkg/FR-2024-01-17/pdf/2024-00743.pdf">
+        <identifier type="FDsys Unique ID">D09002ee1c793b963</identifier>
+    </relatedItem>
+    <name type="corporate">
+        <namePart>United States</namePart>
+        <namePart>Securities and Exchange Commission</namePart>
+        <role>
+            <roleTerm authority="marcrelator" type="text">originator</roleTerm>
+            <roleTerm authority="marcrelator" type="code">org</roleTerm>
+        </role>
+        <description>United States Government Agency or Subagency</description>
+    </name>
+    <identifier type="FR citation">89 FR 3008</identifier>
+    <identifier type="uri">https://www.govinfo.gov/app/details/FR-2024-01-17/2024-00743</identifier>
+    <identifier type="FR Doc No.">2024-00743</identifier>
+    <identifier type="former granule identifier">fr17ja24-94</identifier>
+    <identifier type="billing code">8011-01-P</identifier>
+    <identifier type="department code">Release No. 34-99306</identifier>
+    <identifier type="department code">File Nos. SR-NYSEARCA-2021-90</identifier>
+    <identifier type="department code">SR-NYSEARCA-2023-44</identifier>
+    <identifier type="department code">SR-NYSEARCA-2023-58</identifier>
+    <identifier type="department code">SR-NASDAQ-2023-016</identifier>
+    <identifier type="department code">SR-NASDAQ-2023-019</identifier>
+    <identifier type="department code">SR-CboeBZX-2023-028</identifier>
+    <identifier type="department code">SR-CboeBZX-2023-038</identifier>
+    <identifier type="department code">SR-CboeBZX-2023-040</identifier>
+    <identifier type="department code">SR-CboeBZX-2023-042</identifier>
+    <identifier type="department code">SR-CboeBZX-2023-044</identifier>
+    <identifier type="department code">SR-CboeBZX-2023-072</identifier>
+    <location>
+        <url displayLabel="Content Detail" access="object in context">https://www.govinfo.gov/app/details/FR-2024-01-17/2024-00743</url>
+        <url access="raw object" displayLabel="HTML rendition">https://www.govinfo.gov/content/pkg/FR-2024-01-17/html/2024-00743.htm</url>
+        <url access="raw object" displayLabel="PDF rendition">https://www.govinfo.gov/content/pkg/FR-2024-01-17/pdf/2024-00743.pdf</url>
+    </location>
+    <physicalDescription>
+        <extent>7 p.</extent>
+    </physicalDescription>
+    <part type="Notices">
+        <extent unit="pages">
+            <start>3008</start>
+            <end>3014</end>
+        </extent>
+    </part>
+    <identifier type="preferred citation">89 FR 3008</identifier>
+    <extension>
+        <searchTitle>Self-Regulatory Organizations; NYSE Arca, Inc.; The Nasdaq Stock Market LLC; Cboe BZX Exchange, Inc.; Order Granting Accelerated Approval of Proposed Rule Changes, as Modified by Amendments Thereto, To List and Trade Bitcoin-Based Commodity-Based Trust Shares and Trust Units; Federal Register Vol. 89, Issue </searchTitle>
+        <granuleClass>NOTICE</granuleClass>
+        <accessId>2024-00743</accessId>
+        <agency order="1">SECURITIES AND EXCHANGE COMMISSION</agency>
+        <departmentDoc>Release No. 34-99306</departmentDoc>
+        <departmentDoc>File Nos. SR-NYSEARCA-2021-90</departmentDoc>
+        <departmentDoc>SR-NYSEARCA-2023-44</departmentDoc>
+        <departmentDoc>SR-NYSEARCA-2023-58</departmentDoc>
+        <departmentDoc>SR-NASDAQ-2023-016</departmentDoc>
+        <departmentDoc>SR-NASDAQ-2023-019</departmentDoc>
+        <departmentDoc>SR-CboeBZX-2023-028</departmentDoc>
+        <departmentDoc>SR-CboeBZX-2023-038</departmentDoc>
+        <departmentDoc>SR-CboeBZX-2023-040</departmentDoc>
+        <departmentDoc>SR-CboeBZX-2023-042</departmentDoc>
+        <departmentDoc>SR-CboeBZX-2023-044</departmentDoc>
+        <departmentDoc>SR-CboeBZX-2023-072</departmentDoc>
+        <billingCode>8011-01-P</billingCode>
+        <frDocNumber>2024-00743</frDocNumber>
+        <tocSubject1>Self-Regulatory Organizations; Proposed Rule Changes:
+</tocSubject1>
+        <tocDoc>NYSE Arca, Inc., </tocDoc>
+        <urlRef>https://www.cmegroup.com/markets/cryptocurrencies/bitcoin/bitcoin.quotes.html#venue=globex</urlRef>
+        <urlRef>https://www.cmegroup.com/markets/cryptocurrencies/bitcoin/micro-bitcoin.quotes.html#venue=globex</urlRef>
+        <urlRef>https://www.sec.gov/comments/sr-cboebzx-2023-028/srcboebzx2023028-358679-884202.pdf</urlRef>
+        <urlRef>https://www.sec.gov/comments/sr-cboebzx-2023-028/srcboebzx2023028.htm</urlRef>
+        <urlRef>https://www.sec.gov/comments/sr-cboebzx-2023-038/srcboebzx2023038-358719-884222.pdf</urlRef>
+        <urlRef>https://www.sec.gov/comments/sr-cboebzx-2023-038/srcboebzx2023038.htm</urlRef>
+        <urlRef>https://www.sec.gov/comments/sr-cboebzx-2023-040/srcboebzx2023040-366299-893383.pdf</urlRef>
+        <urlRef>https://www.sec.gov/comments/sr-cboebzx-2023-040/srcboebzx2023040.htm</urlRef>
+        <urlRef>https://www.sec.gov/comments/sr-cboebzx-2023-042/srcboebzx2023042-366319-893402.pdf</urlRef>
+        <urlRef>https://www.sec.gov/comments/sr-cboebzx-2023-042/srcboebzx2023042.htm</urlRef>
+        <urlRef>https://www.sec.gov/comments/sr-cboebzx-2023-044/srcboebzx2023044-358759-884163.pdf</urlRef>
+        <urlRef>https://www.sec.gov/comments/sr-cboebzx-2023-044/srcboebzx2023044.htm</urlRef>
+        <urlRef>https://www.sec.gov/comments/sr-cboebzx-2023-072/srcboebzx2023072-358799-884282.pdf</urlRef>
+        <urlRef>https://www.sec.gov/comments/sr-cboebzx-2023-072/srcboebzx2023072.htm</urlRef>
+        <urlRef>https://www.sec.gov/comments/sr-nasdaq-2023-016/srnasdaq2023016-357659-883042.pdf</urlRef>
+        <urlRef>https://www.sec.gov/comments/sr-nasdaq-2023-016/srnasdaq2023016.htm</urlRef>
+        <urlRef>https://www.sec.gov/comments/sr-nasdaq-2023-019/srnasdaq2023019-358120-883602.pdf</urlRef>
+        <urlRef>https://www.sec.gov/comments/sr-nasdaq-2023-019/srnasdaq2023019.htm</urlRef>
+        <urlRef>https://www.sec.gov/comments/sr-nysearca-2021-90/srnysearca202190-358659-884182.pdf</urlRef>
+        <urlRef>https://www.sec.gov/comments/sr-nysearca-2021-90/srnysearca202190.htm</urlRef>
+        <urlRef>https://www.sec.gov/comments/sr-nysearca-2023-44/srnysearca202344-358800-884322.pdf</urlRef>
+        <urlRef>https://www.sec.gov/comments/sr-nysearca-2023-44/srnysearca202344.htm</urlRef>
+        <urlRef>https://www.sec.gov/comments/sr-nysearca-2023-58/srnysearca202358-358819-884342.pdf</urlRef>
+        <urlRef>https://www.sec.gov/comments/sr-nysearca-2023-58/srnysearca202358.htm</urlRef>
+    </extension>
+    <relatedItem type="host" ID="P0b002ee1c3fe44f7" xlink:href="https://www.govinfo.gov/metadata/pkg/FR-2024-01-17/mods.xml">
+        <titleInfo>
+            <title>Federal Register</title>
+            <partNumber>Vol. 89, no. 11</partNumber>
+        </titleInfo>
+        <originInfo>
+            <publisher>Office of the Federal Register, National Archives and Records Administration</publisher>
+            <dateIssued encoding="w3cdtf">2024-01-17</dateIssued>
+            <issuance>continuing</issuance>
+            <frequency>daily</frequency>
+        </originInfo>
+        <physicalDescription>
+            <note type="source content type">deposited</note>
+            <digitalOrigin>born digital</digitalOrigin>
+            <extent>434 p.</extent>
+        </physicalDescription>
+        <tableOfContents xlink:href="https://www.govinfo.gov/app/frtoc/2024-01-17">    
+		  Table of Contents: 
+		</tableOfContents>
+        <classification authority="sudocs">AE 2.7:</classification>
+        <classification authority="sudocs">GS 4.107:</classification>
+        <classification authority="sudocs">AE 2.106:</classification>
+        <classification authority="lcc">KF70.A2</classification>
+        <identifier type="uri">https://www.govinfo.gov/app/details/FR-2024-01-17</identifier>
+        <identifier type="local">P0b002ee1c3fe44f7</identifier>
+        <identifier type="issn">0097-6326</identifier>
+        <identifier type="issn">0042-1219</identifier>
+        <identifier type="issn">0364-1406</identifier>
+        <identifier type="stock number">769-004-00000-9</identifier>
+        <identifier type="ILS system id">000582072</identifier>
+        <identifier type="former identifier">f:fr17ja24</identifier>
+        <location>
+            <url displayLabel="Content Detail" access="object in context">https://www.govinfo.gov/app/details/FR-2024-01-17</url>
+            <url displayLabel="PDF rendition" access="raw object">https://www.govinfo.gov/content/pkg/FR-2024-01-17/pdf/FR-2024-01-17.pdf</url>
+            <url displayLabel="XML rendition" access="raw object">https://www.govinfo.gov/content/pkg/FR-2024-01-17/xml/FR-2024-01-17.xml</url>
+        </location>
+        <accessCondition type="GPO scope determination">fdlp</accessCondition>
+        <part type="issue">
+            <extent unit="pages">
+                <start>2875</start>
+                <end>3298</end>
+            </extent>
+        </part>
+        <recordInfo>
+            <recordContentSource authority="marcorg">DGPO</recordContentSource>
+            <recordCreationDate encoding="w3cdtf">2024-01-17</recordCreationDate>
+            <recordChangeDate encoding="w3cdtf">2024-05-28</recordChangeDate>
+            <recordIdentifier source="DGPO">FR-2024-01-17</recordIdentifier>
+            <recordOrigin>machine generated</recordOrigin>
+            <languageOfCataloging>
+                <languageTerm type="code" authority="iso639-2b">eng</languageTerm>
+            </languageOfCataloging>
+        </recordInfo>
+        <extension>
+            <docClass>FR</docClass>
+            <accessId>FR-2024-01-17</accessId>
+            <volume>89</volume>
+            <issue>11</issue>
+        </extension>
+    </relatedItem>
+</mods>

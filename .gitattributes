@@ -1,0 +1,2 @@
+# Official-source PDF fixtures are hash-bound evidence (C13): never diff, merge or line-ending convert.
+tests/fixtures/news/official/**/*.pdf binary
