@@ -53,3 +53,13 @@ This file records completed and merged V1 Cards. Add one short entry **after** e
 - **PR:** https://github.com/jo-soroush/traid-market-intelligence/pull/22
 - **Merged main commit:** `121c3cd` (squash merge)
 - **Known limitations:** PCE and GDP unavailable without BEA credentials; no approved ETF numeric or consensus provider; BLS original-release vintages unavailable; schedules require curated evidence; historical FOMC statement parsing is bounded and unrecognized wording fails closed. Macro and ETF evidence has no trading authority.
+
+## V1-C13 — Primary-Source News Verification
+
+- **Status:** MERGED — 2026-10-26
+- **Scope delivered:** Six-state claim verification (CONFIRMED / PARTIALLY_CONFIRMED / UNVERIFIED / MISLEADING / FALSE / OUTDATED) over human curations of untrusted claim text, with fact/interpretation separation and embedded instructions ignored. SEC rule-change events in the Federal Register qualify only through a human verification of the rendered GovInfo PDF bound to its SHA-256, cross-checked against GovInfo HTML, MODS and FR metadata. Fund subjects resolve only through evidence-backed file-number links, by exact ticker or exact filing name. Layered point-in-time availability; numerical ETF data is excluded from news; bounded credential-free source client; optional read-only C12 macro adapter.
+- **Verification:** 1,554 tests passed locally (2 existing dependency warnings), including 487 C13 tests; GitHub push and pull-request CI on the final PR head passed (1,554 passed, secret scan passed); independent Codex final review **PASS** after remediation; `CARD_QUALITY_GATE: PASS` recorded in the PR.
+- **Review history:** Codex found and verified fixes for unbound and cyclic manual-record supersession, non-canonical fund provenance, premature HTTP EOF and ambiguous Transfer-Encoding framing, exclusion-count determinism under duplicated inputs, and curation supersession cycles hidden by an independent head.
+- **PR:** https://github.com/jo-soroush/traid-market-intelligence/pull/23
+- **Merged main commit:** `3c80d12` (squash merge)
+- **Known limitations:** Production enables no operative pattern and the repository holds no human-record store, so ETF official events remain UNVERIFIED in production. Four human PDF verification records (one verifier) and the curated IBIT fund link exist only outside the repository; they are not used by tests or production. The IBIT identity receipt time rests on mutable filesystem metadata, and ticker and CIK are curated values the engine does not cross-check. Close-delimited HTTP bodies are accepted; FR correction metadata is caller-supplied; live endpoints were not exercised. News evidence has no trading authority.
