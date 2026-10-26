@@ -524,13 +524,43 @@ def _fund_resolutions(event: NormEvent, ctx: Context) -> tuple[FundResolution, .
     return ctx.fund_resolutions(files) if files else ()
 
 
+def _supersession_cycle(curations: list[CurationRecord]) -> bool:
+    """A3: whether any admitted curation lies on a ``supersedes`` cycle (a self-cycle included). Checked
+    over every admitted curation before heads are taken, so an unrelated acyclic head cannot hide a
+    cycle. Edges are sets keyed by curation id, so the answer depends neither on input order nor on
+    duplicates; a target that is not admitted at T ends the chain."""
+    edges: dict[str, set[str]] = {c.curation_id: set() for c in curations}
+    for c in curations:
+        if c.supersedes in edges:
+            edges[c.curation_id].add(c.supersedes)
+    state: dict[str, bool] = {}                                            # True: on the current path; False: done
+    for root in sorted(edges):
+        if root in state:
+            continue
+        state[root], path = True, [(root, iter(sorted(edges[root])))]
+        while path:
+            node, targets = path[-1]
+            nxt = next(targets, None)
+            if nxt is None:
+                state[node] = False
+                path.pop()
+            elif state.get(nxt) is True:
+                return True
+            elif nxt not in state:
+                state[nxt] = True
+                path.append((nxt, iter(sorted(edges[nxt]))))
+    return False
+
+
 def _verify_claim(claim: ClaimRecord, curations: list[CurationRecord], ctx: Context):
     if not curations:                                                      # A2
         return _unverified("CURATION_NOT_AVAILABLE_AT_T", None)
+    if _supersession_cycle(curations):                                     # A3: fail closed, even beside a valid head
+        return _unverified("CONFLICTING_CURATIONS", None)
     superseded = {c.supersedes for c in curations if c.supersedes}
     heads = sorted((c for c in curations if c.curation_id not in superseded), key=lambda c: c.curation_id)
-    if not heads:
-        return _unverified("CONFLICTING_CURATIONS", None)                  # a supersedes cycle has no head
+    if not heads:                                                          # unreachable without a cycle; kept fail-closed
+        return _unverified("CONFLICTING_CURATIONS", None)
     forms = []
     for c in heads:                                                        # A3, A4
         try:
