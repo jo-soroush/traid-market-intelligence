@@ -1,0 +1,184 @@
+<?xml version="1.0" encoding="UTF-8"?><mods xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://www.loc.gov/mods/v3" version="3.3" xsi:schemaLocation="http://www.loc.gov/mods/v3 http://www.loc.gov/standards/mods/v3/mods-3-3.xsd" ID="id-2022-14310">
+    <name type="corporate">
+        <namePart>United States Government Publishing Office</namePart>
+        <role>
+            <roleTerm authority="marcrelator" type="text">publisher</roleTerm>
+            <roleTerm authority="marcrelator" type="code">pbl</roleTerm>
+        </role>
+        <role>
+            <roleTerm authority="marcrelator" type="text">distributor</roleTerm>
+            <roleTerm authority="marcrelator" type="code">dst</roleTerm>
+        </role>
+    </name>
+    <name type="corporate">
+        <namePart>United States</namePart>
+        <namePart>National Archives and Records Administration</namePart>
+        <namePart>Office of the Federal Register</namePart>
+        <role>
+            <roleTerm authority="marcrelator" type="text">author</roleTerm>
+            <roleTerm authority="marcrelator" type="code">aut</roleTerm>
+        </role>
+        <description>Government Organization</description>
+    </name>
+    <typeOfResource>text</typeOfResource>
+    <genre authority="marcgt">government publication</genre>
+    <language>
+        <languageTerm type="code" authority="iso639-2b">eng</languageTerm>
+    </language>
+    <extension>
+        <collectionCode>FR</collectionCode>
+        <category>Regulatory Information</category>
+        <waisDatabaseName>2022_register</waisDatabaseName>
+        <branch>executive</branch>
+        <dateIngested>2022-07-06</dateIngested>
+    </extension>
+    <genre authority="marcgt">article</genre>
+    <titleInfo>
+        <title>Self-Regulatory Organizations; NYSE Arca, Inc.; Order Disapproving a Proposed Rule Change, as Modified by Amendment No. 1, to List and Trade Shares of Grayscale Bitcoin Trust Under NYSE Arca Rule 8.201-E (Commodity-Based Trust Shares)</title>
+        <partName>Notices</partName>
+    </titleInfo>
+    <relatedItem type="otherFormat" xlink:href="https://www.govinfo.gov/content/pkg/FR-2022-07-06/html/2022-14310.htm">
+        <identifier type="FDsys Unique ID">D09002ee1c7a3c26c</identifier>
+    </relatedItem>
+    <relatedItem type="otherFormat" xlink:href="https://www.govinfo.gov/content/pkg/FR-2022-07-06/pdf/2022-14310.pdf">
+        <identifier type="FDsys Unique ID">D09002ee1c7a3c2e9</identifier>
+    </relatedItem>
+    <name type="corporate">
+        <namePart>United States</namePart>
+        <namePart>Securities and Exchange Commission</namePart>
+        <role>
+            <roleTerm authority="marcrelator" type="text">originator</roleTerm>
+            <roleTerm authority="marcrelator" type="code">org</roleTerm>
+        </role>
+        <description>United States Government Agency or Subagency</description>
+    </name>
+    <identifier type="FR citation">87 FR 40299</identifier>
+    <identifier type="uri">https://www.govinfo.gov/app/details/FR-2022-07-06/2022-14310</identifier>
+    <identifier type="FR Doc No.">2022-14310</identifier>
+    <identifier type="former granule identifier">fr06jy22-88</identifier>
+    <identifier type="billing code">8011-01-P</identifier>
+    <identifier type="department code">Release No. 34-95180</identifier>
+    <identifier type="department code">File No. SR-NYSEArca-2021-90</identifier>
+    <location>
+        <url displayLabel="Content Detail" access="object in context">https://www.govinfo.gov/app/details/FR-2022-07-06/2022-14310</url>
+        <url access="raw object" displayLabel="HTML rendition">https://www.govinfo.gov/content/pkg/FR-2022-07-06/html/2022-14310.htm</url>
+        <url access="raw object" displayLabel="PDF rendition">https://www.govinfo.gov/content/pkg/FR-2022-07-06/pdf/2022-14310.pdf</url>
+    </location>
+    <physicalDescription>
+        <extent>23 p.</extent>
+    </physicalDescription>
+    <part type="Notices">
+        <extent unit="pages">
+            <start>40299</start>
+            <end>40321</end>
+        </extent>
+    </part>
+    <identifier type="preferred citation">87 FR 40299</identifier>
+    <extension>
+        <searchTitle>Self-Regulatory Organizations; NYSE Arca, Inc.; Order Disapproving a Proposed Rule Change, as Modified by Amendment No. 1, to List and Trade Shares of Grayscale Bitcoin Trust Under NYSE Arca Rule 8.201-E (Commodity-Based Trust Shares); Federal Register Vol. 87, Issue </searchTitle>
+        <granuleClass>NOTICE</granuleClass>
+        <accessId>2022-14310</accessId>
+        <agency order="1">SECURITIES AND EXCHANGE COMMISSION</agency>
+        <departmentDoc>Release No. 34-95180</departmentDoc>
+        <departmentDoc>File No. SR-NYSEArca-2021-90</departmentDoc>
+        <billingCode>8011-01-P</billingCode>
+        <frDocNumber>2022-14310</frDocNumber>
+        <tocSubject1>Self-Regulatory Organizations; Proposed Rule Changes:
+</tocSubject1>
+        <tocDoc>NYSE Arca, Inc., </tocDoc>
+        <urlRef>http://www.cftc.gov/idc/groups/public/@newsroom/documents/file/backgrounder_virtualcurrency01.pdf</urlRef>
+        <urlRef>http://www.cftc.gov/IndustryOversight/TradingOrganizations/DCMs/index.htm</urlRef>
+        <urlRef>https://assets-global.website-files.com/5fd11235b3950c2c1a3b6df4/62af6c641a672b3329b9a480_Unintended_Centralities_in_Distributed_Ledgers.pdf</urlRef>
+        <urlRef>https://cointelegraph.com/news/coinbase-to-shut-down-coinbase-pro-to-merge-trading-services</urlRef>
+        <urlRef>https://docs-cfbenchmarks.s3.amazonaws.com/CME+CF+Constituent+Exchanges.pdf</urlRef>
+        <urlRef>https://docs-cfbenchmarks.s3.amazonaws.com/CME+CF+Reference+Rates+Methodology.pdf</urlRef>
+        <urlRef>https://ssrn.com/abstract=3195066</urlRef>
+        <urlRef>https://tradeblock.com/blog/analysis-of-bitfinex-anomalies-and-xbx-performance</urlRef>
+        <urlRef>https://tradeblock.com/blog/bitcoin-futures-flash-crash-occurs-as-exchanges-show-irregular-trading-activity</urlRef>
+        <urlRef>https://tradeblock.com/blog/bitfinex-bitcoin-premium-reaches-widest-level-in-two-years</urlRef>
+        <urlRef>https://tradeblock.com/blog/bitfinex-flash-crash-analysis</urlRef>
+        <urlRef>https://tradeblock.com/blog/updates-to-all-tradeblock-indices</urlRef>
+        <urlRef>https://tradeblock.com/blog/updates-to-tradeblocks-ecx-and-xbx-indices-2</urlRef>
+        <urlRef>https://tradeblock.com/blog/xbx-index-update-removing-okcoin</urlRef>
+        <urlRef>https://tradeblock.com/blog/xbx-update-adding-coinbase-removing-kraken</urlRef>
+        <urlRef>https://tradeblock.com/blog/xbx-update-adding-okcoin-removing-btc-e-and-btcchina</urlRef>
+        <urlRef>https://tradeblock.com/markets/index/xbx</urlRef>
+        <urlRef>https://www.agriculture.senate.gov/imo/media/doc/Testimony_Behnam_020920225.pdf</urlRef>
+        <urlRef>https://www.bitcointradingvolume.com/</urlRef>
+        <urlRef>https://www.cmegroup.com/confluence/display/EPICSANDBOX/Bitcoin</urlRef>
+        <urlRef>https://www.cmegroup.com/education/courses/introduction-to-bitcoin/introduction-to-bitcoin-reference-rate.html</urlRef>
+        <urlRef>https://www.cmegroup.com/markets/cryptocurrencies/cme-cf-cryptocurrency-benchmarks.html?redirect=/trading/cryptocurrency-indices/cf-bitcoin-reference-rate.html</urlRef>
+        <urlRef>https://www.cmegroup.com/media-room/historical-first-trade-dates.html</urlRef>
+        <urlRef>https://www.coindesk.com/policy/2021/10/22/why-a-bitcoin-futures-etf-is-bad-for-investors/</urlRef>
+        <urlRef>https://www.dfs.ny.gov/system/files/documents/2020/03/il180207.pdf</urlRef>
+        <urlRef>https://www.forbesindia.com/article/crypto-made-easy/coinbase-to-shut-down-coinbase-pro-to-merge-trading-services/77585/1#:∼:text=Coinbase%20Pro%2C%20the%20professional,them%20into%20a%20single%20platform</urlRef>
+        <urlRef>https://www.sec.gov/comments/sr-cboebzx-2021-039/srcboebzx2021039-250110.pdf</urlRef>
+        <urlRef>https://www.sec.gov/comments/sr-nysearca-2021-89/srnysearca202189-20117902-270822.pdf</urlRef>
+        <urlRef>https://www.sec.gov/comments/sr-nysearca-2021-89/srnysearca202189-20118794-271630.pdf</urlRef>
+        <urlRef>https://www.sec.gov/comments/sr-nysearca-2021-90/srnysearca202190-20125938-286383.pdf</urlRef>
+        <urlRef>https://www.sec.gov/comments/sr-nysearca-2021-90/srnysearca202190-20128860-294707.pdf</urlRef>
+        <urlRef>https://www.sec.gov/comments/sr-nysearca-2021-90/srnysearca202190.htm</urlRef>
+        <urlRef>https://www.sec.gov/divisions/marketreg/mr-noaction/isg060394.htm</urlRef>
+        <urlRef>https://www.sec.gov/files/Algo_Trading_Report_2020.pdf</urlRef>
+    </extension>
+    <relatedItem type="host" ID="P0b002ee1b660b1ef" xlink:href="https://www.govinfo.gov/metadata/pkg/FR-2022-07-06/mods.xml">
+        <titleInfo>
+            <title>Federal Register</title>
+            <partNumber>Vol. 87, no. 128</partNumber>
+        </titleInfo>
+        <originInfo>
+            <publisher>Office of the Federal Register, National Archives and Records Administration</publisher>
+            <dateIssued encoding="w3cdtf">2022-07-06</dateIssued>
+            <issuance>continuing</issuance>
+            <frequency>daily</frequency>
+        </originInfo>
+        <physicalDescription>
+            <note type="source content type">deposited</note>
+            <digitalOrigin>born digital</digitalOrigin>
+            <extent>349 p.</extent>
+        </physicalDescription>
+        <tableOfContents xlink:href="https://www.govinfo.gov/app/frtoc/2022-07-06">    
+		  Table of Contents: 
+		</tableOfContents>
+        <classification authority="sudocs">AE 2.7:</classification>
+        <classification authority="sudocs">GS 4.107:</classification>
+        <classification authority="sudocs">AE 2.106:</classification>
+        <classification authority="lcc">KF70.A2</classification>
+        <identifier type="uri">https://www.govinfo.gov/app/details/FR-2022-07-06</identifier>
+        <identifier type="local">P0b002ee1b660b1ef</identifier>
+        <identifier type="issn">0097-6326</identifier>
+        <identifier type="issn">0042-1219</identifier>
+        <identifier type="issn">0364-1406</identifier>
+        <identifier type="stock number">769-004-00000-9</identifier>
+        <identifier type="ILS system id">000582072</identifier>
+        <identifier type="former identifier">f:fr06jy22</identifier>
+        <location>
+            <url displayLabel="Content Detail" access="object in context">https://www.govinfo.gov/app/details/FR-2022-07-06</url>
+            <url displayLabel="PDF rendition" access="raw object">https://www.govinfo.gov/content/pkg/FR-2022-07-06/pdf/FR-2022-07-06.pdf</url>
+            <url displayLabel="XML rendition" access="raw object">https://www.govinfo.gov/content/pkg/FR-2022-07-06/xml/FR-2022-07-06.xml</url>
+        </location>
+        <accessCondition type="GPO scope determination">fdlp</accessCondition>
+        <part type="issue">
+            <extent unit="pages">
+                <start>40089</start>
+                <end>40428</end>
+            </extent>
+        </part>
+        <recordInfo>
+            <recordContentSource authority="marcorg">DGPO</recordContentSource>
+            <recordCreationDate encoding="w3cdtf">2022-07-06</recordCreationDate>
+            <recordChangeDate encoding="w3cdtf">2024-05-29</recordChangeDate>
+            <recordIdentifier source="DGPO">FR-2022-07-06</recordIdentifier>
+            <recordOrigin>machine generated</recordOrigin>
+            <languageOfCataloging>
+                <languageTerm type="code" authority="iso639-2b">eng</languageTerm>
+            </languageOfCataloging>
+        </recordInfo>
+        <extension>
+            <docClass>FR</docClass>
+            <accessId>FR-2022-07-06</accessId>
+            <volume>87</volume>
+            <issue>128</issue>
+        </extension>
+    </relatedItem>
+</mods>

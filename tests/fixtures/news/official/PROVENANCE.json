@@ -1,0 +1,159 @@
+{
+  "fixture_set": "C13 official-source fixtures (real, unmodified bytes)",
+  "provenance_version": 1,
+  "captured_for": "V1-C13 Phase 1, bounded fixture capture (C13_ROADMAP_ALIGNMENT_PREFLIGHT.md, Addendum A)",
+  "classification": "REAL_SOURCE",
+  "synthetic_fixtures": "Not stored here. Synthetic or edited fixtures must live outside tests/fixtures/news/official/.",
+  "content_trust": "UNTRUSTED_EXTERNAL_DATA: official publications, stored byte-for-byte; never parsed for instructions.",
+  "manual_verification": "NONE. No human ManualPassageVerification record exists for any PDF here; positive qualification requires one (design R4 §6.3-§6.4).",
+  "availability_policy": {
+    "basis": "ACTUAL_RETRIEVAL",
+    "rule": "A component is available only from its retrieved_at (the conservative end of its recorded retrieval window).",
+    "historical_receipt_time": "NOT_RECORDED. No receipt time before the actual 2026 retrieval is known. A test evaluating an earlier T must assign availability explicitly and label it TEST_ASSIGNED_AVAILABILITY."
+  },
+  "retrieval_evidence": {
+    "copied_files": "Retrieval windows are the issue and result timestamps of the recorded retrieval commands in Claude Code session 59ed744c-98af-4421-9cb4-546c121d57e8 (curl -w output: status, content type, size, and for PDF/HTML the SHA-256 at retrieval). The files were then copied without change via the audit package ~/Documents/TraID-C13-Design-Audit (SHA256SUMS.txt).",
+    "new_capture": "2022-14310 MODS was retrieved during this capture step: one anonymous GET, curl --proto =https --max-redirs 0 --connect-timeout 10 -m 30 --max-filesize 1048576, URL constructed from FR JSON fields and checked against the R4 §6.5 allowlist before the request.",
+    "completion_capture": "On 2026-10-23 (Phase 1 completion) the full Federal Register JSON records for 2022-14310 and 2023-21948 were retrieved, one anonymous keyless GET each, with the same curl bounds; then the 2023-21948 MODS URL was constructed from the verified FR JSON fields document_number and publication_date, checked against the R4 §6.5 allowlist, and retrieved once. Windows are local UTC clock readings immediately before and after each request; server_date is the response Date header (1-second resolution)."
+  },
+  "files": [
+    {
+      "path": "2024-00743/2024-00743.pdf",
+      "document_number": "2024-00743",
+      "component": "GOVINFO_PDF",
+      "source_url": "https://www.govinfo.gov/content/pkg/FR-2024-01-17/pdf/2024-00743.pdf",
+      "retrieval": {"not_before": "2026-10-22T20:07:11.145Z", "not_after": "2026-10-22T20:07:14.007Z", "http_status": 200, "content_type": "application/pdf", "bytes": 297168, "sha256_at_retrieval": "096c374a96a21ffe340fbbbec09615e95164e2cc26a42a41197c7592c49c8952"},
+      "retrieved_at": "2026-10-22T20:07:14.007Z",
+      "transfer": {"from": "audit package dl-pdf/2024-00743.pdf", "package_sha256": "096c374a96a21ffe340fbbbec09615e95164e2cc26a42a41197c7592c49c8952"},
+      "sha256": "096c374a96a21ffe340fbbbec09615e95164e2cc26a42a41197c7592c49c8952"
+    },
+    {
+      "path": "2024-00743/2024-00743.htm",
+      "document_number": "2024-00743",
+      "component": "GOVINFO_HTML",
+      "source_url": "https://www.govinfo.gov/content/pkg/FR-2024-01-17/html/2024-00743.htm",
+      "retrieval": {"not_before": "2026-10-22T19:18:52.465Z", "not_after": "2026-10-22T19:18:53.178Z", "http_status": 200, "content_type": "text/html", "bytes": 69932, "sha256_at_retrieval": "73cc097d7d64739f3f83e6cc0c45d6455abb33537da4cb76f96c1578ca5a82dc"},
+      "retrieved_at": "2026-10-22T19:18:53.178Z",
+      "transfer": {"from": "audit package dl-html/2024-00743.htm", "package_sha256": "73cc097d7d64739f3f83e6cc0c45d6455abb33537da4cb76f96c1578ca5a82dc"},
+      "sha256": "73cc097d7d64739f3f83e6cc0c45d6455abb33537da4cb76f96c1578ca5a82dc"
+    },
+    {
+      "path": "2024-00743/2024-00743.mods.xml",
+      "document_number": "2024-00743",
+      "component": "GOVINFO_MODS",
+      "source_url": "https://www.govinfo.gov/metadata/granule/FR-2024-01-17/2024-00743/mods.xml",
+      "retrieval": {"not_before": "2026-10-22T21:36:32.648Z", "not_after": "2026-10-22T21:36:34.074Z", "http_status": 200, "content_type": "text/xml;charset=UTF-8", "bytes": 12091, "server_date": "Thu, 22 Oct 2026 21:36:33 GMT", "sha256_at_retrieval": "f5743a239dc7ad5f8c2bea7b7df8efddabbd348ebaead534e950e27eeaa611e9"},
+      "retrieved_at": "2026-10-22T21:36:34.074Z",
+      "retrieval_note": "Recorded R3 live retrieval (audit package evidence_r3/live/valid.*), byte-identical to the earlier package copy source-metadata/fr-govinfo-probe/mods.xml; the earlier copy's own retrieval time is not recorded, so the later, recorded retrieval is used.",
+      "transfer": {"from": "audit package source-metadata/fr-govinfo-probe/mods.xml", "package_sha256": "f5743a239dc7ad5f8c2bea7b7df8efddabbd348ebaead534e950e27eeaa611e9"},
+      "structural_check": "R4 §6.7 structural parse OK; E1 container cardinality OK; full binding to 2024-00743.fr.json OK",
+      "sha256": "f5743a239dc7ad5f8c2bea7b7df8efddabbd348ebaead534e950e27eeaa611e9"
+    },
+    {
+      "path": "2024-00743/2024-00743.fr.json",
+      "document_number": "2024-00743",
+      "component": "FEDERAL_REGISTER_JSON",
+      "source_url": "https://www.federalregister.gov/api/v1/documents/2024-00743.json",
+      "retrieval": {"not_before": "2026-10-22T12:47:42.643Z", "not_after": "2026-10-22T12:47:43.491Z", "http_status": 200, "content_type": "NOT_RECORDED", "bytes": 2795, "sha256_at_retrieval": "NOT_RECORDED"},
+      "retrieved_at": "2026-10-22T12:47:43.491Z",
+      "retrieval_note": "Byte size at retrieval (2795) equals this file. Contains a live page_views counter (last_updated 2026-10-22 08:15:04 -0400), so a fresh download will not reproduce this digest.",
+      "transfer": {"from": "audit package source-metadata/fr-govinfo-probe/doc.json", "package_sha256": "7b0213be38a91e30f9aafee43b6d5124e1fa17b80df216d8aae2b2ba9f7f5efa"},
+      "sha256": "7b0213be38a91e30f9aafee43b6d5124e1fa17b80df216d8aae2b2ba9f7f5efa"
+    },
+    {
+      "path": "2022-14310/2022-14310.pdf",
+      "document_number": "2022-14310",
+      "component": "GOVINFO_PDF",
+      "source_url": "https://www.govinfo.gov/content/pkg/FR-2022-07-06/pdf/2022-14310.pdf",
+      "retrieval": {"not_before": "2026-10-22T20:07:11.145Z", "not_after": "2026-10-22T20:07:14.007Z", "http_status": 200, "content_type": "application/pdf", "bytes": 349079, "sha256_at_retrieval": "8e0847a6fa8c2f5ae45b93eab9dfe1f424dacbbaba17d3539f564c47543aa8ac"},
+      "retrieved_at": "2026-10-22T20:07:14.007Z",
+      "transfer": {"from": "audit package dl-pdf/2022-14310.pdf", "package_sha256": "8e0847a6fa8c2f5ae45b93eab9dfe1f424dacbbaba17d3539f564c47543aa8ac"},
+      "sha256": "8e0847a6fa8c2f5ae45b93eab9dfe1f424dacbbaba17d3539f564c47543aa8ac"
+    },
+    {
+      "path": "2022-14310/2022-14310.htm",
+      "document_number": "2022-14310",
+      "component": "GOVINFO_HTML",
+      "source_url": "https://www.govinfo.gov/content/pkg/FR-2022-07-06/html/2022-14310.htm",
+      "retrieval": {"not_before": "2026-10-22T20:09:04.217Z", "not_after": "2026-10-22T20:09:05.255Z", "http_status": 200, "content_type": "text/html", "bytes": 217533, "sha256_at_retrieval": "0ba0c38468f7dd3515d82d5c0f8d29f005c1682220101e3793e2c3b6e2e58357"},
+      "retrieved_at": "2026-10-22T20:09:05.255Z",
+      "transfer": {"from": "audit package dl-html/2022-14310.htm", "package_sha256": "0ba0c38468f7dd3515d82d5c0f8d29f005c1682220101e3793e2c3b6e2e58357"},
+      "sha256": "0ba0c38468f7dd3515d82d5c0f8d29f005c1682220101e3793e2c3b6e2e58357"
+    },
+    {
+      "path": "2022-14310/2022-14310.mods.xml",
+      "document_number": "2022-14310",
+      "component": "GOVINFO_MODS",
+      "source_url": "https://www.govinfo.gov/metadata/granule/FR-2022-07-06/2022-14310/mods.xml",
+      "url_construction": {"publication_date": "2022-07-06", "document_number": "2022-14310", "from": "Federal Register API docket listing for SR-NYSEARCA-2021-90 (audit package source-metadata/fr-review/gbtc.json, sha256 b2758720c1d5454eec6c9a6dc2ba79bb0211722b26165d8cc06c5d3a5c441d4b)", "allowlist_check": "OK"},
+      "retrieval": {"not_before": "2026-10-23T18:40:42.248Z", "not_after": "2026-10-23T18:40:42.558Z", "http_status": 200, "content_type": "text/xml;charset=UTF-8", "bytes": 11904, "server_date": "Fri, 23 Oct 2026 18:40:42 GMT", "redirects_followed": 0, "sha256_at_retrieval": "33e68aa2cf24dbd297bd1dad942c7e570e7375c721fbb191d4aae28cfad3a97b"},
+      "retrieved_at": "2026-10-23T18:40:42.558Z",
+      "structural_check": "R4 §6.7 structural parse OK; E1 container cardinality OK",
+      "binding": "FULL. R4 §6.7 binding to 2022-14310/2022-14310.fr.json OK (document number, citation 87 FR 40299, volume 87, pages 40299-40321, date, package FR-2022-07-06, docket_ids). Before the full FR JSON was captured this was PARTIAL (listing-row fields only).",
+      "sha256": "33e68aa2cf24dbd297bd1dad942c7e570e7375c721fbb191d4aae28cfad3a97b"
+    },
+    {
+      "path": "2022-14310/2022-14310.fr.json",
+      "document_number": "2022-14310",
+      "component": "FEDERAL_REGISTER_JSON",
+      "source_url": "https://www.federalregister.gov/api/v1/documents/2022-14310.json",
+      "retrieval": {"not_before": "2026-10-23T19:11:42.271Z", "not_after": "2026-10-23T19:11:42.681Z", "http_status": 200, "content_type": "application/json; charset=utf-8", "bytes": 2540, "server_date": "Fri, 23 Oct 2026 19:11:42 GMT", "redirects_followed": 0, "sha256_at_retrieval": "3abbe6e226d64214dfe4181022d228594ed9b5d24ae744af719a310d917e30c6"},
+      "retrieved_at": "2026-10-23T19:11:42.681Z",
+      "identity_check": "document_number 2022-14310; publication_date 2022-07-06 equals the GovInfo package date of the captured PDF/HTML and the earlier FR docket-listing row; SEC agency slug; type Notice; docket_ids and title equal the listing row; pdf_url and mods_url equal the constructed GovInfo URLs (cross-check only); citation 87 FR 40299, volume 87, pages 40299-40321 equal the GovInfo HTML header; page_length 23 consistent.",
+      "retrieval_note": "Contains a live page_views counter (count 747, last_updated 2026-10-23 14:15:06 -0400); a fresh download will not reproduce this digest.",
+      "sha256": "3abbe6e226d64214dfe4181022d228594ed9b5d24ae744af719a310d917e30c6"
+    },
+    {
+      "path": "2023-21948/2023-21948.pdf",
+      "document_number": "2023-21948",
+      "component": "GOVINFO_PDF",
+      "source_url": "https://www.govinfo.gov/content/pkg/FR-2023-10-04/pdf/2023-21948.pdf",
+      "retrieval": {"not_before": "2026-10-22T20:07:11.145Z", "not_after": "2026-10-22T20:07:14.007Z", "http_status": 200, "content_type": "application/pdf", "bytes": 217162, "sha256_at_retrieval": "2b1c7d34ccc76d06750a50d051a678fb47e402bc8993e04239d6972f4707d743"},
+      "retrieved_at": "2026-10-22T20:07:14.007Z",
+      "transfer": {"from": "audit package dl-pdf/2023-21948.pdf", "package_sha256": "2b1c7d34ccc76d06750a50d051a678fb47e402bc8993e04239d6972f4707d743"},
+      "sha256": "2b1c7d34ccc76d06750a50d051a678fb47e402bc8993e04239d6972f4707d743"
+    },
+    {
+      "path": "2023-21948/2023-21948.htm",
+      "document_number": "2023-21948",
+      "component": "GOVINFO_HTML",
+      "source_url": "https://www.govinfo.gov/content/pkg/FR-2023-10-04/html/2023-21948.htm",
+      "retrieval": {"not_before": "2026-10-22T20:09:04.217Z", "not_after": "2026-10-22T20:09:05.255Z", "http_status": 200, "content_type": "text/html", "bytes": 16408, "sha256_at_retrieval": "755c3e5d60db5b0f592ee5d7e355241c76c6d9f966b0615026f2613a709654ef"},
+      "retrieved_at": "2026-10-22T20:09:05.255Z",
+      "transfer": {"from": "audit package dl-html/2023-21948.htm", "package_sha256": "755c3e5d60db5b0f592ee5d7e355241c76c6d9f966b0615026f2613a709654ef"},
+      "sha256": "755c3e5d60db5b0f592ee5d7e355241c76c6d9f966b0615026f2613a709654ef"
+    },
+    {
+      "path": "2023-21948/2023-21948.fr.json",
+      "document_number": "2023-21948",
+      "component": "FEDERAL_REGISTER_JSON",
+      "source_url": "https://www.federalregister.gov/api/v1/documents/2023-21948.json",
+      "retrieval": {"not_before": "2026-10-23T19:11:42.712Z", "not_after": "2026-10-23T19:11:43.129Z", "http_status": 200, "content_type": "application/json; charset=utf-8", "bytes": 2585, "server_date": "Fri, 23 Oct 2026 19:11:43 GMT", "redirects_followed": 0, "sha256_at_retrieval": "5463e18d024f7399ecc9883dd7834e6622ce2c7158856d129239b5cb32c2c4b5"},
+      "retrieved_at": "2026-10-23T19:11:43.129Z",
+      "identity_check": "document_number 2023-21948; publication_date 2023-10-04 equals the GovInfo package date of the captured PDF/HTML and the earlier partial FR record; SEC agency slug; type Notice; docket_ids and title equal the earlier partial record; pdf_url and mods_url equal the constructed GovInfo URLs (cross-check only); citation 88 FR 68768, volume 88, pages 68768-68770 equal the GovInfo HTML header; page_length 3 consistent.",
+      "retrieval_note": "Contains a live page_views counter (count 175, last_updated 2026-10-23 14:15:06 -0400); a fresh download will not reproduce this digest.",
+      "sha256": "5463e18d024f7399ecc9883dd7834e6622ce2c7158856d129239b5cb32c2c4b5"
+    },
+    {
+      "path": "2023-21948/2023-21948.mods.xml",
+      "document_number": "2023-21948",
+      "component": "GOVINFO_MODS",
+      "source_url": "https://www.govinfo.gov/metadata/granule/FR-2023-10-04/2023-21948/mods.xml",
+      "url_construction": {"publication_date": "2023-10-04", "document_number": "2023-21948", "from": "fields of 2023-21948/2023-21948.fr.json (sha256 5463e18d024f7399ecc9883dd7834e6622ce2c7158856d129239b5cb32c2c4b5), after its identity check", "allowlist_check": "OK"},
+      "retrieval": {"not_before": "2026-10-23T19:12:11.675Z", "not_after": "2026-10-23T19:12:11.990Z", "http_status": 200, "content_type": "text/xml;charset=UTF-8", "bytes": 8520, "server_date": "Fri, 23 Oct 2026 19:12:12 GMT", "redirects_followed": 0, "sha256_at_retrieval": "93004c6f698f9e70d0891514eaa64c7825215b38827afefac673be45dc7a3143"},
+      "retrieved_at": "2026-10-23T19:12:11.990Z",
+      "retrieval_note": "The server Date header (19:12:12, 1-second resolution) is later than the local not_after reading by under one second; retrieved_at uses the local clock reading.",
+      "structural_check": "R4 §6.7 structural parse OK; E1 container cardinality OK",
+      "binding": "FULL. R4 §6.7 binding to 2023-21948/2023-21948.fr.json OK (document number, citation 88 FR 68768, volume 88, pages 68768-68770 within issue 68423-69002, date, package FR-2023-10-04, docket_ids). MODS issue 191 equals the GovInfo HTML header Number.",
+      "sha256": "93004c6f698f9e70d0891514eaa64c7825215b38827afefac673be45dc7a3143"
+    }
+  ],
+  "missing_or_blocked": [
+    {"document_number": "2024-00743, 2022-14310, 2023-21948", "component": "MANUAL_PASSAGE_VERIFICATION", "status": "NOT_CREATED", "reason": "Human-only records (owner decision O6). Not created by this step and never to be authored by Claude."}
+  ],
+  "resolved": [
+    {"document_number": "2023-21948", "component": "GOVINFO_MODS", "previous_status": "BLOCKED", "previous_reason": "The saved partial FR JSON had no document_number field (the number appeared only in raw_text_url, which R4 §6.5 forbids for URL construction).", "resolution": "Captured 2026-10-23 after the full FR JSON was retrieved and its identity verified; URL built from its document_number and publication_date fields."},
+    {"document_number": "2022-14310", "component": "FEDERAL_REGISTER_JSON", "previous_status": "NOT_CAPTURED", "resolution": "Full FR JSON captured 2026-10-23; MODS binding upgraded from PARTIAL to FULL."},
+    {"document_number": "2023-21948", "component": "FEDERAL_REGISTER_JSON", "previous_status": "NOT_CAPTURED", "resolution": "Full FR JSON captured 2026-10-23."}
+  ]
+}

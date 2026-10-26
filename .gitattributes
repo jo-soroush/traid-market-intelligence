@@ -1,0 +1,7 @@
+# Official-source fixtures are hash-bound evidence (C13): keep their exact bytes.
+# PDFs: never diff, merge or line-ending convert.
+tests/fixtures/news/official/**/*.pdf binary
+# HTML, XML and JSON: no line-ending conversion (still diffable as text).
+tests/fixtures/news/official/**/*.htm -text
+tests/fixtures/news/official/**/*.xml -text
+tests/fixtures/news/official/**/*.json -text
