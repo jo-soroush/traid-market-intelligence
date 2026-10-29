@@ -1110,7 +1110,7 @@ BUILD TraID provider contract and Bedrock adapter. ADAPT Quant Flow-style struct
 - malformed/schema-invalid handling
 - model/provider/prompt/schema metadata
 - latency/token/cost capture where available
-- explicit `AI_UNAVAILABLE`/failure state
+- explicit outcome states: `VALID`, `AI_INVALID`, `AI_UNAVAILABLE`, `AI_NOT_REQUESTED`
 
 ### 9. Out of Scope
 - AI leverage/position sizing

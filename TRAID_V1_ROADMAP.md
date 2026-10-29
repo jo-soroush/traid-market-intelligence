@@ -827,7 +827,7 @@ Hyperliquid disconnect
 → never pretend LIVE
 
 Bedrock unavailable/malformed
-→ explicit AI_UNAVAILABLE / invalid state
+→ explicit AI_UNAVAILABLE / AI_INVALID state
 → no manufactured AI authority
 
 Primary news source unavailable
