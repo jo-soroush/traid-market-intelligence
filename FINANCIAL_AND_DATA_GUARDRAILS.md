@@ -239,7 +239,7 @@ Preserve support, contradiction, missing, stale, quality, source refs, version/c
 
 ## 29. AI / Bedrock Financial Boundary
 
-Model output is untrusted analytical input. AI may summarize/compare/explain uncertainty, including validated ETF evidence. It may not define numeric truth, infer ETF flow numbers from prose, validate sources, determine applicability, define formulas, Strategy/Risk, sizing/leverage/stops, authorization, or execution. Failure → `AI_UNAVAILABLE/AI_INVALID`. AI failure cannot create `TRADE_CANDIDATE`.
+Model output is untrusted analytical input. AI may summarize/compare/explain uncertainty, including validated ETF evidence. It may not define numeric truth, infer ETF flow numbers from prose, validate sources, determine applicability, define formulas, Strategy/Risk, sizing/leverage/stops, authorization, or execution. Failure → `AI_UNAVAILABLE/AI_INVALID`; a deliberately skipped call → `AI_NOT_REQUESTED`. No AI outcome, including failure, can create `TRADE_CANDIDATE`.
 
 ---
 
@@ -392,6 +392,7 @@ Identical controlled inputs/config/version → identical deterministic analytics
 | provider failure → plausible zero | prohibited |
 | invalid Risk config | `NO_TRADE` |
 | AI failure | `AI_UNAVAILABLE/AI_INVALID`; no promotion |
+| AI call deliberately skipped | `AI_NOT_REQUESTED`; no promotion |
 | unverified high-impact news | uncertainty only |
 | relevant ETF evidence unavailable/stale/unverified | explicit coverage gap; no directional promotion |
 | insufficient Strategy evidence | `NO_SETUP` |
@@ -444,7 +445,7 @@ Version freshness thresholds, analytics windows, regime/fusion rules, Strategy t
 
 ## 55. Error / Reason Codes
 
-Use stable typed codes: `DATA_STALE, DATA_UNAVAILABLE, DATA_INVALID, PROVENANCE_INCOMPLETE, FINANCIAL_SEMANTICS_UNVERIFIED, INSUFFICIENT_EVIDENCE, AI_UNAVAILABLE, AI_INVALID, NO_SETUP, RISK_CONFIG_INVALID, RISK_REJECTED, RISK_GATE_BYPASS, LOOKAHEAD_VIOLATION, FINANCIAL_INVARIANT_FAILED, SECURITY_BOUNDARY_VIOLATION`.
+Use stable typed codes: `DATA_STALE, DATA_UNAVAILABLE, DATA_INVALID, PROVENANCE_INCOMPLETE, FINANCIAL_SEMANTICS_UNVERIFIED, INSUFFICIENT_EVIDENCE, AI_UNAVAILABLE, AI_INVALID, AI_NOT_REQUESTED, NO_SETUP, RISK_CONFIG_INVALID, RISK_REJECTED, RISK_GATE_BYPASS, LOOKAHEAD_VIOLATION, FINANCIAL_INVARIANT_FAILED, SECURITY_BOUNDARY_VIOLATION`.
 
 ---
 

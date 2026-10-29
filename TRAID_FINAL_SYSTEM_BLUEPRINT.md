@@ -580,13 +580,11 @@ Useful patterns:
 
 ## Failure rule
 
-If the model times out or returns malformed output:
+- `AI_NOT_REQUESTED`: TraID deliberately did not call the model (for example insufficient or oversized evidence, or an unresolved earlier call).
+- `AI_UNAVAILABLE`: the model was due to be called or was called, but no usable response was obtained (credential or provider failure, timeout, deadline, or failure to persist the record).
+- `AI_INVALID`: the model responded, but the output was malformed, truncated, filtered, schema-invalid, or failed evidence validation.
 
-```text
-AI_UNAVAILABLE
-```
-
-The system must not guess or fabricate analysis.
+Only a validated and recorded `VALID` interpretation is released. The system must not guess or fabricate analysis.
 
 ---
 
