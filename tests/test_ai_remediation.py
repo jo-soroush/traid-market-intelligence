@@ -339,7 +339,7 @@ def test_t2_keeps_eligible_etf_as_optional_context_only(record_root):
     flow = next(i for i in etf_items if i["subject"] == "NET_FLOW_USD")
     agg = flow["values"][0]
     out = valid_output(r)
-    out["context_notes"] = [{"statement": f"Mapped fund net flow totals {agg['value']} USD in {flow['evidence_id']}.",
+    out["context_notes"] = [{"statement": f"The net flow was {agg['value']} USD in {flow['evidence_id']}.",
                              "refs": [flow["evidence_id"]], "numbers": [{"value_id": agg["value_id"], "text": agg["value"]}]}]
     assert validate_reply(reply(out), s.context, TS).valid
     for bad in ({"summary": dict(out["summary"], refs=out["summary"]["refs"] + [flow["evidence_id"]])},

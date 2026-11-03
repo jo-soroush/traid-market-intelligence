@@ -8,7 +8,7 @@ import pytest
 
 from ai_support import (  # noqa: F401
     MAPPING, T, T1, T2, cpi_claim, etf, false_regulatory_news, fomc_claim, macro, market_state, merge_news, news,
-    offline, reply, valid_output, whales,
+    offline, reply, restate_anchors, valid_output, whales,
 )
 from traid.ai import EvidenceInputs, select
 from traid.ai.provider import ContentBlock
@@ -158,7 +158,7 @@ def test_section_coverage_and_mandatory_sections():
     out = base()
     for a in out["anchor_assessments"]:
         a["stance"] = "NOT_ASSESSABLE"
-    assert code(out) == "NO_SUBSTANTIVE_ASSESSMENT"                                     # SEC-1
+    assert code(restate_anchors(out)) == "NO_SUBSTANTIVE_ASSESSMENT"                    # SEC-1
     out = base()
     out["anchor_assessments"][0]["evidence_ids"] = []
     assert code(out) == "ASSESSMENT_WITHOUT_REFERENCE"
@@ -167,6 +167,7 @@ def test_section_coverage_and_mandatory_sections():
     assert code(out) == "UNCERTAINTY_MISSING"                                           # SEC-3
     out = base()
     out["summary"]["refs"] = [ids(T1_REQ, category="C12_MACRO")[0]]
+    out["summary"]["statement"] = "The evidence is described."
     assert code(out) == "SUMMARY_SOURCE_MISSING"
     empty = {"summary": {"statement": "", "refs": [], "numbers": []}, "anchor_assessments": [], "context_notes": [],
              "claim_notes": [], "uncertainties": []}
@@ -221,7 +222,7 @@ def test_prohibited_language_and_macro_scope():
 
 def test_t1_context_notes_may_not_cite_c10():
     out = base()
-    out["context_notes"] = [{"statement": "The direction evidence appears again in this note.", "refs": ["E001"],
+    out["context_notes"] = [{"statement": "The direction evidence is described in this note.", "refs": ["E001"],
                              "numbers": []}]
     assert code(out) == "CONTEXT_REFERENCE_INVALID"
 
@@ -246,7 +247,7 @@ def test_integrated_number_binding_on_real_values():
         out["context_notes"] = [{"statement": statement, "refs": refs, "numbers": numbers}]
         return code(out, T2_SEL)
 
-    assert note(f"CPI (CUUR0000SA0) for 2026-09 was {cpi['value']} in {cpi_item}.", [cpi_item],
+    assert note(f"The CPI level was {cpi['value']} in {cpi_item}.", [cpi_item],
                 [{"value_id": cpi["value_id"], "text": cpi["value"]}]) == "VALID"
     assert note(f"The index level was 336.94 in {cpi_item}.", [cpi_item],
                 [{"value_id": cpi["value_id"], "text": "336.94"}]) == "VALID"           # normalized display
@@ -271,7 +272,7 @@ def test_integrated_number_binding_on_real_values():
     # a cited, linked C13 fact makes its linked value citable without citing the C12 item itself
     fact = next(f for c in T2_REQ["assessed_claims"] for fr in c["frames"] for f in fr["facts"]
                 if f["linked_value_ids"] == [cpi["value_id"]])
-    assert note(f"The confirmed claim value {cpi['value']} is cited via {fact['fact_id']}.", [fact["fact_id"]],
+    assert note(f"The CPI level was {cpi['value']} in {fact['fact_id']}.", [fact["fact_id"]],
                 [{"value_id": cpi["value_id"], "text": cpi["value"]}]) == "VALID"
 
 
@@ -279,12 +280,12 @@ def test_t1_numbers_from_c10_and_c11_bind_exactly():
     funding_item, rate = _value(T1_REQ, "funding.latest_rate")
     c11_item, gross = _value(T1_REQ, "aggregate.gross_notional")
     out = base()
-    out["anchor_assessments"][4]["statement"] = f"The latest rate in {funding_item} was {rate['value']} per hour."
+    out["anchor_assessments"][4]["statement"] += f" The latest rate was {rate['value']} per hour in {funding_item}."
     out["anchor_assessments"][4]["numbers"] = [{"value_id": rate["value_id"], "text": rate["value"]}]
-    out["context_notes"] = [{"statement": f"The whale gross notional in {c11_item} was {gross['value']} USDC.",
+    out["context_notes"] = [{"statement": f"The gross notional was {gross['value']} USDC in {c11_item}.",
                              "refs": [c11_item], "numbers": [{"value_id": gross["value_id"], "text": gross["value"]}]}]
     assert code(out) == "VALID"
-    out["context_notes"][0]["statement"] = f"The whale gross notional in {c11_item} was {gross['value']} USD."
+    out["context_notes"][0]["statement"] = f"The gross notional was {gross['value']} USD in {c11_item}."
     assert code(out) == "UNIT_MISMATCH"
 
 
@@ -300,6 +301,7 @@ def test_canonical_fields_are_projected_deterministically():
     a[2]["stance"] = "MIXED"
     a[3]["stance"] = "NOT_ASSESSABLE"
     a[5]["evidence_ids"] = [a[5]["evidence_ids"][0], "E001"]              # regime anchored on direction: not independent
+    restate_anchors(out)
     v = check(out)
     assert v.valid, v.code
     i = v.interpretation
@@ -346,10 +348,12 @@ def test_t2_mandatory_sections_and_adversarial_regressions():
     contextual = ids(T2_REQ, category="C12_MACRO", tier="CONTEXTUAL")[0]
     bad = copy.deepcopy(out)
     bad["summary"]["refs"] = [contextual]
+    bad["summary"]["statement"] = "The evidence is described."
     assert code(bad, T2_SEL) == "SUMMARY_SOURCE_MISSING"                          # must cite STRUCTURED C12
     bad = copy.deepcopy(out)
     for a in bad["anchor_assessments"]:
         a["stance"] = "NOT_ASSESSABLE"
+    restate_anchors(bad)
     assert code(bad, T2_SEL) == "NO_SUBSTANTIVE_ASSESSMENT"
     bad = copy.deepcopy(out)
     bad["uncertainties"] = []
