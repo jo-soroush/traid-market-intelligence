@@ -366,6 +366,18 @@ def items(request: dict):
     return {i["evidence_id"]: i for i in request["structured"] + request["contextual"]}
 
 
+_STANCE_PHRASE = {"SUPPORTS": "consistent with", "CONTRADICTS": "inconsistent with", "MIXED": "partly consistent with",
+                  "NOT_ASSESSABLE": "not assessable from"}
+
+
+def restate_anchors(out: dict) -> dict:
+    """Rewrite every anchor statement so its wording matches its stance (the validator binds the two)."""
+    for a in out["anchor_assessments"]:
+        a["statement"] = f"Anchor {a['anchor_id']} is {_STANCE_PHRASE[a['stance']]} the cited evidence in " \
+                         f"{a['evidence_ids'][0]}."
+    return out
+
+
 def valid_output(request: dict, **override) -> dict:
     """A minimal output that satisfies every rule for the given request."""
     its = items(request)

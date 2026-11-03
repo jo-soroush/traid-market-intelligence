@@ -168,7 +168,7 @@ def test_cpi_with_a_connected_wrong_unit_is_rejected(statement):
                                        "The CPI level is 336.940 measured in index points in {e}.",
                                        "The CPI level is 336.940 as an index in {e}.",
                                        "The CPI level is 336.940 in {e}.",
-                                       "The CPI level in {e} is 336.940 for the reference period.",
+                                       "The CPI level is 336.940 for {e}.",
                                        "The CPI level is 336.940 as stated in {e}."])
 def test_cpi_with_its_index_unit_or_no_unit_is_valid(statement):
     e, v = CPI
@@ -219,7 +219,7 @@ def test_t1_units_through_connectors(prefix, good, bad):
 def test_ordinary_prose_negatives_and_fomc_groups_still_pass():
     e, low = bound(T2_REQ, "fomc.statement.target_lower_percent")
     _, high = bound(T2_REQ, "fomc.statement.target_upper_percent")
-    assert verdict(f"The range is 3.75% to 4% in {e}, as stated in the statement.",
+    assert verdict(f"The range is 3.75% to 4% in {e}, as stated.",
                    [(e, low, "3.75%"), (e, high, "4%")]) == "VALID"
     assert verdict(f"The range is 3.75% to 4% in {e}, in USD.", [(e, low, "3.75%"), (e, high, "4%")]) == "UNIT_MISMATCH"
     from ai_support import market_state as ms
@@ -229,11 +229,12 @@ def test_ordinary_prose_negatives_and_fomc_groups_still_pass():
     item = next(i for i in req["structured"] if i["subject"] == "funding")
     v = next(x for x in item["values"] if x["field_path"].endswith("funding.latest_rate"))
     out = valid_output(req)
-    out["uncertainties"].append({"statement": f"The latest rate in {item['evidence_id']} was -0.0001 per hour.",
+    out["uncertainties"].append({"statement": f"The latest rate was -0.0001 per hour in {item['evidence_id']}.",
                                  "refs": [item["evidence_id"]], "numbers": [{"value_id": v["value_id"], "text": "-0.0001"}]})
     assert validate_reply(reply(out), sel.context, TS).valid
-    # prose without a number may mention currencies freely: no numeric unit is asserted
+    # default deny: prose that mentions a currency without a number is no longer free text; the approved neutral
+    # remark is what remains (free prose about currencies is an intentional loss, see the F6 closure notes)
     out = valid_output(T2_REQ)
-    out["context_notes"].append({"statement": "Macro releases are reported by agencies, not in USD terms here.",
+    out["context_notes"].append({"statement": "The evidence is described in " + CPI[0] + ".",
                                  "refs": [CPI[0]], "numbers": []})
     assert validate_reply(reply(out), T2_SEL.context, TS).valid

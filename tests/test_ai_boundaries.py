@@ -122,7 +122,7 @@ def test_tool_schema_uses_only_supported_keywords_and_the_prompt_is_versioned():
     assert all(k not in text for k in ('"$ref"', '"anyOf"', '"pattern"', '"maxItems"', '"additionalProperties"'))
     from traid.ai import select
     sel = select(T1, T, EvidenceInputs(market_state=market_state()))
-    assert sel.request.prompt_digest == PROMPT_DIGEST and sel.request.prompt_id == "c14-prompt-1"
+    assert sel.request.prompt_digest == PROMPT_DIGEST and sel.request.prompt_id == "c14-prompt-5"
 
 
 def test_offline_fixture_refuses_sockets_and_name_lookups():
