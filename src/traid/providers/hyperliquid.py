@@ -199,9 +199,31 @@ class HyperliquidAdapter(ExchangeAdapter):
         records = self._require_list(self._post({"type": "fundingHistory", "coin": symbol, "startTime": now_ms - 86_400_000, "endTime": now_ms}, capability), capability)
         if not records:
             raise AdapterError(code=AdapterErrorCode.UNAVAILABLE, message="no funding observation returned", capability=capability)
-        item = self._require_mapping(records[-1], capability)
-        source_time = _timestamp(item["time"], capability)
-        return FundingSnapshot(symbol=str(item["coin"]), funding_rate=_decimal(item["fundingRate"], capability, signed=True), timestamp=source_time, provenance=SourceProvenance(source="hyperliquid", source_type="public_info", source_id="fundingHistory", source_timestamp=source_time, received_timestamp=self._received()))
+        received = self._received()
+        # The response order is not guaranteed: every record is validated, then the latest observation
+        # is chosen by time. Any malformed or future-dated record rejects the whole response.
+        observed: list[tuple[datetime, Decimal]] = []
+        for record in records:
+            item = self._require_mapping(record, capability)
+            if item.get("coin") != symbol:
+                raise ProviderDataError("provider funding instrument is invalid", capability)
+            when = _timestamp(item.get("time"), capability)
+            if when > received:
+                raise ProviderDataError("provider funding observation is in the future", capability)
+            observed.append((when, _decimal(item.get("fundingRate"), capability, signed=True)))
+        latest = max(when for when, _ in observed)
+        hour = latest.replace(minute=0, second=0, microsecond=0)
+        # One observation per UTC settlement hour (C09 identity). Value-equal duplicates are one
+        # observation; anything else in the selected hour is ambiguous and is never resolved.
+        hourly: dict[tuple[datetime, Decimal], Decimal] = {}
+        for when, rate in observed:
+            if when.replace(minute=0, second=0, microsecond=0) == hour:
+                key = (when, rate)  # Decimal equality is by value, so "0.1" and "0.10" share a key
+                hourly[key] = min(hourly.get(key, rate), rate, key=str)  # one spelling, whatever the order
+        if len(hourly) != 1:
+            raise ProviderDataError("provider funding observations conflict within one settlement hour", capability)
+        (((source_time, _), rate),) = hourly.items()
+        return FundingSnapshot(symbol=symbol, funding_rate=rate, timestamp=source_time, provenance=SourceProvenance(source="hyperliquid", source_type="public_info", source_id="fundingHistory", source_timestamp=source_time, received_timestamp=received))
 
     def _market_context(self, symbol: str) -> MarketContext:
         capability = Capability.MARKET_CONTEXT
