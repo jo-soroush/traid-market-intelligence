@@ -1169,12 +1169,23 @@ Without an Evidence Registry, explanations become untraceable; without controlle
 Analytics + whale + macro + verified news + validated applicable ETF evidence + AI evidence → Evidence Registry → deterministic Signal Fusion → typed fused context.
 
 ### 6. Current System Before Card
-C07–C14 produce independent evidence. No unified score should be assumed.
+C07–C14 produce separately versioned evidence reports with traceable lineage. Some reports depend on upstream evidence; independence must not be assumed. No unified score should be assumed.
 
 Repository reality must be re-inspected when this Card actually starts. This section is a planned dependency-state contract, not permission to ignore contradictory repository evidence.
 
 ### 7. Design Decision
 BUILD TraID registry/fusion; selectively ADAPT CryptoRadar alignment/contradiction ideas. Semantic rule: `Alignment != probability.`
+
+**Owner-approved Phase 1 partial milestone (recorded 2026-11-04; documentation and Roadmap Alignment Gate only — not Card-start approval, not implementation authorization).**
+
+- C15 Phase 1 is a **partial milestone**. The Exit Gate in Section 12 and the Roadmap, and the Closure Rule, are **unchanged**. C15 remains **OPEN**. A Phase 1 delivery must never be recorded as C15 COMPLETE. **C16 is NOT AUTHORIZED.**
+- Implementation design baseline: `TRAID_C15_PHASE1_CONTRACT_v3_1.md` (pure in-memory evidence registry, layered identity, duplicate/revision/conflict visibility, typed lineage without independence claims, coverage gaps including ETF gaps, replay-verified non-authoritative AI commentary).
+- Phase 1 does **not** generate SUPPORT or CONTRADICT roles; the propositions that would define them (P1, P2, P3) are inactive, with no activation mechanism. It produces no weighted score, probability, forecast, readiness number, Strategy interface or Risk interface. Source-reported contradictions are carried verbatim, not inferred.
+- No new ETF freshness policy is introduced; missing or undefined ETF evidence is never directional.
+- Wallet identities appear only as privacy-preserving references; no raw wallet address is output.
+- The optional `news_claims` input is excluded from Phase 1.
+- U2 (trade-window completeness) is a separate upstream issue and is not resolved by this milestone.
+- The Section 8 items "supporting and contradicting roles" and "deterministic alignment/strength only where explicitly defined" remain required for full C15 closure and are **not** delivered by Phase 1.
 
 ### 8. Implementation Scope
 - evidence IDs/types/source/time/quality/version
