@@ -394,20 +394,38 @@ def test_at_ser_11_no_separate_reimplementation_of_the_c14_digest_exists_in_the_
 
 
 def test_fusion_package_imports_only_the_standard_library_and_itself():
+    serializer_exports = {"AmbiguousEnumTypeError", "IdentityEncodingError", "Unordered", "id_digest", "id_enc", "id_json"}
+    model_exports = {"ROLE_RULES_ACTIVE", "Basis", "Comparison", "Coverage", "EvidenceRole", "FusionModel",
+                     "InputDigestRef", "MetricObservation", "MetricState", "RawIdentity",
+                     "SourceReportedContradiction", "UtcDatetime"}
+    # File-specific modules and symbols: approving models must not broaden serialization's dependencies.
+    allowed_imports = {
+        "serialization.py": {
+            "__future__": {"annotations"}, "dataclasses": {"dataclass"},
+            "datetime": {"date", "datetime", "timedelta", "timezone"}, "decimal": {"Decimal"},
+            "enum": None, "hashlib": None, "json": None, "threading": None,
+            "zoneinfo": {"ZoneInfo"}, "pydantic_core": {"TzInfo"},
+        },
+        "models.py": {
+            "__future__": {"annotations"}, "datetime": {"datetime", "timezone"}, "decimal": {"Decimal"},
+            "enum": {"StrEnum"}, "re": None, "typing": {"Annotated"},
+            "pydantic": {"AfterValidator", "BaseModel", "BeforeValidator", "ConfigDict", "Field",
+                         "StrictInt", "StrictStr", "model_validator"},
+            "traid.fusion.serialization": {"id_enc"},
+        },
+        "__init__.py": {"traid.fusion.serialization": serializer_exports, "traid.fusion.models": model_exports},
+    }
     for path in (ROOT / "src/traid/fusion").glob("*.py"):
+        assert path.name in allowed_imports, path.name
+        policy = allowed_imports[path.name]
         for node in ast.walk(ast.parse(path.read_text())):
-            roots = []
             if isinstance(node, ast.Import):
-                roots = [a.name.split(".")[0] for a in node.names]
-            elif isinstance(node, ast.ImportFrom) and node.level == 0:
-                roots = [(node.module or "").split(".")[0]]
-            for root in roots:
-                allowed = root in sys.stdlib_module_names or root == "traid" or (
-                    root == "pydantic_core" and path.name == "serialization.py")   # TzInfo recognised by type only
-                assert allowed, (path.name, root)
-                if root == "traid":
-                    assert path.name == "__init__.py", (path.name, root)
-                    assert node.module == "traid.fusion.serialization"
+                for alias in node.names:
+                    assert alias.name in policy and policy[alias.name] is None, (path.name, alias.name)
+            elif isinstance(node, ast.ImportFrom):
+                assert node.level == 0, (path.name, "relative import")
+                assert node.module in policy and policy[node.module] is not None, (path.name, node.module)
+                assert {alias.name for alias in node.names} <= policy[node.module], (path.name, node.module)
 
 
 # ------------------------------------------------------------- B2: dictionary keys are encoded (section 4.2)
