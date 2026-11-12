@@ -1179,7 +1179,7 @@ BUILD TraID registry/fusion; selectively ADAPT CryptoRadar alignment/contradicti
 **Owner-approved Phase 1 partial milestone (recorded 2026-11-04; documentation and Roadmap Alignment Gate only — not Card-start approval, not implementation authorization).**
 
 - C15 Phase 1 is a **partial milestone**. The Exit Gate in Section 12 and the Roadmap, and the Closure Rule, are **unchanged**. C15 remains **OPEN**. A Phase 1 delivery must never be recorded as C15 COMPLETE. **C16 is NOT AUTHORIZED.**
-- Implementation design baseline: `TRAID_C15_PHASE1_CONTRACT_v3_3.md` (pure in-memory evidence registry, layered identity, duplicate/revision/conflict visibility, typed lineage without independence claims, coverage gaps including ETF gaps, replay-verified non-authoritative AI commentary).
+- Implementation design baseline: `TRAID_C15_PHASE1_CONTRACT_v3_4.md` (pure in-memory evidence registry, layered identity, duplicate/revision/conflict visibility, typed lineage without independence claims, coverage gaps including ETF gaps, replay-verified non-authoritative AI commentary).
 - Phase 1 does **not** generate SUPPORT or CONTRADICT roles; the propositions that would define them (P1, P2, P3) are inactive, with no activation mechanism. It produces no weighted score, probability, forecast, readiness number, Strategy interface or Risk interface. Source-reported contradictions are carried verbatim, not inferred.
 - No new ETF freshness policy is introduced; missing or undefined ETF evidence is never directional.
 - Wallet identities appear only as privacy-preserving references; no raw wallet address is output.
