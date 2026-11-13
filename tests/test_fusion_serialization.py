@@ -419,10 +419,17 @@ def test_fusion_package_imports_only_the_standard_library_and_itself():
             "traid.fusion.models": {"Basis", "Coverage", "FusionModel", "MetricObservation", "Text", "UtcDatetime"},
             "traid.fusion.serialization": {"id_digest"},
         },
+        "input_identity.py": {
+            "__future__": {"annotations"}, "typing": {"Annotated", "Literal"},
+            "pydantic": {"BeforeValidator", "ConfigDict", "model_validator", "validate_call"},
+            "traid.fusion.models": {"FusionModel", "InputDigestRef", "Text", "UtcDatetime"},
+            "traid.fusion.serialization": {"id_digest"},
+        },
         "__init__.py": {
             "traid.fusion.serialization": serializer_exports, "traid.fusion.models": model_exports,
             "traid.fusion.identity": {"SeriesKey", "Slot", "SlotClaim", "SlotInstant", "SlotPeriod", "SlotWindow",
                                       "exposed_content_id", "series_id", "slot_id"},
+            "traid.fusion.input_identity": {"Delivery", "InputSetRef", "input_set_id"},
         },
     }
     for path in (ROOT / "src/traid/fusion").glob("*.py"):
