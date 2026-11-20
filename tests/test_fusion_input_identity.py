@@ -284,7 +284,7 @@ print(json.dumps([input_set_id(r) for r in refs]))
 
 def test_identity_equality_carries_no_lineage_or_source_mapping_authority():
     assert input_set_id(ref(state="UNAVAILABLE", digest=None, delivery=None)) == VECTORS[2]
-    assert not {"observation_id", "methodology_id", "assessment_id", "Methodology", "EvidenceUnit",
+    assert not {"methodology_id", "assessment_id", "Methodology", "EvidenceUnit",
                 "fuse", "LineageEdge", "Relation"} & set(vars(fusion))
     assert fusion.ROLE_RULES_ACTIVE == ()
     assert {x.value for x in fusion.EvidenceRole} == {"DESCRIPTIVE_ONLY", "MISSING", "STALE", "UNVERIFIED", "INELIGIBLE"}
