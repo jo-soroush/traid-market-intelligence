@@ -469,7 +469,7 @@ Record Guardrail ID, current rule, problem/evidence, proposal, rationale, financ
 
 ## 59. Card / Release Enforcement
 
-A Card changing a guardrail cannot COMPLETE until applicable guardrail tests ran and PASS, degraded paths are covered, Evidence is actual, and `CARD_QUALITY_GATE: PASS`. C25 blocks release on critical tests; C26 proves success+failure paths; C27 documents verified semantics/limitations.
+A Card changing a guardrail cannot COMPLETE until applicable guardrail tests ran and PASS, degraded paths are covered, Evidence is actual, and the required validation and Exit Gate evidence have documented independent review with blocking findings resolved (`AGENTS.md`; Roadmap §4). C25 blocks release on critical tests; C26 proves success+failure paths; C27 documents verified semantics/limitations.
 
 ---
 

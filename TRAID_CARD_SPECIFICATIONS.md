@@ -40,6 +40,8 @@ Never pre-fill Sections 13–14 with expected results.
 
 ## 2. Contract Authority and Safety
 
+**Governance reconciliation:** Apply the current `AGENTS.md` process and Roadmap §0.1. PR #17 (`1df2f8f`) removed the legacy Harness and control artifacts; `c4d178f` established the lightweight development/review rules. Alignment and quality review remain required as documented inspections of scope/dependencies, actual tests/security/CI and independent findings, followed by owner approval—not calls to removed gate scripts. Historical gate labels, C01 Harness delivery text and the recorded C15 partial-milestone approval remain historical evidence, not permission to restore machinery or start work. Evidence belongs in ordinary PRs and existing completion records, with no separate evidence-map file required by default. No functional Card scope, dependency, test criterion or Exit Gate is changed.
+
 Before the first write for a Card:
 
 ```text
@@ -48,7 +50,7 @@ This 14-section contract must match.
 Dependencies must be evidenced COMPLETE.
 Repository reality must be reconciled with Section 6.
 Contract Map / Risk Map must be performed inspect-only.
-ROADMAP_ALIGNMENT_GATE must PASS.
+Contract/repository alignment review must be documented; material discrepancies require owner resolution.
 Human Card-start approval must exist.
 ```
 
@@ -209,7 +211,7 @@ Required rule: run the narrowest relevant tests during bounded implementation, t
 ### 12. Exit Gate
 Repository baseline is reproducible and evidenced; app/health/config/tests work or exact blockers are recorded; final Harness is installed consistently; semantic content-alignment protection is executable and evidenced independently of Card-ID matching; no secrets/trading credentials/private keys are required; Docker/CI/security baseline required by C01 is validated; repository reality is ready for C02.
 
-Closure additionally requires `CARD_QUALITY_GATE: PASS`, Evidence update, repository/Git review, and applicable human approval.
+Closure additionally requires recorded passing mandatory tests/security/CI, independent review with blocking findings resolved, Evidence update, repository/Git review, and applicable human approval (`AGENTS.md`; Roadmap §4).
 
 ### 13. What We Learned
 `Pending — fill only from actual implementation and validation evidence.`
@@ -279,7 +281,7 @@ Required rule: run the narrowest relevant tests during bounded implementation, t
 ### 12. Exit Gate
 Canonical schemas are typed, tested, serializable, temporally explicit, source-aware, and provider-neutral; no external provider model owns Core contracts.
 
-Closure additionally requires `CARD_QUALITY_GATE: PASS`, Evidence update, repository/Git review, and applicable human approval.
+Closure additionally requires recorded passing mandatory tests/security/CI, independent review with blocking findings resolved, Evidence update, repository/Git review, and applicable human approval (`AGENTS.md`; Roadmap §4).
 
 ### 13. What We Learned
 `Pending — fill only from actual implementation and validation evidence.`
@@ -349,7 +351,7 @@ Required rule: run the narrowest relevant tests during bounded implementation, t
 ### 12. Exit Gate
 A fake provider satisfies the contract; capabilities, coverage, availability, and errors are explicit; Core can consume canonical data without Hyperliquid-specific types or a false complete-coverage claim.
 
-Closure additionally requires `CARD_QUALITY_GATE: PASS`, Evidence update, repository/Git review, and applicable human approval.
+Closure additionally requires recorded passing mandatory tests/security/CI, independent review with blocking findings resolved, Evidence update, repository/Git review, and applicable human approval (`AGENTS.md`; Roadmap §4).
 
 ### 13. What We Learned
 `Pending — fill only from actual implementation and validation evidence.`
@@ -422,7 +424,7 @@ Required rule: run the narrowest relevant tests during bounded implementation, t
 ### 12. Exit Gate
 Verified real BTC Hyperliquid data reaches canonical models where semantics are verified; open interest either has a verified canonical mapping or is blocked from Core and exposed as explicitly unavailable/unverified with evidence and reason; source/license/semantics and relevant coverage limitations are recorded; failure/reconnect/rate-limit/availability paths are tested; no provider payload escapes into Core and no complete-market claim is made.
 
-Closure additionally requires `CARD_QUALITY_GATE: PASS`, Evidence update, repository/Git review, and applicable human approval.
+Closure additionally requires recorded passing mandatory tests/security/CI, independent review with blocking findings resolved, Evidence update, repository/Git review, and applicable human approval (`AGENTS.md`; Roadmap §4).
 
 ### 13. What We Learned
 `Pending — fill only from actual implementation and validation evidence.`
@@ -498,7 +500,7 @@ Required rule: run the narrowest relevant tests during bounded implementation, t
 ### 12. Exit Gate
 Quality/provenance/coverage behavior is deterministic and tested; consumers can identify origin, freshness, gaps, recovery, and missing categories; degraded data cannot silently become trusted/live or be presented as complete coverage.
 
-Closure additionally requires `CARD_QUALITY_GATE: PASS`, Evidence update, repository/Git review, and applicable human approval.
+Closure additionally requires recorded passing mandatory tests/security/CI, independent review with blocking findings resolved, Evidence update, repository/Git review, and applicable human approval (`AGENTS.md`; Roadmap §4).
 
 ### 13. What We Learned
 `Pending — fill only from actual implementation and validation evidence.`
@@ -570,7 +572,7 @@ Required rule: run the narrowest relevant tests during bounded implementation, t
 ### 12. Exit Gate
 A versioned BTC canonical dataset can be replayed deterministically with source/category coverage, gaps, and availability limitations explicit and without silently filling or interpolating missing information.
 
-Closure additionally requires `CARD_QUALITY_GATE: PASS`, Evidence update, repository/Git review, and applicable human approval.
+Closure additionally requires recorded passing mandatory tests/security/CI, independent review with blocking findings resolved, Evidence update, repository/Git review, and applicable human approval (`AGENTS.md`; Roadmap §4).
 
 ### 13. What We Learned
 `Pending — fill only from actual implementation and validation evidence.`
@@ -640,7 +642,7 @@ Required rule: run the narrowest relevant tests during bounded implementation, t
 ### 12. Exit Gate
 Liquidity metrics match verified fixtures, preserve units/quality/provenance, handle edge cases, and remain deterministic.
 
-Closure additionally requires `CARD_QUALITY_GATE: PASS`, Evidence update, repository/Git review, and applicable human approval.
+Closure additionally requires recorded passing mandatory tests/security/CI, independent review with blocking findings resolved, Evidence update, repository/Git review, and applicable human approval (`AGENTS.md`; Roadmap §4).
 
 ### 13. What We Learned
 `Pending — fill only from actual implementation and validation evidence.`
@@ -709,7 +711,7 @@ Required rule: run the narrowest relevant tests during bounded implementation, t
 ### 12. Exit Gate
 Known trade sequences produce expected flow/CVD values with explicit side/window/reset behavior and no AI calculation path.
 
-Closure additionally requires `CARD_QUALITY_GATE: PASS`, Evidence update, repository/Git review, and applicable human approval.
+Closure additionally requires recorded passing mandatory tests/security/CI, independent review with blocking findings resolved, Evidence update, repository/Git review, and applicable human approval (`AGENTS.md`; Roadmap §4).
 
 ### 13. What We Learned
 `Pending — fill only from actual implementation and validation evidence.`
@@ -782,7 +784,7 @@ Required rule: run the narrowest relevant tests during bounded implementation, t
 ### 12. Exit Gate
 Required metrics match verified fixtures; units/signs/intervals/warm-up are explicit; OI-dependent metrics are computed only from verified canonical OI and otherwise remain explicitly unavailable; unknown semantics never become trusted values.
 
-Closure additionally requires `CARD_QUALITY_GATE: PASS`, Evidence update, repository/Git review, and applicable human approval.
+Closure additionally requires recorded passing mandatory tests/security/CI, independent review with blocking findings resolved, Evidence update, repository/Git review, and applicable human approval (`AGENTS.md`; Roadmap §4).
 
 ### 13. What We Learned
 `Pending — fill only from actual implementation and validation evidence.`
@@ -851,7 +853,7 @@ Required rule: run the narrowest relevant tests during bounded implementation, t
 ### 12. Exit Gate
 Regime/crowding/liquidation context is deterministic, interpretable, evidence-linked, versioned, returns UNKNOWN when required, and never converts heuristic liquidation into authoritative truth.
 
-Closure additionally requires `CARD_QUALITY_GATE: PASS`, Evidence update, repository/Git review, and applicable human approval.
+Closure additionally requires recorded passing mandatory tests/security/CI, independent review with blocking findings resolved, Evidence update, repository/Git review, and applicable human approval (`AGENTS.md`; Roadmap §4).
 
 ### 13. What We Learned
 `Pending — fill only from actual implementation and validation evidence.`
@@ -922,7 +924,7 @@ Required rule: run the narrowest relevant tests during bounded implementation, t
 ### 12. Exit Gate
 Curated whale state and lifecycle are reproducible and source-aware; scoring is transparent/versioned; large wallet is not equated with smart money; whale evidence cannot authorize trades.
 
-Closure additionally requires `CARD_QUALITY_GATE: PASS`, Evidence update, repository/Git review, and applicable human approval.
+Closure additionally requires recorded passing mandatory tests/security/CI, independent review with blocking findings resolved, Evidence update, repository/Git review, and applicable human approval (`AGENTS.md`; Roadmap §4).
 
 ### 13. What We Learned
 `Pending — fill only from actual implementation and validation evidence.`
@@ -994,7 +996,7 @@ Required rule: run the narrowest relevant tests during bounded implementation, t
 ### 12. Exit Gate
 Selected macro events and applicable ETF institutional/market data are normalized, time-correct, source-traceable and degradation-aware; revisions/duplicates and ETF coverage gaps are explicit; macro or ETF evidence cannot bypass Risk Gate. Exact ETF flow providers require separate verification before use.
 
-Closure additionally requires `CARD_QUALITY_GATE: PASS`, Evidence update, repository/Git review, and applicable human approval.
+Closure additionally requires recorded passing mandatory tests/security/CI, independent review with blocking findings resolved, Evidence update, repository/Git review, and applicable human approval (`AGENTS.md`; Roadmap §4).
 
 ### 13. What We Learned
 `Pending — fill only from actual implementation and validation evidence.`
@@ -1066,7 +1068,7 @@ Required rule: run the narrowest relevant tests during bounded implementation, t
 ### 12. Exit Gate
 Verification-state fixtures pass; provenance and contradiction remain visible; applicable ETF official events remain source-verified or explicitly unverified; numerical ETF market data is not treated as news; external instructions cannot change policy; unverified high-impact claims remain uncertainty rather than directional truth.
 
-Closure additionally requires `CARD_QUALITY_GATE: PASS`, Evidence update, repository/Git review, and applicable human approval.
+Closure additionally requires recorded passing mandatory tests/security/CI, independent review with blocking findings resolved, Evidence update, repository/Git review, and applicable human approval (`AGENTS.md`; Roadmap §4).
 
 ### 13. What We Learned
 `Pending — fill only from actual implementation and validation evidence.`
@@ -1140,7 +1142,7 @@ Required rule: run the narrowest relevant tests during bounded implementation, t
 ### 12. Exit Gate
 Bedrock is replaceable behind a TraID contract; structured outputs are validated/evidence-linked; failures are explicit and fail closed; AI cannot authorize or override deterministic financial controls.
 
-Closure additionally requires `CARD_QUALITY_GATE: PASS`, Evidence update, repository/Git review, and applicable human approval.
+Closure additionally requires recorded passing mandatory tests/security/CI, independent review with blocking findings resolved, Evidence update, repository/Git review, and applicable human approval (`AGENTS.md`; Roadmap §4).
 
 ### 13. What We Learned
 `Pending — fill only from actual implementation and validation evidence.`
@@ -1228,7 +1230,7 @@ Required rule: run the narrowest relevant tests during bounded implementation, t
 ### 12. Exit Gate
 Every fused contribution is traceable; support, contradiction, missing/stale evidence, and coverage gaps including relevant ETF gaps remain visible; identical evidence/config produces identical result; alignment is never mislabeled as probability and missing evidence is never directional evidence.
 
-Closure additionally requires `CARD_QUALITY_GATE: PASS`, Evidence update, repository/Git review, and applicable human approval.
+Closure additionally requires recorded passing mandatory tests/security/CI, independent review with blocking findings resolved, Evidence update, repository/Git review, and applicable human approval (`AGENTS.md`; Roadmap §4).
 
 ### 13. What We Learned
 `Pending — fill only from actual implementation and validation evidence.`
@@ -1308,7 +1310,7 @@ Required rule: run the narrowest relevant tests during bounded implementation, t
 ### 12. Exit Gate
 One BTC strategy family is typed, deterministic, versioned, evidence-linked and fully covered at boundaries; explicit coverage policy including applicable ETF evidence is respected; market-valid Entry/Stop/Target structure is preserved; insufficient/stale/unavailable required evidence yields the existing `NO_SETUP` contract; it cannot bypass Risk.
 
-Closure additionally requires `CARD_QUALITY_GATE: PASS`, Evidence update, repository/Git review, and applicable human approval.
+Closure additionally requires recorded passing mandatory tests/security/CI, independent review with blocking findings resolved, Evidence update, repository/Git review, and applicable human approval (`AGENTS.md`; Roadmap §4).
 
 ### 13. What We Learned
 `Pending — fill only from actual implementation and validation evidence.`
@@ -1394,7 +1396,7 @@ Required rule: run the narrowest relevant tests during bounded implementation, t
 ### 12. Exit Gate
 All promotion paths require the Risk Gate; bypass tests pass; invalid/stale/missing/insufficient required inputs and policy failures fail closed to `NO_TRADE` using existing reason semantics; valid output is reason-coded/versioned and deterministic. The policy accepts only fixed 2x leverage, Net Loss `<= 10%`, and Net Profit Target `>= 20%` after applicable verified costs; it does not force raw price distances or guarantee `TRADE_CANDIDATE`.
 
-Closure additionally requires `CARD_QUALITY_GATE: PASS`, Evidence update, repository/Git review, and applicable human approval.
+Closure additionally requires recorded passing mandatory tests/security/CI, independent review with blocking findings resolved, Evidence update, repository/Git review, and applicable human approval (`AGENTS.md`; Roadmap §4).
 
 ### 13. What We Learned
 `Pending — fill only from actual implementation and validation evidence.`
@@ -1475,7 +1477,7 @@ Required rule: run the narrowest relevant tests during bounded implementation, t
 ### 12. Exit Gate
 Backtest uses the same Strategy/Risk semantics and Setup Risk Policy, cannot access future data, resolves ambiguity pessimistically, reconciles cost-inclusive Net P&L accounting, records versions, and reproduces identical controlled runs.
 
-Closure additionally requires `CARD_QUALITY_GATE: PASS`, Evidence update, repository/Git review, and applicable human approval.
+Closure additionally requires recorded passing mandatory tests/security/CI, independent review with blocking findings resolved, Evidence update, repository/Git review, and applicable human approval (`AGENTS.md`; Roadmap §4).
 
 ### 13. What We Learned
 `Pending — fill only from actual implementation and validation evidence.`
@@ -1546,7 +1548,7 @@ Required rule: run the narrowest relevant tests during bounded implementation, t
 ### 12. Exit Gate
 Outcomes are linked, reproducible and version-aware; MFE/MAE/result fixtures pass; unresolved outcomes are explicit; original decision inputs remain immutable.
 
-Closure additionally requires `CARD_QUALITY_GATE: PASS`, Evidence update, repository/Git review, and applicable human approval.
+Closure additionally requires recorded passing mandatory tests/security/CI, independent review with blocking findings resolved, Evidence update, repository/Git review, and applicable human approval (`AGENTS.md`; Roadmap §4).
 
 ### 13. What We Learned
 `Pending — fill only from actual implementation and validation evidence.`
@@ -1618,7 +1620,7 @@ Required rule: run the narrowest relevant tests during bounded implementation, t
 ### 12. Exit Gate
 At least one evaluation run can identify its data/config/component versions and measured results/failures; comparisons are reproducible and do not rely on anecdotal claims.
 
-Closure additionally requires `CARD_QUALITY_GATE: PASS`, Evidence update, repository/Git review, and applicable human approval.
+Closure additionally requires recorded passing mandatory tests/security/CI, independent review with blocking findings resolved, Evidence update, repository/Git review, and applicable human approval (`AGENTS.md`; Roadmap §4).
 
 ### 13. What We Learned
 `Pending — fill only from actual implementation and validation evidence.`
@@ -1690,7 +1692,7 @@ Required rule: run the narrowest relevant tests during bounded implementation, t
 ### 12. Exit Gate
 Required read-only contracts are typed and tested; degraded/provenance/coverage/risk state and relevant ETF evidence/gaps are accessible; Core logic is not duplicated; no execution/write capability or complete-market claim exists.
 
-Closure additionally requires `CARD_QUALITY_GATE: PASS`, Evidence update, repository/Git review, and applicable human approval.
+Closure additionally requires recorded passing mandatory tests/security/CI, independent review with blocking findings resolved, Evidence update, repository/Git review, and applicable human approval (`AGENTS.md`; Roadmap §4).
 
 ### 13. What We Learned
 `Pending — fill only from actual implementation and validation evidence.`
@@ -1763,7 +1765,7 @@ Required rule: run the narrowest relevant tests during bounded implementation, t
 ### 12. Exit Gate
 A human can understand selected-asset context and why a setup was accepted/rejected without raw logs; relevant ETF evidence/gaps, uncertainty/degradation/provenance are visible; no execution controls or duplicate decision logic exist.
 
-Closure additionally requires `CARD_QUALITY_GATE: PASS`, Evidence update, repository/Git review, and applicable human approval.
+Closure additionally requires recorded passing mandatory tests/security/CI, independent review with blocking findings resolved, Evidence update, repository/Git review, and applicable human approval (`AGENTS.md`; Roadmap §4).
 
 ### 13. What We Learned
 `Pending — fill only from actual implementation and validation evidence.`
@@ -1836,7 +1838,7 @@ Required rule: run the narrowest relevant tests during bounded implementation, t
 ### 12. Exit Gate
 Required failure scenarios are observable; decision audit links consequential inputs/versions/results; coverage degradation/recovery is visible; recovery is bounded and cannot hide degraded state or invent missing evidence.
 
-Closure additionally requires `CARD_QUALITY_GATE: PASS`, Evidence update, repository/Git review, and applicable human approval.
+Closure additionally requires recorded passing mandatory tests/security/CI, independent review with blocking findings resolved, Evidence update, repository/Git review, and applicable human approval (`AGENTS.md`; Roadmap §4).
 
 ### 13. What We Learned
 `Pending — fill only from actual implementation and validation evidence.`
@@ -1908,7 +1910,7 @@ Required rule: run the narrowest relevant tests during bounded implementation, t
 ### 12. Exit Gate
 Security tests pass; no real secrets/trading credentials/private keys/execution endpoints are required; untrusted/model content cannot become system authority; least privilege is evidenced.
 
-Closure additionally requires `CARD_QUALITY_GATE: PASS`, Evidence update, repository/Git review, and applicable human approval.
+Closure additionally requires recorded passing mandatory tests/security/CI, independent review with blocking findings resolved, Evidence update, repository/Git review, and applicable human approval (`AGENTS.md`; Roadmap §4).
 
 ### 13. What We Learned
 `Pending — fill only from actual implementation and validation evidence.`
@@ -1978,7 +1980,7 @@ Required rule: run the narrowest relevant tests during bounded implementation, t
 ### 12. Exit Gate
 Clean checkout builds and runs; Docker/CI execute required quality/security suites; failures in financial invariants, Risk bypass, anti-lookahead, AI fail-closed or security block release; setup is reproducible.
 
-Closure additionally requires `CARD_QUALITY_GATE: PASS`, Evidence update, repository/Git review, and applicable human approval.
+Closure additionally requires recorded passing mandatory tests/security/CI, independent review with blocking findings resolved, Evidence update, repository/Git review, and applicable human approval (`AGENTS.md`; Roadmap §4).
 
 ### 13. What We Learned
 `Pending — fill only from actual implementation and validation evidence.`
@@ -2051,7 +2053,7 @@ Required rule: run the narrowest relevant tests during bounded implementation, t
 ### 12. Exit Gate
 Stored evidence answers all ten Golden Case questions; the consequential path is replayable; at least one degraded/failure path fails safely and remains observable; no rules were weakened to obtain PASS.
 
-Closure additionally requires `CARD_QUALITY_GATE: PASS`, Evidence update, repository/Git review, and applicable human approval.
+Closure additionally requires recorded passing mandatory tests/security/CI, independent review with blocking findings resolved, Evidence update, repository/Git review, and applicable human approval (`AGENTS.md`; Roadmap §4).
 
 ### 13. What We Learned
 `Pending — fill only from actual implementation and validation evidence.`
@@ -2122,7 +2124,7 @@ Required rule: run the narrowest relevant tests during bounded implementation, t
 ### 12. Exit Gate
 A new developer can set up, run, test, verify and understand V1 from repository docs; the demo reproduces the validated path; limitations and read-only boundaries are explicit; documentation matches evidence.
 
-Closure additionally requires `CARD_QUALITY_GATE: PASS`, Evidence update, repository/Git review, and applicable human approval.
+Closure additionally requires recorded passing mandatory tests/security/CI, independent review with blocking findings resolved, Evidence update, repository/Git review, and applicable human approval (`AGENTS.md`; Roadmap §4).
 
 ### 13. What We Learned
 `Pending — fill only from actual implementation and validation evidence.`
@@ -2144,16 +2146,16 @@ READ ROADMAP
 → RECONCILE CURRENT SYSTEM
 → INSPECT-ONLY CONTRACT MAP / RISK MAP
 → HUMAN START APPROVAL
-→ ROADMAP_ALIGNMENT_GATE
+→ DOCUMENTED CONTRACT / REPOSITORY ALIGNMENT REVIEW
 → ONE BOUNDED STEP
 → IMPLEMENT
 → FOCUSED VALIDATION
 → RELEVANT REGRESSION / INVARIANTS
 → EVIDENCE
-→ CHECKPOINT
+→ RECORD ACTUAL RESULTS AND REVIEW FINDINGS
 → REPEAT IF CARD STILL IN SCOPE
 → EXIT GATE
-→ CARD_QUALITY_GATE
+→ REVIEW REQUIRED VALIDATION / SECURITY / CI AND RESOLVE BLOCKING FINDINGS
 → LEARNING RECORD
 → HUMAN CLOSURE / DELIVERY APPROVAL
 → STOP
