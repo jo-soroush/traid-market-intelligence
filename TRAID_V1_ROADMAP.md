@@ -441,7 +441,7 @@ A gate label groups work. It does not authorize parallel execution.
 **Closure Rule:** Full Card contract and exact Exit Gate satisfied + recorded required validation/security/CI results + independent review with blocking findings resolved + human closure/transition approval (§4; `AGENTS.md`).
 
 
-**Phase 1 status clarification:** As already recorded in the Spec §7, the current official C15 Phase 1 contract is `TRAID_C15_PHASE1_CONTRACT_v3_6.md`; C15 is OPEN and Phase 1 is partial. Newer proposals are not automatically authoritative: activation requires documented independent review and explicit owner approval. Slice 1–5 merges do not prove the full C15 Exit Gate or authorize Slice 6 or C16. Future bounded work requires its own explicit owner authorization; full closure still requires the unchanged functional Exit Gate, actual validation/security/CI evidence, independent review and owner closure approval. This note grants no new approval.
+**Phase 1 status clarification:** As recorded in the Spec §7, the current official C15 Phase 1 design contract is the owner-approved `TRAID_C15_PHASE1_CONTRACT_v3_8.md`; C15 is OPEN and Phase 1 is partial. Newer proposals are not automatically authoritative: activation requires documented independent review and explicit owner approval. Contract approval and Slice 1–5 merges do not prove the full C15 Exit Gate or authorize implementation, Slice 6 or C16. Future bounded work requires its own explicit owner authorization; full closure still requires the unchanged functional Exit Gate, actual validation/security/CI evidence, independent review and owner closure approval. This note records design approval only and grants no implementation authorization.
 
 ## V1-C16 — Typed Strategy Engine
 
