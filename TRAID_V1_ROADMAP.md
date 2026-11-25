@@ -8,7 +8,7 @@ It defines **where the project is going**.
 
 It does not prove current implementation state. Repository reality and verified evidence do that.
 
-It does not authorize a Card to start. Explicit human approval and the `ROADMAP_ALIGNMENT_GATE` do that.
+It does not authorize a Card to start. Explicit human Card-start approval, dependency proof and a documented contract/repository alignment review are required (§3.1).
 
 It does not replace the full Card contract in `TRAID_CARD_SPECIFICATIONS.md`.
 
@@ -36,6 +36,18 @@ ROADMAP_CHANGE_REQUEST
 STOP
 REQUIRE EXPLICIT HUMAN APPROVAL
 ```
+
+---
+
+## 0.1 Current Development Process and Historical Governance
+
+The current development process is `AGENTS.md`: define the bounded task against the product contract and repository, implement, run relevant tests and security checks, obtain independent review, address findings, and deliver through Git/PR/CI only with the applicable owner authorization. A reviewer does not independently approve work it authored. Record actual commands/results, findings/resolutions and CI links in the ordinary PR; no separate evidence-map file is required by default.
+
+PR #17 (`1df2f8f`, 2026-10-19) removed the legacy Harness package, lifecycle/alignment automation, governance scripts/tests/agent skill, `TRAID_CARD_EVIDENCE_MAP.md`, `GIT_WORKFLOW.md` and `PROJECT_CONTROL.md`. Commit `c4d178f` then established the lightweight rules now in `AGENTS.md`. Current `.github/workflows/ci.yml` runs pytest and the secret scan; it does not run the removed Harness gates. Later PRs may retain gate names as recorded review conclusions; those labels are not executable prerequisites and are not substitutes for evidence or owner approval.
+
+The legacy names `ROADMAP_ALIGNMENT_GATE` and `CARD_QUALITY_GATE` are reconciled here to documented alignment review and validation/independent-review evidence respectively. Their intent remains mandatory: verify scope/dependencies before work, prove the exact Exit Gate with actual validation and security/CI results, resolve blocking findings, and obtain owner start/closure/delivery approval. Do not recreate removed tools, mandatory checkpoint artifacts or control files. Ordinary progress records and product Risk/release gates remain applicable.
+
+C01's Harness title, goal and Exit Gate below describe historical delivery and are preserved; PR #17 removed that machinery later. Historical evidence and research mentions do not require reinstalling it. This reconciliation changes no Card's functional scope, dependency, acceptance criterion or Exit Gate, and grants no implementation or merge authorization.
 
 ---
 
@@ -157,6 +169,8 @@ before implementation.
 
 Roadmap position, dependency completion, a generated prompt, or an agent recommendation never substitutes for this approval.
 
+Alignment review is inspect-only: compare the owning Card's scope, dependencies, current repository, safeguards and required tests. Record any detected alignment mismatch and stop the affected work until the mismatch is resolved or explicitly dispositioned by the owner under existing governance. Do not silently classify a mismatch as nonmaterial and continue. Contract Map / Risk Map means that bounded inspection, not a removed Harness command or a new required artifact. Approval of a design, a partial milestone or a PR does not silently authorize implementation, delivery or the next Card.
+
 ## 3.2 Unknown Source Protection
 
 For externally derived work, if the exact source file/module is not verified, record exactly:
@@ -188,7 +202,7 @@ critical failure paths tested
 applicable financial/data/AI/security invariants PASS
 exact Exit Gate proven
 Evidence updated
-Card Quality Gate PASS
+required test/security/CI results and independent-review findings recorded; blocking findings resolved
 human closure/transition approval
 ```
 
@@ -220,9 +234,9 @@ A gate label groups work. It does not authorize parallel execution.
 
 **Exit Gate:** App boots locally; `/health` works; configuration is deterministic; tests are discoverable; semantic `CONTENT_ALIGNMENT_GATE` cases are executable and evidenced independently of Card-ID matching; baseline CI/Docker/security checks are defined and pass where required; no secrets or trading credentials are required.
 
-**Start Rule:** Explicit human Card-start approval + dependency proof + `ROADMAP_ALIGNMENT_GATE: PASS`.
+**Start Rule:** Explicit human Card-start approval + dependency proof + documented contract/repository alignment review (§3.1).
 
-**Closure Rule:** Full Card contract satisfied + required evidence + `CARD_QUALITY_GATE: PASS` + human closure/transition approval.
+**Closure Rule:** Full Card contract and exact Exit Gate satisfied + recorded required validation/security/CI results + independent review with blocking findings resolved + human closure/transition approval (§4; `AGENTS.md`).
 
 
 ## V1-C02 — Canonical Domain Models
@@ -233,9 +247,9 @@ A gate label groups work. It does not authorize parallel execution.
 
 **Exit Gate:** Canonical schema tests pass; timestamps/validation/serialization are proven; provider-specific payloads do not leak into Core.
 
-**Start Rule:** Explicit human Card-start approval + dependency proof + `ROADMAP_ALIGNMENT_GATE: PASS`.
+**Start Rule:** Explicit human Card-start approval + dependency proof + documented contract/repository alignment review (§3.1).
 
-**Closure Rule:** Full Card contract satisfied + required evidence + `CARD_QUALITY_GATE: PASS` + human closure/transition approval.
+**Closure Rule:** Full Card contract and exact Exit Gate satisfied + recorded required validation/security/CI results + independent review with blocking findings resolved + human closure/transition approval (§4; `AGENTS.md`).
 
 
 ## V1-C03 — Exchange Adapter Contract
@@ -246,9 +260,9 @@ A gate label groups work. It does not authorize parallel execution.
 
 **Exit Gate:** A fake adapter satisfies the contract; capability discovery/error mapping are explicit; no Hyperliquid-specific types appear in the Core interface.
 
-**Start Rule:** Explicit human Card-start approval + dependency proof + `ROADMAP_ALIGNMENT_GATE: PASS`.
+**Start Rule:** Explicit human Card-start approval + dependency proof + documented contract/repository alignment review (§3.1).
 
-**Closure Rule:** Full Card contract satisfied + required evidence + `CARD_QUALITY_GATE: PASS` + human closure/transition approval.
+**Closure Rule:** Full Card contract and exact Exit Gate satisfied + recorded required validation/security/CI results + independent review with blocking findings resolved + human closure/transition approval (§4; `AGENTS.md`).
 
 
 
@@ -264,9 +278,9 @@ A gate label groups work. It does not authorize parallel execution.
 
 **Exit Gate:** Verified real BTC data is normalized to canonical models where semantics are verified; provider semantics/source/license are recorded; open interest is either mapped only after semantic verification or exposed as explicitly unavailable/unverified with evidence and reason; reconnect, malformed input, failure and rate-limit behavior are tested; raw provider payloads stay outside Core.
 
-**Start Rule:** Explicit human Card-start approval + dependency proof + `ROADMAP_ALIGNMENT_GATE: PASS`.
+**Start Rule:** Explicit human Card-start approval + dependency proof + documented contract/repository alignment review (§3.1).
 
-**Closure Rule:** Full Card contract satisfied + required evidence + `CARD_QUALITY_GATE: PASS` + human closure/transition approval.
+**Closure Rule:** Full Card contract and exact Exit Gate satisfied + recorded required validation/security/CI results + independent review with blocking findings resolved + human closure/transition approval (§4; `AGENTS.md`).
 
 
 ## V1-C05 — Data Quality, Freshness & Provenance
@@ -277,9 +291,9 @@ A gate label groups work. It does not authorize parallel execution.
 
 **Exit Gate:** `LIVE/DELAYED/STALE/UNAVAILABLE` transitions, provenance, gaps, recovery and malformed-data behavior are tested; downstream consumers can determine trust state.
 
-**Start Rule:** Explicit human Card-start approval + dependency proof + `ROADMAP_ALIGNMENT_GATE: PASS`.
+**Start Rule:** Explicit human Card-start approval + dependency proof + documented contract/repository alignment review (§3.1).
 
-**Closure Rule:** Full Card contract satisfied + required evidence + `CARD_QUALITY_GATE: PASS` + human closure/transition approval.
+**Closure Rule:** Full Card contract and exact Exit Gate satisfied + recorded required validation/security/CI results + independent review with blocking findings resolved + human closure/transition approval (§4; `AGENTS.md`).
 
 
 ## V1-C06 — Historical Data & Replay Foundation
@@ -290,9 +304,9 @@ A gate label groups work. It does not authorize parallel execution.
 
 **Exit Gate:** Dataset identity/version is reproducible; duplicates/incomplete bars/gaps are explicit; identical input replays deterministically; no silent filling.
 
-**Start Rule:** Explicit human Card-start approval + dependency proof + `ROADMAP_ALIGNMENT_GATE: PASS`.
+**Start Rule:** Explicit human Card-start approval + dependency proof + documented contract/repository alignment review (§3.1).
 
-**Closure Rule:** Full Card contract satisfied + required evidence + `CARD_QUALITY_GATE: PASS` + human closure/transition approval.
+**Closure Rule:** Full Card contract and exact Exit Gate satisfied + recorded required validation/security/CI results + independent review with blocking findings resolved + human closure/transition approval (§4; `AGENTS.md`).
 
 
 
@@ -308,9 +322,9 @@ A gate label groups work. It does not authorize parallel execution.
 
 **Exit Gate:** Financial fixtures cover balanced/one-sided/empty/thin/extreme books; units and formulas are verified; degraded quality propagates.
 
-**Start Rule:** Explicit human Card-start approval + dependency proof + `ROADMAP_ALIGNMENT_GATE: PASS`.
+**Start Rule:** Explicit human Card-start approval + dependency proof + documented contract/repository alignment review (§3.1).
 
-**Closure Rule:** Full Card contract satisfied + required evidence + `CARD_QUALITY_GATE: PASS` + human closure/transition approval.
+**Closure Rule:** Full Card contract and exact Exit Gate satisfied + recorded required validation/security/CI results + independent review with blocking findings resolved + human closure/transition approval (§4; `AGENTS.md`).
 
 
 ## V1-C08 — Trade Flow & CVD
@@ -321,9 +335,9 @@ A gate label groups work. It does not authorize parallel execution.
 
 **Exit Gate:** Known trade sequences produce expected results; duplicate/late/reset behavior is defined and tested; no AI calculation path exists.
 
-**Start Rule:** Explicit human Card-start approval + dependency proof + `ROADMAP_ALIGNMENT_GATE: PASS`.
+**Start Rule:** Explicit human Card-start approval + dependency proof + documented contract/repository alignment review (§3.1).
 
-**Closure Rule:** Full Card contract satisfied + required evidence + `CARD_QUALITY_GATE: PASS` + human closure/transition approval.
+**Closure Rule:** Full Card contract and exact Exit Gate satisfied + recorded required validation/security/CI results + independent review with blocking findings resolved + human closure/transition approval (§4; `AGENTS.md`).
 
 
 ## V1-C09 — Derivatives & Volatility
@@ -334,9 +348,9 @@ A gate label groups work. It does not authorize parallel execution.
 
 **Exit Gate:** Formula fixtures pass; units/signs/intervals are verified; warm-up/missing/stale states are explicit; OI-dependent metrics use only verified canonical OI and otherwise remain unavailable with an explicit reason; no guessed provider semantics.
 
-**Start Rule:** Explicit human Card-start approval + dependency proof + `ROADMAP_ALIGNMENT_GATE: PASS`.
+**Start Rule:** Explicit human Card-start approval + dependency proof + documented contract/repository alignment review (§3.1).
 
-**Closure Rule:** Full Card contract satisfied + required evidence + `CARD_QUALITY_GATE: PASS` + human closure/transition approval.
+**Closure Rule:** Full Card contract and exact Exit Gate satisfied + recorded required validation/security/CI results + independent review with blocking findings resolved + human closure/transition approval (§4; `AGENTS.md`).
 
 
 ## V1-C10 — Market Regime, Crowding & Liquidation Context
@@ -347,9 +361,9 @@ A gate label groups work. It does not authorize parallel execution.
 
 **Exit Gate:** Regime/crowding rules are deterministic/versioned; insufficient data yields `UNKNOWN`; heuristic liquidation cannot become authoritative truth; no hidden probability.
 
-**Start Rule:** Explicit human Card-start approval + dependency proof + `ROADMAP_ALIGNMENT_GATE: PASS`.
+**Start Rule:** Explicit human Card-start approval + dependency proof + documented contract/repository alignment review (§3.1).
 
-**Closure Rule:** Full Card contract satisfied + required evidence + `CARD_QUALITY_GATE: PASS` + human closure/transition approval.
+**Closure Rule:** Full Card contract and exact Exit Gate satisfied + recorded required validation/security/CI results + independent review with blocking findings resolved + human closure/transition approval (§4; `AGENTS.md`).
 
 
 
@@ -365,9 +379,9 @@ A gate label groups work. It does not authorize parallel execution.
 
 **Exit Gate:** OPEN/INCREASE/REDUCE/CLOSE/FLIP/LIQUIDATION transitions are tested; realized/unrealized and current/activity views are separated; scoring is transparent/versioned; whales cannot authorize trades.
 
-**Start Rule:** Explicit human Card-start approval + dependency proof + `ROADMAP_ALIGNMENT_GATE: PASS`.
+**Start Rule:** Explicit human Card-start approval + dependency proof + documented contract/repository alignment review (§3.1).
 
-**Closure Rule:** Full Card contract satisfied + required evidence + `CARD_QUALITY_GATE: PASS` + human closure/transition approval.
+**Closure Rule:** Full Card contract and exact Exit Gate satisfied + recorded required validation/security/CI results + independent review with blocking findings resolved + human closure/transition approval (§4; `AGENTS.md`).
 
 
 ## V1-C12 — Macro Intelligence
@@ -378,9 +392,9 @@ A gate label groups work. It does not authorize parallel execution.
 
 **Exit Gate:** Source/timezone/actual/forecast/previous/revision and applicable ETF event/flow/AUM/volume handling are tested; duplicates/missing/stale/unavailable/unverified states and coverage gaps are explicit; macro or ETF evidence cannot bypass Risk Gate. Exact ETF flow providers remain pending until separately verified.
 
-**Start Rule:** Explicit human Card-start approval + dependency proof + `ROADMAP_ALIGNMENT_GATE: PASS`.
+**Start Rule:** Explicit human Card-start approval + dependency proof + documented contract/repository alignment review (§3.1).
 
-**Closure Rule:** Full Card contract satisfied + required evidence + `CARD_QUALITY_GATE: PASS` + human closure/transition approval.
+**Closure Rule:** Full Card contract and exact Exit Gate satisfied + recorded required validation/security/CI results + independent review with blocking findings resolved + human closure/transition approval (§4; `AGENTS.md`).
 
 
 ## V1-C13 — Primary-Source News Verification
@@ -391,9 +405,9 @@ A gate label groups work. It does not authorize parallel execution.
 
 **Exit Gate:** Fixtures prove CONFIRMED/PARTIALLY_CONFIRMED/UNVERIFIED/MISLEADING/FALSE/OUTDATED behavior for claims and applicable ETF official events; provenance is retained; external instructions cannot alter policy; numerical ETF flow/AUM/volume data is not misclassified as news.
 
-**Start Rule:** Explicit human Card-start approval + dependency proof + `ROADMAP_ALIGNMENT_GATE: PASS`.
+**Start Rule:** Explicit human Card-start approval + dependency proof + documented contract/repository alignment review (§3.1).
 
-**Closure Rule:** Full Card contract satisfied + required evidence + `CARD_QUALITY_GATE: PASS` + human closure/transition approval.
+**Closure Rule:** Full Card contract and exact Exit Gate satisfied + recorded required validation/security/CI results + independent review with blocking findings resolved + human closure/transition approval (§4; `AGENTS.md`).
 
 
 ## V1-C14 — Bedrock Provider & Structured Intelligence
@@ -404,9 +418,9 @@ A gate label groups work. It does not authorize parallel execution.
 
 **Exit Gate:** Valid/malformed/timeout/provider-error/missing-evidence cases are tested; output is schema-validated and evidence-linked; failures are explicit/fail-closed; AI cannot create or override risk authority.
 
-**Start Rule:** Explicit human Card-start approval + dependency proof + `ROADMAP_ALIGNMENT_GATE: PASS`.
+**Start Rule:** Explicit human Card-start approval + dependency proof + documented contract/repository alignment review (§3.1).
 
-**Closure Rule:** Full Card contract satisfied + required evidence + `CARD_QUALITY_GATE: PASS` + human closure/transition approval.
+**Closure Rule:** Full Card contract and exact Exit Gate satisfied + recorded required validation/security/CI results + independent review with blocking findings resolved + human closure/transition approval (§4; `AGENTS.md`).
 
 
 
@@ -422,10 +436,12 @@ A gate label groups work. It does not authorize parallel execution.
 
 **Exit Gate:** Same evidence yields same fusion result; stale/missing/contradicting evidence and relevant ETF coverage gaps remain visible; every contribution is traceable; `Alignment != probability`; missing ETF evidence is never directional evidence.
 
-**Start Rule:** Explicit human Card-start approval + dependency proof + `ROADMAP_ALIGNMENT_GATE: PASS`.
+**Start Rule:** Explicit human Card-start approval + dependency proof + documented contract/repository alignment review (§3.1).
 
-**Closure Rule:** Full Card contract satisfied + required evidence + `CARD_QUALITY_GATE: PASS` + human closure/transition approval.
+**Closure Rule:** Full Card contract and exact Exit Gate satisfied + recorded required validation/security/CI results + independent review with blocking findings resolved + human closure/transition approval (§4; `AGENTS.md`).
 
+
+**Phase 1 status clarification:** As already recorded in the Spec §7, the current official C15 Phase 1 contract is `TRAID_C15_PHASE1_CONTRACT_v3_6.md`; C15 is OPEN and Phase 1 is partial. Newer proposals are not automatically authoritative: activation requires documented independent review and explicit owner approval. Slice 1–5 merges do not prove the full C15 Exit Gate or authorize Slice 6 or C16. Future bounded work requires its own explicit owner authorization; full closure still requires the unchanged functional Exit Gate, actual validation/security/CI evidence, independent review and owner closure approval. This note grants no new approval.
 
 ## V1-C16 — Typed Strategy Engine
 
@@ -435,9 +451,9 @@ A gate label groups work. It does not authorize parallel execution.
 
 **Exit Gate:** Identical controlled inputs produce identical outputs; insufficient/stale required evidence, including applicable ETF gaps, yields `NO_SETUP`; market-valid Entry/invalidation/Stop/Target structure is preserved; rules/config are tested; no Bedrock call exists inside deterministic evaluation.
 
-**Start Rule:** Explicit human Card-start approval + dependency proof + `ROADMAP_ALIGNMENT_GATE: PASS`.
+**Start Rule:** Explicit human Card-start approval + dependency proof + documented contract/repository alignment review (§3.1).
 
-**Closure Rule:** Full Card contract satisfied + required evidence + `CARD_QUALITY_GATE: PASS` + human closure/transition approval.
+**Closure Rule:** Full Card contract and exact Exit Gate satisfied + recorded required validation/security/CI results + independent review with blocking findings resolved + human closure/transition approval (§4; `AGENTS.md`).
 
 
 ## V1-C17 — Deterministic Risk Gate
@@ -448,9 +464,9 @@ A gate label groups work. It does not authorize parallel execution.
 
 **Exit Gate:** Every rejection/boundary path, including fixed-2x/10%/20% policy and required-cost failures, is tested; stale/missing/invalid configuration fails closed; bypass tests pass; output is `TRADE_CANDIDATE|NO_TRADE` with existing reason codes and versioned policy; account balance and position sizing remain outside V1.
 
-**Start Rule:** Explicit human Card-start approval + dependency proof + `ROADMAP_ALIGNMENT_GATE: PASS`.
+**Start Rule:** Explicit human Card-start approval + dependency proof + documented contract/repository alignment review (§3.1).
 
-**Closure Rule:** Full Card contract satisfied + required evidence + `CARD_QUALITY_GATE: PASS` + human closure/transition approval.
+**Closure Rule:** Full Card contract and exact Exit Gate satisfied + recorded required validation/security/CI results + independent review with blocking findings resolved + human closure/transition approval (§4; `AGENTS.md`).
 
 
 ## V1-C18 — Backtest Engine Integration
@@ -461,9 +477,9 @@ A gate label groups work. It does not authorize parallel execution.
 
 **Exit Gate:** Tests prove no future access, explicit fill timing, fixed-policy reuse, fees, funding, slippage, applicable execution-cost handling, liquidation, `STOP FIRST`, cost-inclusive Net P&L reconciliation, deterministic rerun, gaps and incomplete-bar handling.
 
-**Start Rule:** Explicit human Card-start approval + dependency proof + `ROADMAP_ALIGNMENT_GATE: PASS`.
+**Start Rule:** Explicit human Card-start approval + dependency proof + documented contract/repository alignment review (§3.1).
 
-**Closure Rule:** Full Card contract satisfied + required evidence + `CARD_QUALITY_GATE: PASS` + human closure/transition approval.
+**Closure Rule:** Full Card contract and exact Exit Gate satisfied + recorded required validation/security/CI results + independent review with blocking findings resolved + human closure/transition approval (§4; `AGENTS.md`).
 
 
 ## V1-C19 — Outcome Tracking
@@ -474,9 +490,9 @@ A gate label groups work. It does not authorize parallel execution.
 
 **Exit Gate:** Candidate-to-outcome linkage, MFE/MAE and result fixtures pass; versions/evidence/config are retained; open/unresolved outcomes are explicit; original context is immutable.
 
-**Start Rule:** Explicit human Card-start approval + dependency proof + `ROADMAP_ALIGNMENT_GATE: PASS`.
+**Start Rule:** Explicit human Card-start approval + dependency proof + documented contract/repository alignment review (§3.1).
 
-**Closure Rule:** Full Card contract satisfied + required evidence + `CARD_QUALITY_GATE: PASS` + human closure/transition approval.
+**Closure Rule:** Full Card contract and exact Exit Gate satisfied + recorded required validation/security/CI results + independent review with blocking findings resolved + human closure/transition approval (§4; `AGENTS.md`).
 
 
 ## V1-C20 — Evaluation Registry
@@ -487,9 +503,9 @@ A gate label groups work. It does not authorize parallel execution.
 
 **Exit Gate:** One evaluation run identifies versions/data/config and measured results; failure/rejection/latency/cost/reproducibility metrics are recordable; evaluation is not anecdotal.
 
-**Start Rule:** Explicit human Card-start approval + dependency proof + `ROADMAP_ALIGNMENT_GATE: PASS`.
+**Start Rule:** Explicit human Card-start approval + dependency proof + documented contract/repository alignment review (§3.1).
 
-**Closure Rule:** Full Card contract satisfied + required evidence + `CARD_QUALITY_GATE: PASS` + human closure/transition approval.
+**Closure Rule:** Full Card contract and exact Exit Gate satisfied + recorded required validation/security/CI results + independent review with blocking findings resolved + human closure/transition approval (§4; `AGENTS.md`).
 
 
 
@@ -505,9 +521,9 @@ A gate label groups work. It does not authorize parallel execution.
 
 **Exit Gate:** Contract/degraded/invalid-request tests pass; provenance/quality/risk reasons and relevant ETF evidence/coverage gaps are available where relevant; no write/trade-execution endpoint exists.
 
-**Start Rule:** Explicit human Card-start approval + dependency proof + `ROADMAP_ALIGNMENT_GATE: PASS`.
+**Start Rule:** Explicit human Card-start approval + dependency proof + documented contract/repository alignment review (§3.1).
 
-**Closure Rule:** Full Card contract satisfied + required evidence + `CARD_QUALITY_GATE: PASS` + human closure/transition approval.
+**Closure Rule:** Full Card contract and exact Exit Gate satisfied + recorded required validation/security/CI results + independent review with blocking findings resolved + human closure/transition approval (§4; `AGENTS.md`).
 
 
 ## V1-C22 — Dashboard
@@ -518,9 +534,9 @@ A gate label groups work. It does not authorize parallel execution.
 
 **Exit Gate:** User can understand selected-asset state without raw logs/JSON; relevant ETF evidence and explicit ETF gaps, degraded state, contradiction, provenance and NO_TRADE reasons are visible; no execution controls exist.
 
-**Start Rule:** Explicit human Card-start approval + dependency proof + `ROADMAP_ALIGNMENT_GATE: PASS`.
+**Start Rule:** Explicit human Card-start approval + dependency proof + documented contract/repository alignment review (§3.1).
 
-**Closure Rule:** Full Card contract satisfied + required evidence + `CARD_QUALITY_GATE: PASS` + human closure/transition approval.
+**Closure Rule:** Full Card contract and exact Exit Gate satisfied + recorded required validation/security/CI results + independent review with blocking findings resolved + human closure/transition approval (§4; `AGENTS.md`).
 
 
 ## V1-C23 — Observability, Audit & Failure Recovery
@@ -531,9 +547,9 @@ A gate label groups work. It does not authorize parallel execution.
 
 **Exit Gate:** Disconnect/provider/AI/source/stale/process-restart failure scenarios are observable; decision audit links evidence/versions/results/reasons; recovery is bounded and does not hide degraded state.
 
-**Start Rule:** Explicit human Card-start approval + dependency proof + `ROADMAP_ALIGNMENT_GATE: PASS`.
+**Start Rule:** Explicit human Card-start approval + dependency proof + documented contract/repository alignment review (§3.1).
 
-**Closure Rule:** Full Card contract satisfied + required evidence + `CARD_QUALITY_GATE: PASS` + human closure/transition approval.
+**Closure Rule:** Full Card contract and exact Exit Gate satisfied + recorded required validation/security/CI results + independent review with blocking findings resolved + human closure/transition approval (§4; `AGENTS.md`).
 
 
 ## V1-C24 — Security & Secrets Hardening
@@ -544,9 +560,9 @@ A gate label groups work. It does not authorize parallel execution.
 
 **Exit Gate:** Secret scan/redaction/input/prompt-injection/permission tests pass; no trading credentials/private keys/execution endpoints exist; external/model content cannot become system authority.
 
-**Start Rule:** Explicit human Card-start approval + dependency proof + `ROADMAP_ALIGNMENT_GATE: PASS`.
+**Start Rule:** Explicit human Card-start approval + dependency proof + documented contract/repository alignment review (§3.1).
 
-**Closure Rule:** Full Card contract satisfied + required evidence + `CARD_QUALITY_GATE: PASS` + human closure/transition approval.
+**Closure Rule:** Full Card contract and exact Exit Gate satisfied + recorded required validation/security/CI results + independent review with blocking findings resolved + human closure/transition approval (§4; `AGENTS.md`).
 
 
 ## V1-C25 — Docker, CI & Release Gate
@@ -557,9 +573,9 @@ A gate label groups work. It does not authorize parallel execution.
 
 **Exit Gate:** Clean checkout builds/runs; Docker and CI pass required test/lint/type/security suites; financial/Risk/anti-lookahead/AI fail-closed failures block release; setup is documented.
 
-**Start Rule:** Explicit human Card-start approval + dependency proof + `ROADMAP_ALIGNMENT_GATE: PASS`.
+**Start Rule:** Explicit human Card-start approval + dependency proof + documented contract/repository alignment review (§3.1).
 
-**Closure Rule:** Full Card contract satisfied + required evidence + `CARD_QUALITY_GATE: PASS` + human closure/transition approval.
+**Closure Rule:** Full Card contract and exact Exit Gate satisfied + recorded required validation/security/CI results + independent review with blocking findings resolved + human closure/transition approval (§4; `AGENTS.md`).
 
 
 ## V1-C26 — Golden Case End-to-End Validation
@@ -570,9 +586,9 @@ A gate label groups work. It does not authorize parallel execution.
 
 **Exit Gate:** Stored evidence answers the ten Golden Case traceability questions; source→quality→analytics→evidence→AI→fusion→strategy→risk→UI→outcome→evaluation is replayable; degraded path fails safely.
 
-**Start Rule:** Explicit human Card-start approval + dependency proof + `ROADMAP_ALIGNMENT_GATE: PASS`.
+**Start Rule:** Explicit human Card-start approval + dependency proof + documented contract/repository alignment review (§3.1).
 
-**Closure Rule:** Full Card contract satisfied + required evidence + `CARD_QUALITY_GATE: PASS` + human closure/transition approval.
+**Closure Rule:** Full Card contract and exact Exit Gate satisfied + recorded required validation/security/CI results + independent review with blocking findings resolved + human closure/transition approval (§4; `AGENTS.md`).
 
 
 ## V1-C27 — V1 Documentation & Demo
@@ -583,9 +599,9 @@ A gate label groups work. It does not authorize parallel execution.
 
 **Exit Gate:** A new developer can set up, run, verify and understand V1 from repository docs; demo covers live data, quality, analytics, evidence, AI, fusion, strategy, risk, replay/backtest and outcomes; limitations are explicit.
 
-**Start Rule:** Explicit human Card-start approval + dependency proof + `ROADMAP_ALIGNMENT_GATE: PASS`.
+**Start Rule:** Explicit human Card-start approval + dependency proof + documented contract/repository alignment review (§3.1).
 
-**Closure Rule:** Full Card contract satisfied + required evidence + `CARD_QUALITY_GATE: PASS` + human closure/transition approval.
+**Closure Rule:** Full Card contract and exact Exit Gate satisfied + recorded required validation/security/CI results + independent review with blocking findings resolved + human closure/transition approval (§4; `AGENTS.md`).
 
 
 ---
